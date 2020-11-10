@@ -45,7 +45,8 @@ public:
 
   bool runOnModule(Module &M)
   {
-    ACT = &getAnalysis<AccessInfoTracker>();
+    // ACT = &getAnalysis<AccessInfoTracker>();
+    atomicOpWarningNum = 0;
     unsigned ptrInModule = countPtrInModule(M);
     errs() << "total pointer in module: " << ptrInModule << "\n";
     atomicRegionWarn.open("atomicRegionWarn.txt", std::ios::app);
@@ -183,7 +184,6 @@ public:
 
   void printWarningsForAtomicOperation(Module &M, std::set<Value *> ptrToSharedData)
   {
-    unsigned warningNum = 1;
     auto funcsNeedPDGConstruction = computeFunctionsNeedPDGConstruction(M);
     errs() << "func num need compute atomic warnings: "  << funcsNeedPDGConstruction.size() << "\n";
     for (auto func : funcsNeedPDGConstruction)
@@ -196,15 +196,15 @@ public:
         {
           auto modifiedAddrVar = instI->getOperand(0);
           if (ptrToSharedData.find(modifiedAddrVar) != ptrToSharedData.end())
-            warningNum++;
-          // printWarningForSharedVarInAtomicOperation(*modifiedAddrVar, *instI, *func, warningNum);
+          {
+            printWarningForSharedVarInAtomicOperation(*modifiedAddrVar, *instI, *func);
+          }
         }
       }
     }
-    atomicRegionWarn << "Warning Atomic Operation Num: " << warningNum << "\n";
   }
 
-  void printWarningForSharedVarInAtomicOperation(Value& modifiedAddrVar, Instruction& atomicOp, Function& F, unsigned warningNum)
+  void printWarningForSharedVarInAtomicOperation(Value& modifiedAddrVar, Instruction& atomicOp, Function& F)
   {
     auto disp = F.getSubprogram();
     if (!isa<Instruction>(&modifiedAddrVar))
@@ -213,12 +213,14 @@ public:
     std::string modifiedDataName = getModifiedDataName(i);
     if (modifiedDataName.empty())
       return;
+    atomicOpWarningNum++;
     errs() << " ------------------------------------------------------- \n";
-    errs() << "[WARNING " << warningNum << " | ATOMIC OPERATION ON SHARED DATA]: \n";
+    errs() << "[WARNING " << atomicOpWarningNum << " | ATOMIC OPERATION ON SHARED DATA]: \n";
     errs() << "Modify in " << disp->getFilename() << " in function " << F.getName() << "\n";
     errs() << "Modified Name: " << modifiedDataName << "\n";
     errs() << "Line Number: " << atomicOp.getDebugLoc()->getLine() << "\n";
-    errs() << "Modify instruction: " << atomicOp << "\n";
+    // errs() << "Modify instruction: " << atomicOp << "\n";
+    errs() << "Modify Var: " << *i << "\n";
     printExecutionTrace(F);
   }
 
@@ -865,74 +867,42 @@ public:
 
   std::string getModifiedDataName(Instruction *inst)
   {
-    std::stack<Instruction *> gepStk;
-    // while (inst && !isa<AllocaInst>(inst))
-    std::set<Instruction*> seenInsts;
-    while (inst && !isAllocaForArg(inst))
+    auto &pdgUtils = PDGUtils::getInstance();
+    auto instDITypeMap = pdgUtils.getInstDITypeMap();
+    // find alais for the inst
+    auto aliasInFunc = findAliasInFunc(*inst->getFunction(), *inst, *inst->getFunction());
+    std::string modifiedDataName = "";
+    for (auto alias : aliasInFunc)
     {
-      if (seenInsts.find(inst) != seenInsts.end())
-        break;
-      seenInsts.insert(inst);
-
-      if (isa<GetElementPtrInst>(inst))
-        gepStk.push(inst); // store all gep instruction seen by far
-      auto sourceVar = getDataFlowSourceVar(inst);
-      if (!sourceVar || !isa<Instruction>(sourceVar))
-        return "";  
-      inst = cast<Instruction>(sourceVar);
-    }
-    
-    if (inst == nullptr) return "";
-
-    Argument *arg = getArgByAlloc(inst);
-    // in this case, we can simply print out this inst as the shared data cannot be traced back to arg
-    if (!arg && inst != nullptr)
-      errs() << "No arg | "  << *inst << "\n";
-
-    // TODO: some back tracing goes to a alloca for non-arg IR variable. The reason is that some arg state is stored to some temporary IR variables. A step of alias analysis is needed here.
-    if (!arg) return "";
-
-    DIType *argDIType = DIUtils::getArgDIType(*arg);
-    DIType *dt = DIUtils::getLowestDIType(argDIType);
-    if (!dt || !DIUtils::isStructTy(dt))
-      return "";
-    while (!gepStk.empty())
-    {
-      Instruction *gep = gepStk.top();
-      gepStk.pop();
-      dt = DIUtils::getLowestDIType(dt);
-      if (!dt) return "";
-      if (!DIUtils::isStructTy(dt)) return "";
-      if (auto dicp = dyn_cast<DICompositeType>(dt))
+      if (Instruction *i = dyn_cast<Instruction>(alias))
       {
-        auto DINodeArr = dicp->getElements();
-        int gepOffset = getGepOffset(dyn_cast<GetElementPtrInst>(gep));
-        if (gepOffset >= DINodeArr.size())
-          return "";
-        if (auto tmpDIType = dyn_cast<DIType>(DINodeArr[gepOffset]))
-          dt = tmpDIType;
+        if (instDITypeMap.find(inst) != instDITypeMap.end())
+        {
+          auto instDIType = instDITypeMap[inst];
+          if (instDIType != nullptr)
+          {
+            std::string s = DIUtils::getDIFieldName(instDIType);
+            if (s == "no name")
+              continue;
+            modifiedDataName = s; 
+          }
+        }
       }
     }
-    std::string fieldID = DIUtils::computeFieldID(argDIType, dt);
-    std::string argTypeName = DIUtils::getDITypeName(argDIType);
-    // check if accessed field is included in the set of shared data
-    std::set<std::string> accessedFields = sharedDataTypeMap[argTypeName];
-    if (accessedFields.find(fieldID) == accessedFields.end())
-      return "";
-    std::string argIdx = std::to_string(arg->getArgNo());
-    std::string resStr = "[modifeid data name]: Arg Idx " + argIdx + " | " + argTypeName + "->" + DIUtils::getDIFieldName(dt);
-    return resStr;
+
+    return modifiedDataName;
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const
   {
     AU.addRequired<sea_dsa::DsaAnalysis>();
-    AU.addRequired<AccessInfoTracker>();
+    // AU.addRequired<AccessInfoTracker>();
     AU.setPreservesAll();
   }
 
 private:
   // sea_dsa::CompleteCallGraph *CCG;
+  unsigned atomicOpWarningNum;
   sea_dsa::DsaAnalysis *m_dsa;
   std::map<std::string, std::string> lockUnlockMap;
   std::set<Function *> kernelFunctions;

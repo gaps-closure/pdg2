@@ -34,6 +34,7 @@ class DIUtils
     static bool isUnionPointerTy(llvm::DIType *dt);
     static bool isStructTy(llvm::DIType *dt);
     static bool isFuncPointerTy(llvm::DIType *dt);
+    static bool isProjectableTy(llvm::DIType *dt);
     static llvm::DIType *stripMemberTag(llvm::DIType *dt);
     static llvm::DIType *getFuncDIType(llvm::Function* func);
     static llvm::DIType *getInstDIType(llvm::Instruction* inst, std::vector<llvm::DbgInfoIntrinsic*> dbgInstList);
@@ -43,7 +44,7 @@ class DIUtils
     // static std::set<std::string> computeSharedDataType(llvm::Module &M, std::set<llvm::Function *> crossDomainFunctions);
     static std::string computeFieldID(llvm::DIType *rootType, llvm::DIType *fieldType);
     static std::string getInvalidTypeStr(llvm::DIType *dt);
-    static bool isUnionType(llvm::DIType *dt);
+    static bool isUnionTy(llvm::DIType *dt);
     static bool isArrayType(llvm::DIType *dt);
     static bool actualArgHasAllocator(llvm::Function& F, unsigned argIdx);
     static bool isSentinelType(llvm::DIType* dt);

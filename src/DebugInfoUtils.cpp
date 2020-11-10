@@ -532,13 +532,14 @@ bool pdg::DIUtils::isFuncPointerTy(DIType *dt)
 {
   if (dt == nullptr)
     return false;
-  if (dt->getTag() == dwarf::DW_TAG_subroutine_type)
+  if (dt->getTag() == dwarf::DW_TAG_subroutine_type || isa<DISubroutineType>(dt))
     return true;
   dt = stripMemberTag(dt);
-  if (dt->getTag() == dwarf::DW_TAG_pointer_type) {
+  if (dt->getTag() == dwarf::DW_TAG_pointer_type)
+  {
     auto baseTy = getBaseDIType(dt);
     if (baseTy != nullptr)
-      return (getBaseDIType(dt)->getTag() == dwarf::DW_TAG_subroutine_type);
+      return (getBaseDIType(dt)->getTag() == dwarf::DW_TAG_subroutine_type) || isa<DISubroutineType>(baseTy);
   }
   return false;
 }
@@ -667,7 +668,7 @@ std::string pdg::DIUtils::getInvalidTypeStr(DIType* dt)
     DIType* dt = typeQ.front();
     typeQ.pop();
     // check for invalid type
-    if (isUnionType(dt))
+    if (isUnionTy(dt))
       return "union type";
 
     if (isArrayType(dt))
@@ -692,7 +693,7 @@ std::string pdg::DIUtils::getInvalidTypeStr(DIType* dt)
   return "";
 }
 
-bool pdg::DIUtils::isUnionType(DIType *dt)
+bool pdg::DIUtils::isUnionTy(DIType *dt)
 {
   if (dt == nullptr)
     return false;
@@ -747,7 +748,7 @@ unsigned pdg::DIUtils::computeTotalFieldNumberInStructType(DIType* dt)
     {
       DIType *fieldDIType = dyn_cast<DIType>(DINodeArr[i]);
       fieldDIType = getLowestDIType(fieldDIType);
-      if (isStructTy(fieldDIType) || isUnionType(fieldDIType))
+      if (isStructTy(fieldDIType) || isUnionTy(fieldDIType))
         workQ.push(fieldDIType);
     }
   }
@@ -782,6 +783,7 @@ std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Functi
       auto containedSharedTypes = computeContainedDerivedTypes(argDIType);
       for (auto dt : containedSharedTypes)
       {
+        //TODO: add function pointer handle
         if (isStructPointerTy(dt) || isStructTy(dt))
           sharedDITypes.insert(dt);
       }
@@ -833,13 +835,17 @@ bool pdg::DIUtils::isSentinelType(DIType* dt)
     DIType* curDIType = workQ.front();
     workQ.pop();
     DIType* lowestDIType = getLowestDIType(curDIType);
-    if (seenTypes.find(curDIType) != seenTypes.end())
+    if (isStructTy(lowestDIType))
     {
-      if (dt == curDIType)
+      if (seenStructs.find(lowestDIType) != seenStructs.end())
         return true;
-      continue;
+      seenStructs.insert(lowestDIType);
     }
+
+    if (seenTypes.find(curDIType) != seenTypes.end())
+      continue;
     seenTypes.insert(curDIType);
+
     auto DINodeArr = dyn_cast<DICompositeType>(lowestDIType)->getElements();
     for (unsigned i = 0; i < DINodeArr.size(); ++i)
     {
@@ -848,9 +854,14 @@ bool pdg::DIUtils::isSentinelType(DIType* dt)
       if (isStructTy(fieldDIType) ||
           isStructPointerTy(fieldDIType) ||
           isUnionPointerTy(fieldDIType) ||
-          isUnionType(fieldDIType))
+          isUnionTy(fieldDIType))
         workQ.push(fieldDIType);
     }
   }
   return false;
+}
+
+bool pdg::DIUtils::isProjectableTy(DIType *dt)
+{
+  return (isStructTy(dt) || isUnionTy(dt));
 }

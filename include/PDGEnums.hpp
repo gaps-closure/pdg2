@@ -10,6 +10,7 @@ enum class DependencyType
   DATA_GENERAL,
   DATA_DEF_USE,
   DATA_RAW,
+  DATA_RAW_REVERSE,
   DATA_READ,
   DATA_ALIAS,
   DATA_CALL_PARA,

@@ -284,6 +284,14 @@ namespace
       return ret;
     }
 
+    std::string truncateFuncVersionNum(std::string str)
+    {
+      auto deliPos = str.find('.');
+      if (deliPos == std::string::npos)
+        return str;
+      return str.substr(0, deliPos);
+    }
+
     bool runOnModule(Module &M)
     {
       module = &M;
@@ -332,9 +340,14 @@ namespace
 
       driver_globalvars.close();
       std::set<Function *> importedFuncs;
+      std::set<std::string> seenFuncNames;
       for (auto &F : M)
       {
         auto funcName = F.getName().str();
+        funcName = truncateFuncVersionNum(funcName);
+        if (seenFuncNames.find(funcName) != seenFuncNames.end())
+          continue;
+        seenFuncNames.insert(funcName);
 
         if (F.isIntrinsic())
           continue;

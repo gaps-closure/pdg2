@@ -342,9 +342,13 @@ std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
   static_func.close();
 
   // init module function
-  auto initFunc = M.getFunction("dummy_init_module");
-  if (initFunc != nullptr)
+  auto initFuncs = computeModuleInitFuncs(M);
+  for (auto initFunc : initFuncs)
+  {
+    // auto initFuncTrans = computeTransitiveClosure(*initFunc);
     crossDomainFuncs.insert(initFunc);
+  }
+
   return crossDomainFuncs;
 }
 
@@ -377,6 +381,59 @@ std::set<Function *> pdg::PDGUtils::computeTransitiveClosure(Function &F)
   return transClosure;
 }
 
+std::set<Function *> pdg::PDGUtils::computeAsyncFuncs(Module &M)
+{
+  auto crossDomainFuncs = computeCrossDomainFuncs(M);
+  auto kernelDomainFuncs = computeKernelDomainFuncs(M);
+  auto driverDomainFuncs = computeDriverDomainFuncs(M);
+  auto driverExportFuncPtrNameMap = computeDriverExportFuncPtrNameMap();
+  std::set<Function *> asynCalls;
+  // interate through all call instructions and determine all the possible call targets.
+  std::set<Function *> calledFuncs;
+  for (Function &F : M)
+  {
+    if (F.isDeclaration() || F.empty())
+      continue;
+    auto funcW = G_funcMap[&F];
+    auto callInstList = funcW->getCallInstList();
+    for (auto callInst : callInstList)
+    {
+      Function *calledFunc = dyn_cast<Function>(callInst->getCalledValue()->stripPointerCasts());
+      // direct call
+      if (calledFunc != nullptr)
+        calledFuncs.insert(calledFunc);
+    }
+  }
+
+  // driver export functions, assume to be called from kernel to driver
+  for (auto pair : driverExportFuncPtrNameMap)
+  {
+    Function *f = M.getFunction(pair.first);
+    if (f != nullptr)
+      calledFuncs.insert(f);
+  }
+
+  // determien if transitive closure of uncalled functions contains cross-domain functions
+  std::set<Function *> searchDomain;
+  searchDomain.insert(kernelDomainFuncs.begin(), kernelDomainFuncs.end());
+  searchDomain.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
+  for (auto &F : M)
+  {
+    if (F.isDeclaration() || F.empty())
+      continue;
+    if (calledFuncs.find(&F) != calledFuncs.end())
+      continue;
+    if (F.getName().find("init_module") != std::string::npos || F.getName().find("cleanup_module") != std::string::npos)
+      continue;
+    std::set<Function *> transitiveFuncs = getTransitiveClosureInDomain(F, searchDomain);
+    for (auto f : transitiveFuncs)
+    {
+      asynCalls.insert(f);
+    }
+  }
+  return asynCalls;
+}
+
 std::set<std::string> pdg::PDGUtils::computeDriverExportFuncPtrName()
 {
   // compute a set of pointer pointer name provided by the driver side
@@ -407,10 +464,11 @@ std::map<std::string, std::string> pdg::PDGUtils::computeDriverExportFuncPtrName
 }
 
 // compute trasitive closure
-std::set<Function *> pdg::PDGUtils::getTransitiveClosureInDomain(Function &F, std::set<Function *> searchDomain)
+std::set<Function *> pdg::PDGUtils::getTransitiveClosureInDomain(Function &F, std::set<Function *> &searchDomain)
 {
   std::set<Function *> transClosure;
   std::queue<Function *> funcQ;
+  transClosure.insert(&F);
   funcQ.push(&F);
 
   while (!funcQ.empty())
@@ -420,19 +478,42 @@ std::set<Function *> pdg::PDGUtils::getTransitiveClosureInDomain(Function &F, st
     auto callInstList = G_funcMap[func]->getCallInstList();
     for (auto ci : callInstList)
     {
-      if (ci->getCalledFunction() == nullptr) // indirect call
-        continue;
-      Function *calledF = ci->getCalledFunction();
-      if (calledF->isDeclaration() || calledF->empty())
-        continue;
-      if (searchDomain.find(calledF) == searchDomain.end()) // skip if not in the receiver domain
-        continue;
-      if (transClosure.find(calledF) != transClosure.end()) // skip if we already added the called function to queue.
-        continue;
-      transClosure.insert(calledF);
-      funcQ.push(calledF);
+      if (Function *calledF = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
+      {
+        if (calledF == nullptr || calledF->isDeclaration() || calledF->empty())
+          continue;
+        if (searchDomain.find(calledF) == searchDomain.end()) // skip if not in the receiver domain
+          continue;
+        if (transClosure.find(calledF) != transClosure.end()) // skip if we already added the called function to queue.
+          continue;
+        transClosure.insert(calledF);
+        funcQ.push(calledF);
+      }
     }
   }
 
   return transClosure;
+}
+
+std::set<Function *> pdg::PDGUtils::computeModuleInitFuncs(Module &M)
+{
+  std::set<Function *> initFuncs;
+  for (auto &F : M)
+  {
+    if (F.isDeclaration() || F.empty())
+      continue;
+    if (F.getName().str().find("init") != std::string::npos)
+      initFuncs.insert(&F);
+    if (F.getName().str().find("main") != std::string::npos)
+      initFuncs.insert(&F);
+    // TODO: use the section prefix information to identify init function. (llvm 5.0 not working for this case)
+    // if (!F.getSectionPrefix().hasValue())
+    //   continue;
+    // auto funcSectionText = F.getSectionPrefix()->str();
+    // if (funcSectionText.find("init.text") != std::string::npos)
+    // {
+    //   initFuncs.insert(&F);
+    // }
+  }
+  return initFuncs;
 }

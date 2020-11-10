@@ -58,10 +58,6 @@ bool pdg::DataDependencyGraph::isMustAlias(Value &V1, Value &V2, Function &F)
   auto const &c2 = G->getCell(V2);
   auto const &s1 = c1.getNode()->getAllocSites();
   auto const &s2 = c2.getNode()->getAllocSites();
-  // if (s1 == s2 && F.getName() == "__register_chrdev")
-  // {
-  //   errs() << "find alias: " << V1 << " - " << V2 << "\n";
-  // }
   return (s1 == s2 && c1.getOffset() == c2.getOffset() && V1.getType() == V2.getType());
 }
 
@@ -124,10 +120,13 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
     {
       if (I1 == I2)
         continue;
+      // TODO: potential causes of underapproximation.
       if (auto gep = dyn_cast<GetElementPtrInst>(&*I2))
         continue;
-      if (isMustAlias(*I1, *I2, *Func))
+      if (isMayAlias(*I1, *I2, *Func))
+      {
         DDG->addDependency(instMap[&*I1], instMap[&*I2], DependencyType::DATA_ALIAS);
+      }
     }
   }
 }
@@ -168,17 +167,6 @@ void pdg::DataDependencyGraph::collectDefUseDependency(llvm::Instruction *inst)
                          DependencyType::DATA_DEF_USE);
     }
   }
-  // for (Instruction::const_op_iterator cuit = inst->op_begin();
-  //      cuit != inst->op_end(); ++cuit)
-  // {
-  //   if (Instruction *pInst = dyn_cast<Instruction>(*cuit))
-  //   {
-  //     // add info flow from the instruction to current instruction
-  //     DDG->addDependency(PDGUtils::getInstance().getInstMap()[pInst],
-  //                        PDGUtils::getInstance().getInstMap()[inst],
-  //                        DependencyType::DATA_DEF_USE);
-  //   }
-  // }
 }
 
 void pdg::DataDependencyGraph::collectCallInstDependency(llvm::Instruction *inst)
@@ -206,7 +194,6 @@ std::vector<Instruction *> pdg::DataDependencyGraph::getRAWDepList(Instruction *
   std::vector<StoreInst *> StoreVec = PDGUtils::getInstance().getFuncMap()[Func]->getStoreInstList();
   // for each Load Instruction, find related Store Instructions(alias considered)
   LoadInst *LI = dyn_cast<LoadInst>(pLoadInst);
-  // MemoryLocation LI_Loc = MemoryLocation::get(LI);
   for (StoreInst *SI : StoreVec)
   {
     if (SI->getPointerOperand() == LI->getPointerOperand())
@@ -232,6 +219,10 @@ void pdg::DataDependencyGraph::collectRAWDependency(llvm::Instruction *inst)
     DDG->addDependency(PDGUtils::getInstance().getInstMap()[flowdep_set[i]],
                        PDGUtils::getInstance().getInstMap()[inst],
                        DependencyType::DATA_RAW);
+    // reverse edge
+    DDG->addDependency(PDGUtils::getInstance().getInstMap()[inst],
+                       PDGUtils::getInstance().getInstMap()[flowdep_set[i]],
+                       DependencyType::DATA_RAW_REVERSE);
   }
 
   flowdep_set.clear();

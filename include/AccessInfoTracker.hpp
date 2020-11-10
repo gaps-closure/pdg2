@@ -21,12 +21,13 @@ public:
   void printRetValueAccessInfo(llvm::Function &Func);
   void getIntraFuncReadWriteInfoForRetVal(CallWrapper *callW);
   void computeFuncAccessInfo(llvm::Function &F);
+  void computeGlobalVarsAccessInfo();
   void computeFuncAccessInfoBottomUp(llvm::Function &F);
   std::vector<llvm::Function *> computeBottomUpCallChain(llvm::Function &F);
   void computeArgAccessInfo(ArgumentWrapper *argW, TreeType treeTy);
   void computeIntraprocArgAccessInfo(ArgumentWrapper *argW, llvm::Function &F);
   void computeInterprocArgAccessInfo(ArgumentWrapper *argW, llvm::Function &F);
-  std::map<std::string, AccessType> computeInterprocAccessedFieldMap(llvm::Function &callee, unsigned argNo);
+  std::map<std::string, AccessType> computeInterprocAccessedFieldMap(llvm::Function &callee, unsigned argNo, llvm::DIType* parentType);
   std::string getRegisteredFuncPtrName(std::string funcName);
   std::set<llvm::Value *> findAliasInDomainWithOffset(llvm::Value &V, llvm::Function &F, unsigned offset, std::set<llvm::Function *> receiverDomainTrans);
   std::set<llvm::Value *> findAliasInDomain(llvm::Value &V, llvm::Function &F, std::set<llvm::Function *> domainTransitiveClosure);
@@ -40,11 +41,15 @@ public:
   void printArgAccessInfo(ArgumentWrapper *argW, TreeType ty);
   void generateIDLForCallInsts(llvm::Function &F);
   void generateIDLforFunc(llvm::Function &F);
+  void generateSyncDataStubAtFuncEnd(llvm::Function &F);
   void generateIDLforFuncPtr(llvm::Type* ty, std::string funcName, llvm::Function& F);
   void generateIDLforFuncPtrWithDI(llvm::DIType *funcDIType, llvm::Module *module, std::string funcPtrName);
   void generateRpcForFunc(llvm::Function &F);
   void generateIDLForCallInstW(CallWrapper *CW);
-  void generateIDLforArg(ArgumentWrapper *argW, TreeType ty, std::string funcName = "", bool handleFuncPtr = false);
+  // void generateIDLforArg(ArgumentWrapper *argW, TreeType ty, std::string funcName = "", bool handleFuncPtr = false);
+  void generateIDLforArg(ArgumentWrapper *argW);
+  void generateProjectionForTreeNode(tree<InstructionWrapper *>::iterator treeI, llvm::raw_string_ostream &OS, llvm::DIType *argDIType);
+  void generateProjectionForGlobalVarInFunc(tree<InstructionWrapper *>::iterator treeI, llvm::raw_string_ostream &OS, llvm::DIType *argDIType, llvm::Function& func);
   tree<InstructionWrapper *>::iterator generateIDLforStructField(ArgumentWrapper *argW, int subtreeSize, tree<InstructionWrapper *>::iterator treeI, std::stringstream &ss, TreeType ty);
   std::string getArgAccessInfo(llvm::Argument &arg);
   std::string getAllocAttribute(std::string projStr, bool isPassedToCallee);
@@ -58,7 +63,7 @@ public:
   void inferAsynchronousCalledFunction(std::set<llvm::Function *> crossDomainFuncs);
   bool isChildFieldShared(llvm::DIType* argDIType, llvm::DIType* fieldDIType);
   ProgramDependencyGraph *_getPDG() { return PDG; }
-  std::map<std::string, std::set<std::string>> getSharedDataTypeMap() { return sharedDataTypeMap; }
+  std::unordered_map<std::string, std::set<std::string>> getSharedDataTypeMap() { return sharedDataTypeMap; }
   std::string getReturnAttributeStr(llvm::Function &F);
   bool mayAlias(llvm::Value &V1, llvm::Value &V2, llvm::Function &F);
   std::set<llvm::Instruction *> getIntraFuncAlias(llvm::Instruction *inst);
@@ -67,9 +72,11 @@ public:
   std::string switchIndirectCalledPtrName(std::string funcptr);
   std::string inferFieldAnnotation(InstructionWrapper* instW);
   bool voidPointerHasMultipleCasts(InstructionWrapper *voidPtrW);
+  void setupStrOpsMap();
   void initializeNumStats();
   unsigned computeUsedGlobalNumInDriver();
   void printNumStats();
+  void printAsyncCalls();
 
 private:
   ProgramDependencyGraph *PDG;
@@ -84,11 +91,12 @@ private:
   std::set<llvm::Function*> asyncCalls;
   std::map<std::string, std::string> driverExportFuncPtrNameMap;
   std::set<std::string> usedCallBackFuncs;
-  std::map<std::string, std::set<std::string>> sharedDataTypeMap;
-  std::map<std::string, llvm::DIType*> diTypeNameMap;
-  std::map<std::string, AccessType> globalFieldAccessInfo;
+  std::unordered_map<std::string, std::set<std::string>> sharedDataTypeMap;
+  std::unordered_map<std::string, llvm::DIType*> diTypeNameMap;
+  std::unordered_map<std::string, AccessType> globalFieldAccessInfo;
   std::set<std::string> seenFuncOps;
   std::set<std::string> stringOperations;
+  std::set<llvm::Function*> asyncCallAccessedSharedData;
   bool crossBoundary; // indicate whether transitive closure cross two domains
   unsigned numEliminatedPrivateFields;
   unsigned totalNumOfFields;
@@ -104,6 +112,7 @@ private:
   unsigned arrayNum;
   unsigned unHandledArrayNum;
   unsigned stringNum;
+  unsigned concurrentFieldsNum;
 };
 
 std::string getAccessAttributeName(tree<InstructionWrapper *>::iterator treeI);

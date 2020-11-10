@@ -37,12 +37,12 @@ class PDGUtils final
       return pdgUtils;
     };
 
-    std::map<const llvm::Instruction *, InstructionWrapper *> &getInstMap() { return G_instMap; }
+    std::unordered_map<const llvm::Instruction *, InstructionWrapper *> &getInstMap() { return G_instMap; }
     std::set<InstructionWrapper *> &getGlobalInstsSet() { return G_globalInstsSet; }
-    std::map<const llvm::Function *, std::set<InstructionWrapper *>> &getFuncInstWMap() { return G_funcInstWMap; }
-    std::map<const llvm::Function *, FunctionWrapper *> &getFuncMap() { return G_funcMap; }
-    std::map<const llvm::CallInst *, CallWrapper *> &getCallMap() { return G_callMap; }
-    std::map<const llvm::Instruction *, llvm::DIType *> &getInstDITypeMap() { return G_InstDITypeMap; }
+    std::unordered_map<const llvm::Function *, std::set<InstructionWrapper *>> &getFuncInstWMap() { return G_funcInstWMap; }
+    std::unordered_map<const llvm::Function *, FunctionWrapper *> &getFuncMap() { return G_funcMap; }
+    std::unordered_map<const llvm::CallInst *, CallWrapper *> &getCallMap() { return G_callMap; }
+    std::unordered_map<const llvm::Instruction *, llvm::DIType *> &getInstDITypeMap() { return G_InstDITypeMap; }
     void collectGlobalInsts(llvm::Module &M);
     void categorizeInstInFunc(llvm::Function &F);
     void constructInstMap(llvm::Function &F);
@@ -55,10 +55,12 @@ class PDGUtils final
     std::set<llvm::Function *> computeDriverDomainFuncs(llvm::Module &M);
     std::set<llvm::Function *> computeKernelDomainFuncs(llvm::Module &M);
     std::set<llvm::Function *> computeTransitiveClosure(llvm::Function &F);
+    std::set<llvm::Function *> computeAsyncFuncs(llvm::Module &M);
+    std::set<llvm::Function *> computeModuleInitFuncs(llvm::Module &M);
     std::set<std::string> computeDriverExportFuncPtrName();
     std::set<std::string> getBlackListFuncs();
     std::map<std::string, std::string> computeDriverExportFuncPtrNameMap();
-    std::set<llvm::Function *> getTransitiveClosureInDomain(llvm::Function &F, std::set<llvm::Function *> searchDomain);
+    std::set<llvm::Function *> getTransitiveClosureInDomain(llvm::Function &F, std::set<llvm::Function *> &searchDomain);
     // building debugging info types
     llvm::DIType* getInstDIType(llvm::Instruction* inst);
     llvm::StructType *getStructTypeFromGEP(llvm::Instruction *inst);
@@ -70,12 +72,12 @@ class PDGUtils final
 
 
   private:
-    std::map<const llvm::Instruction *, InstructionWrapper *> G_instMap;
-    std::map<const llvm::Instruction *, llvm::DIType *> G_InstDITypeMap;
+    std::unordered_map<const llvm::Instruction *, InstructionWrapper *> G_instMap;
+    std::unordered_map<const llvm::Instruction *, llvm::DIType *> G_InstDITypeMap;
     std::set<InstructionWrapper *> G_globalInstsSet;
-    std::map<const llvm::Function *, std::set<InstructionWrapper *>> G_funcInstWMap;
-    std::map<const llvm::Function *, FunctionWrapper *> G_funcMap;
-    std::map<const llvm::CallInst *, CallWrapper *> G_callMap;
+    std::unordered_map<const llvm::Function *, std::set<InstructionWrapper *>> G_funcInstWMap;
+    std::unordered_map<const llvm::Function *, FunctionWrapper *> G_funcMap;
+    std::unordered_map<const llvm::CallInst *, CallWrapper *> G_callMap;
     sea_dsa::DsaAnalysis *m_dsa;
 };
 } // namespace pdg

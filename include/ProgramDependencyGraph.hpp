@@ -38,7 +38,9 @@ public:
   void drawActualParameterTree(llvm::CallInst *CI, TreeType treeTy);
   void buildFormalTreeForFunc(llvm::Function *Func);
   void buildFormalTreeForArg(llvm::Argument &arg, TreeType treeTy);
+  llvm::DIType *findCastedDIType(llvm::Argument &arg);
   InstructionWrapper *buildPointerTreeNodeWithDI(llvm::Value &val, InstructionWrapper &parentTreeNodeW, tree<InstructionWrapper *> &objectTree, llvm::DIType &curDIType);
+  void collectSharedGlobalVars(std::set<llvm::Function *> &driverDomainFuncs, std::set<llvm::Function *> &kernelDomainFuncs);
   void buildObjectTreeForGlobalVars();
   void buildObjectTreeForGlobalVar(llvm::GlobalVariable &GV, llvm::DIType &DI);
   bool hasRecursiveType(ArgumentWrapper *argW, tree<InstructionWrapper *>::iterator insert_loc);
@@ -78,6 +80,7 @@ public:
   bool nameMatch(std::string str1, std::string str2);
   tree<InstructionWrapper *>::iterator getInstInsertLoc(ArgumentWrapper *argW, InstructionWrapper *tyW, TreeType treeTy);
   tree<InstructionWrapper *>::iterator getTreeNodeInsertLoc(tree<InstructionWrapper *> &objectTree, InstructionWrapper *treeW);
+  std::set<llvm::GlobalVariable *> getSharedGlobalVars() { return sharedGlobalVars; }
   //  dep printer related functions
   std::vector<DependencyNode<InstructionWrapper> *> getNodeSet() { return PDG->getNodeSet(); }
   DependencyGraph<InstructionWrapper> *_getPDG() { return PDG; }
@@ -96,10 +99,9 @@ private:
   DependencyGraph<InstructionWrapper> *PDG;
   // ControlDependencyGraph *cdg;
   // DataDependencyGraph *ddg;
-  std::vector<llvm::Instruction*> lockCallSites;
-  std::set<std::string> lockCallNameList;
   std::map<llvm::GlobalVariable*, tree<InstructionWrapper*>> globalObjectTrees;
   std::map<llvm::DIType*, tree<InstructionWrapper*>> globalTypeTrees;
+  std::set<llvm::GlobalVariable *> sharedGlobalVars;
   unsigned unsafeTypeCastNum;
 };
 } // namespace pdg
