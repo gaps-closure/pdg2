@@ -37,12 +37,12 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   sea_dsa::DsaAnalysis *m_dsa = &getAnalysis<sea_dsa::DsaAnalysis>();
   pdgUtils.setDsaAnalysis(m_dsa);
   // compute a set of functions that need PDG construction
-  auto funcsNeedPDGConstruction = computeFunctionsNeedPDGConstruction(M);
-  auto asynCalledFuncs = pdgUtils.computeAsyncFuncs(M);
-  funcsNeedPDGConstruction.insert(asynCalledFuncs.begin(), asynCalledFuncs.end());
-  auto driverDomainFuncs = pdgUtils.computeDriverDomainFuncs(M);
-  auto kernelDomainFuncs = pdgUtils.computeKernelDomainFuncs(M);
-  funcsNeedPDGConstruction.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
+  std::set<Function*> funcsNeedPDGConstruction;
+  pdgUtils.computeCrossDomainTransFuncs(M, funcsNeedPDGConstruction);
+  // computeFunctionsNeedPDGConstruction(M);
+  // auto asynCalledFuncs = pdgUtils.computeAsyncFuncs(M);
+  // funcsNeedPDGConstruction.insert(asynCalledFuncs.begin(), asynCalledFuncs.end());
+  // funcsNeedPDGConstruction.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
   errs() << "Num of functions need PDG construction: " << funcsNeedPDGConstruction.size() << "\n";
   unsigned totalFuncInModule = 0;
   // start building pdg for each function
@@ -56,10 +56,13 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   errs() << "total num of func in module: " << totalFuncInModule << "\n";
   errs()  << "Finish PDG Construction\n";
   auto sharedTypes = DIUtils::collectSharedDITypes(M, pdgUtils.computeCrossDomainFuncs(M));
-  collectSharedGlobalVars(driverDomainFuncs, kernelDomainFuncs);
-  errs() << "shared global var size: " << sharedGlobalVars.size() << "\n";
-  buildObjectTreeForGlobalVars();
-  connectGlobalObjectTreeWithAddressVars(funcsNeedPDGConstruction);
+  errs() << "number of found shared type: " << sharedTypes.size() << "\n";
+  auto driverDomainFuncs = pdgUtils.computeDriverDomainFuncs(M);
+  auto kernelDomainFuncs = pdgUtils.computeKernelDomainFuncs(M);
+  // collectSharedGlobalVars(driverDomainFuncs, kernelDomainFuncs);
+  // errs() << "shared global var size: " << sharedGlobalVars.size() << "\n";
+  // buildObjectTreeForGlobalVars();
+  // connectGlobalObjectTreeWithAddressVars(funcsNeedPDGConstruction);
   errs() << "finish connecting global trees with users\n";
   buildGlobalTypeTrees(sharedTypes);
   connectGlobalTypeTreeWithAddressVars(funcsNeedPDGConstruction);
@@ -516,6 +519,8 @@ DIType *pdg::ProgramDependencyGraph::findCastedDIType(Argument &arg)
   auto funcW = funcMap[arg.getParent()];
   std::set<Value*> argAliasSet;
   auto argAlloc = getArgAllocaInst(arg);
+  if (!argAlloc)
+    return nullptr;
   for (auto user : argAlloc->users())
   {
     if (LoadInst *li = dyn_cast<LoadInst>(user))

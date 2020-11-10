@@ -388,6 +388,22 @@ std::set<Function *> pdg::PDGUtils::computeTransitiveClosure(Function &F)
   return transClosure;
 }
 
+void pdg::PDGUtils::computeCrossDomainTransFuncs(Module &M, std::set<Function *> &crossDomainTransFuncs)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto crossDomainFuncs = pdgUtils.computeCrossDomainFuncs(M);
+  assert(crossDomainFuncs.size() != 0 && "no boundary functions are found...");
+
+  // compute transitive closure
+  for (Function *f : crossDomainFuncs)
+  {
+    if (f->isDeclaration() || f->empty())
+      continue;
+    auto transFuncs = pdgUtils.computeTransitiveClosure(*f);
+    crossDomainTransFuncs.insert(transFuncs.begin(), transFuncs.end());
+  }
+}
+
 std::set<Function *> pdg::PDGUtils::computeAsyncFuncs(Module &M)
 {
   auto crossDomainFuncs = computeCrossDomainFuncs(M);

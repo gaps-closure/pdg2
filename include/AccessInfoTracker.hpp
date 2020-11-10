@@ -73,6 +73,7 @@ public:
   std::string inferFieldAnnotation(InstructionWrapper* instW);
   bool voidPointerHasMultipleCasts(InstructionWrapper *voidPtrW);
   void setupStrOpsMap();
+  void setupAllocatorMap();
   void initializeNumStats();
   unsigned computeUsedGlobalNumInDriver();
   void printNumStats();
@@ -96,6 +97,7 @@ private:
   std::unordered_map<std::string, AccessType> globalFieldAccessInfo;
   std::set<std::string> seenFuncOps;
   std::set<std::string> stringOperations;
+  std::set<std::string> allocatorMap;
   std::set<llvm::Function*> asyncCallAccessedSharedData;
   bool crossBoundary; // indicate whether transitive closure cross two domains
   unsigned numEliminatedPrivateFields;

@@ -55,6 +55,7 @@ class PDGUtils final
     std::set<llvm::Function *> computeDriverDomainFuncs(llvm::Module &M);
     std::set<llvm::Function *> computeKernelDomainFuncs(llvm::Module &M);
     std::set<llvm::Function *> computeTransitiveClosure(llvm::Function &F);
+    void computeCrossDomainTransFuncs(llvm::Module &M, std::set<llvm::Function *> &crossDomainTransFuncs);
     std::set<llvm::Function *> computeAsyncFuncs(llvm::Module &M);
     std::set<llvm::Function *> computeModuleInitFuncs(llvm::Module &M);
     std::set<std::string> computeDriverExportFuncPtrName();

@@ -33,7 +33,7 @@ namespace pdg
       atomicOpWarningNum = 0;
       // setups
       setupLockPairMap();
-      computeCrossDomainTransFuncs(M);
+      pdgUtils.computeCrossDomainTransFuncs(M, crossDomainTransFuncs);
       // computeAsyncFuncs(M);
       computePtrToSharedData(pdgUtils.computeCrossDomainFuncs(M), M);
       CSWarningFile.open("CSWarning.txt");
@@ -56,21 +56,6 @@ namespace pdg
       lockPairMap.insert(std::make_pair("global_lock", "global_unlock"));
     }
 
-    void computeCrossDomainTransFuncs(Module &M)
-    {
-      auto &pdgUtils = PDGUtils::getInstance();
-      auto crossDomainFuncs = pdgUtils.computeCrossDomainFuncs(M);
-      assert(crossDomainFuncs.size() != 0 && "no boundary functions are found...");
-
-      // compute transitive closure
-      for (Function *f : crossDomainFuncs)
-      {
-        if (f->isDeclaration() || f->empty())
-          continue;
-        auto transFuncs = pdgUtils.computeTransitiveClosure(*f);
-        crossDomainTransFuncs.insert(transFuncs.begin(), transFuncs.end());
-      }
-    }
 
     // void computeAsyncFuncs(Module &M)
     // {

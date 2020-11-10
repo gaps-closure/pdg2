@@ -21,6 +21,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   // asyncCalls = PDG->inferAsynchronousCalledFunction();
   // counter for how many field we eliminate using shared data
   setupStrOpsMap();
+  setupAllocatorMap();
   privateDataSize = 0;
   savedSyncDataSize = 0;
   numProjectedFields = 0;
@@ -32,7 +33,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   idl_file << "module kernel"
            << " {\n";
   computeSharedData();
-  computeGlobalVarsAccessInfo();
+  // computeGlobalVarsAccessInfo();
   for (Function *F : crossDomainFuncCalls)
   {
     if (F->isDeclaration() || F->empty())
@@ -55,6 +56,14 @@ void pdg::AccessInfoTracker::setupStrOpsMap()
   stringOperations.insert("strlcpy");
   stringOperations.insert("strcmp");
   stringOperations.insert("strncmp");
+}
+
+void pdg::AccessInfoTracker::setupAllocatorMap()
+{
+  allocatorMap.insert("kmalloc");
+  allocatorMap.insert("malloc");
+  allocatorMap.insert("zalloc");
+  allocatorMap.insert("kzalloc");
 }
 
 void pdg::AccessInfoTracker::initializeNumStats()
@@ -1381,6 +1390,16 @@ std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *ins
                 return retStr;
               }
             }
+          }
+        }
+
+        // alloc callee annotation
+        if (StoreInst *si = dyn_cast<StoreInst>(depInst))
+        {
+          if (CallInst *ci = dyn_cast<CallInst>(si->getValueOperand()))
+          {
+            if (allocatorMap.find(ci->getCalledFunction()->getName().str()) != allocatorMap.end())
+              return "[alloc(callee)] [out]";
           }
         }
 
