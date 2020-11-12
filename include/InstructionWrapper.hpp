@@ -15,143 +15,154 @@
 namespace pdg
 {
 class InstructionWrapper {
-  public:
-    InstructionWrapper(GraphNodeType nodetype)
-    {
-      this->Inst = nullptr;
-      this->Func = nullptr;
-      this->BB = nullptr;
-      this->value = nullptr;
-      this->nodetype = nodetype;
-      this->isVisited = false;
-      this->access_type = AccessType::NOACCESS;
-    }
-    
-    InstructionWrapper(llvm::Function *Func, GraphNodeType nodetype)
-    {
-      this->Inst = nullptr;
-      this->Func = Func;
-      this->BB = nullptr;
-      this->value = nullptr;
-      this->nodetype = nodetype;
-      this->isVisited = false;
-      this->access_type = AccessType::NOACCESS;
-    }
+public:
+  InstructionWrapper(GraphNodeType nodetype)
+  {
+    this->Inst = nullptr;
+    this->Func = nullptr;
+    this->BB = nullptr;
+    this->value = nullptr;
+    this->nodetype = nodetype;
+    this->isVisited = false;
+    this->access_type = AccessType::NOACCESS;
+    this->isShared = false;
+  }
 
-    InstructionWrapper(llvm::Instruction *Inst, GraphNodeType nodeType)
-    {
-      this->Inst = Inst;
-      this->Func = Inst->getFunction();
-      this->BB = Inst->getParent();
-      this->value = llvm::cast<llvm::Value>(Inst);
-      this->nodetype = nodeType;
-      this->isVisited = false;
-      this->access_type = AccessType::NOACCESS;
-    }
+  InstructionWrapper(llvm::Function *Func, GraphNodeType nodetype)
+  {
+    this->Inst = nullptr;
+    this->Func = Func;
+    this->BB = nullptr;
+    this->value = nullptr;
+    this->nodetype = nodetype;
+    this->isVisited = false;
+    this->access_type = AccessType::NOACCESS;
+    this->isShared = false;
+  }
 
-    InstructionWrapper(llvm::Value *value, GraphNodeType nodeType)
-    {
-      this->Inst = nullptr;
-      this->Func = nullptr;
-      this->BB = nullptr;
-      this->value = value;
-      this->nodetype = nodeType;
-      this->isVisited = false;
-      this->access_type = AccessType::NOACCESS;
-    }
+  InstructionWrapper(llvm::Instruction *Inst, GraphNodeType nodeType)
+  {
+    this->Inst = Inst;
+    this->Func = Inst->getFunction();
+    this->BB = Inst->getParent();
+    this->value = llvm::cast<llvm::Value>(Inst);
+    this->nodetype = nodeType;
+    this->isVisited = false;
+    this->access_type = AccessType::NOACCESS;
+    this->isShared = false;
+  }
 
-    llvm::BasicBlock *getBasicBlock() const { return BB; }
-    llvm::Instruction *getInstruction() const { return Inst; }
-    llvm::Function *getFunction() const { return Func; }
-    llvm::Value *getValue() const { return value; }
-    GraphNodeType getGraphNodeType() const { return nodetype; }
-    void setGraphNodeType(GraphNodeType _nodeType) { this->nodetype = _nodeType; }
-    bool getVisited() const { return isVisited; }
-    void setVisited(const bool _isVisited) { isVisited = _isVisited; }
-    AccessType getAccessType() { return access_type; }
-    void setAccessType(AccessType _access_type) { access_type = _access_type; }
-    virtual llvm::Type *getLLVMType() const { return nullptr; }
-    virtual llvm::Type *getParentLLVMType() const { return nullptr; }
-    virtual llvm::Argument *getArgument() const { return nullptr; }
-    virtual int getNodeOffset() const { return -1; }
-    virtual llvm::DIType *getDIType() const { return nullptr; }
-    virtual std::vector<std::string> getBitFieldsName() const { return std::vector<std::string>(); }
+  InstructionWrapper(llvm::Value *value, GraphNodeType nodeType)
+  {
+    this->Inst = nullptr;
+    this->Func = nullptr;
+    this->BB = nullptr;
+    this->value = value;
+    this->nodetype = nodeType;
+    this->isVisited = false;
+    this->access_type = AccessType::NOACCESS;
+    this->isShared = false;
+  }
 
-  private:
-    llvm::Instruction *Inst;
-    llvm::Value *value;
-    llvm::BasicBlock *BB;
-    llvm::Function *Func;
-    GraphNodeType nodetype;
-    bool isVisited;
-    AccessType access_type;
+  llvm::BasicBlock *getBasicBlock() const { return BB; }
+  llvm::Instruction *getInstruction() const { return Inst; }
+  llvm::Function *getFunction() const { return Func; }
+  llvm::Value *getValue() const { return value; }
+  GraphNodeType getGraphNodeType() const { return nodetype; }
+  void setGraphNodeType(GraphNodeType _nodeType) { this->nodetype = _nodeType; }
+  bool getVisited() const { return isVisited; }
+  void setVisited(const bool _isVisited) { isVisited = _isVisited; }
+  void setShared(bool _isShared) { isShared = _isShared; }
+  bool isSharedNode() const { return isShared; }
+  AccessType getAccessType() { return access_type; }
+  void setAccessType(AccessType _access_type) { access_type = _access_type; }
+  virtual llvm::Type *getLLVMType() const { return nullptr; }
+  virtual llvm::Type *getParentLLVMType() const { return nullptr; }
+  virtual llvm::Argument *getArgument() const { return nullptr; }
+  virtual int getNodeOffset() const { return -1; }
+  virtual llvm::DIType *getDIType() const { return nullptr; }
+  virtual std::vector<std::string> getBitFieldsName() const { return std::vector<std::string>(); }
+
+private:
+  llvm::Instruction *Inst;
+  llvm::Value *value;
+  llvm::BasicBlock *BB;
+  llvm::Function *Func;
+  GraphNodeType nodetype;
+  bool isVisited;
+  bool isShared;
+  AccessType access_type;
 };
 
 class TreeTypeWrapper : public InstructionWrapper
 {
-  public:
-    TreeTypeWrapper(llvm::Function *Func,
-                    GraphNodeType nodetype,
-                    llvm::Argument *arg,
-                    llvm::Type *treeNodeType,
-                    llvm::Type *parentTreeNodeType, 
-                    int node_offset) : InstructionWrapper(Func, nodetype)
-    {
-      this->arg = arg;
-      this->treeNodeType = treeNodeType;
-      this->parentTreeNodeType = parentTreeNodeType;
-      this->node_offset = node_offset;
-      this->dt = nullptr;
-    }
+public:
+  TreeTypeWrapper(llvm::Function *Func,
+                  GraphNodeType nodetype,
+                  llvm::Argument *arg,
+                  llvm::Type *treeNodeType,
+                  llvm::Type *parentTreeNodeType,
+                  int node_offset) : InstructionWrapper(Func, nodetype)
+  {
+    this->arg = arg;
+    this->treeNodeType = treeNodeType;
+    this->parentTreeNodeType = parentTreeNodeType;
+    this->node_offset = node_offset;
+    this->dt = nullptr;
+    // this->isShared = false;
+  }
 
-    TreeTypeWrapper(llvm::Function *Func,
-                    GraphNodeType nodetype,
-                    llvm::Argument *arg,
-                    llvm::Type *treeNodeType,
-                    llvm::Type *parentTreeNodeType, 
-                    int node_offset,
-                    llvm::DIType* dt) : InstructionWrapper(Func, nodetype)
-    {
-      this->arg = arg;
-      this->treeNodeType = treeNodeType;
-      this->parentTreeNodeType = parentTreeNodeType;
-      this->node_offset = node_offset;
-      this->dt = dt;
-    }
+  TreeTypeWrapper(llvm::Function *Func,
+                  GraphNodeType nodetype,
+                  llvm::Argument *arg,
+                  llvm::Type *treeNodeType,
+                  llvm::Type *parentTreeNodeType,
+                  int node_offset,
+                  llvm::DIType *dt) : InstructionWrapper(Func, nodetype)
+  {
+    this->arg = arg;
+    this->treeNodeType = treeNodeType;
+    this->parentTreeNodeType = parentTreeNodeType;
+    this->node_offset = node_offset;
+    this->dt = dt;
+    // this->isShared = false;
+  }
 
-    TreeTypeWrapper(llvm::Value *val,
-                    GraphNodeType nodetype,
-                    int node_offset,
-                    llvm::DIType *dt) : InstructionWrapper(val, nodetype)
-    {
-      this->treeNodeType = nullptr;
-      this->parentTreeNodeType = nullptr;
-      this->node_offset = node_offset;
-      this->dt = dt;
-    }
+  TreeTypeWrapper(llvm::Value *val,
+                  GraphNodeType nodetype,
+                  int node_offset,
+                  llvm::DIType *dt) : InstructionWrapper(val, nodetype)
+  {
+    this->treeNodeType = nullptr;
+    this->parentTreeNodeType = nullptr;
+    this->node_offset = node_offset;
+    this->dt = dt;
+    // this->isShared = false;
+  }
 
-    TreeTypeWrapper(GraphNodeType nodetype,
-                    int node_offset,
-                    llvm::DIType *dt) : InstructionWrapper(nodetype)
-    {
-      this->treeNodeType = nullptr;
-      this->parentTreeNodeType = nullptr;
-      this->node_offset = node_offset;
-      this->dt = dt;
-    }
+  TreeTypeWrapper(GraphNodeType nodetype,
+                  int node_offset,
+                  llvm::DIType *dt) : InstructionWrapper(nodetype)
+  {
+    this->treeNodeType = nullptr;
+    this->parentTreeNodeType = nullptr;
+    this->node_offset = node_offset;
+    this->dt = dt;
+    // this->isShared = false;
+  }
 
-    llvm::Type *getLLVMType() const override { return treeNodeType; }
-    llvm::Type *getParentLLVMType() const override { return parentTreeNodeType; }
-    llvm::Argument *getArgument() const override { return arg; }
-    int getNodeOffset() const override { return node_offset; }
-    llvm::DIType *getDIType() const override { return dt; }
+  llvm::Type *getLLVMType() const override { return treeNodeType; }
+  llvm::Type *getParentLLVMType() const override { return parentTreeNodeType; }
+  llvm::Argument *getArgument() const override { return arg; }
+  int getNodeOffset() const override { return node_offset; }
+  llvm::DIType *getDIType() const override { return dt; }
 
-  private:
-    llvm::Argument *arg;
-    llvm::Type *treeNodeType;
-    llvm::Type *parentTreeNodeType;
-    int node_offset;
-    llvm::DIType *dt;
+private:
+  llvm::Argument *arg;
+  llvm::Type *treeNodeType;
+  llvm::Type *parentTreeNodeType;
+  int node_offset;
+  llvm::DIType *dt;
 };
 
 } // namespace pdg

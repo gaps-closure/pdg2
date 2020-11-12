@@ -16,7 +16,7 @@ public:
   using const_nodes_iterator = typename std::vector<DependencyNode<InstructionWrapper> *>::const_iterator;
   DependencyGraph() = default;
   ~DependencyGraph();
-  std::vector<DependencyNode<NodeT> *> getNodeSet() const { return nodeSet; }
+  std::vector<DependencyNode<NodeT> *>& getNodeSet() { return nodeSet; }
   void addNode(const NodeT *dNode);
   DependencyNode<NodeT> *getNodeByData(const NodeT *data);
   typename DependencyNode<NodeT>::DependencyLinkList getNodeDepList(const NodeT *data);

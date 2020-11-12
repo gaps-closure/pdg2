@@ -33,6 +33,15 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   idl_file << "module kernel"
            << " {\n";
   computeSharedData();
+  std::set<Function*> crossDomainTransFuncs;
+  pdgUtils.computeCrossDomainTransFuncs(M, crossDomainTransFuncs);
+  std::set<Function*> reachableFuncInKernel;
+  for (auto func : crossDomainTransFuncs)
+  {
+    if (kernelDomainFuncs.find(func) != kernelDomainFuncs.end())
+      reachableFuncInKernel.insert(func);
+  }
+  printCopiableFuncs(reachableFuncInKernel);
   // computeGlobalVarsAccessInfo();
   for (Function *F : crossDomainFuncCalls)
   {
@@ -245,6 +254,99 @@ void pdg::AccessInfoTracker::printRetValueAccessInfo(Function &Func)
   }
 }
 
+void pdg::AccessInfoTracker::printCopiableFuncs(std::set<Function*> &searchDomain)
+{
+  auto funcsPrivate = computeFuncsAccessPrivateData(searchDomain);
+  auto funcsCS = computeFuncsContainCS(searchDomain);
+  unsigned count = 0;
+  errs() << "======================= copiable funcs  ===========================\n";
+  for (auto func : searchDomain)
+  {
+    if (func->isDeclaration() || func->empty())
+      continue;
+    if (funcsPrivate.find(func) == funcsPrivate.end() && funcsCS.find(func) == funcsCS.end())
+    {
+      errs() << func->getName() << "\n";
+      count++;
+    }
+  }
+  errs() << "Copiable func Num: " << count << "\n";
+  errs() << "kernel func Num: " << kernelDomainFuncs.size() << "\n";
+  errs() << "======================= copiable funcs  ===========================\n";
+}
+
+std::set<Function*> pdg::AccessInfoTracker::computeFuncsAccessPrivateData(std::set<Function*> &searchDomain)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto instMap = pdgUtils.getInstMap();
+  auto funcMap = pdgUtils.getFuncMap();
+  std::set<Function*> ret;
+  for (auto func : searchDomain)
+  {
+    if (func->isDeclaration() || func->empty())
+      continue;
+    if (!funcMap[func]->hasTrees())
+      continue;
+    bool accessPrivateData = false;
+    for (auto instI = inst_begin(func); instI != inst_end(func); ++instI)
+    {
+      auto instW = instMap[&*instI];
+      auto valDepPairs = PDG->getNodesWithDepType(instW, DependencyType::VAL_DEP);
+      if (valDepPairs.size() == 0)
+        continue;
+      for (auto valDepPair : valDepPairs)
+      {
+        auto dataW = valDepPair.first->getData();
+        if (!dataW->isSharedNode())
+        {
+          accessPrivateData = true;
+          break;
+        }
+      }
+      if (accessPrivateData)
+      {
+        ret.insert(func);
+        break;
+      }
+    }
+  }
+  return ret;
+}
+
+std::set<Function *> pdg::AccessInfoTracker::computeFuncsContainCS(std::set<Function *> &searchDomain)
+{
+  std::map<std::string, std::string> lockPairMap;
+  lockPairMap.insert(std::make_pair("mutex_lock", "mutex_unlock"));
+  lockPairMap.insert(std::make_pair("_raw_spin_lock", "_raw_spin_unlock"));
+  lockPairMap.insert(std::make_pair("_raw_spin_lock_irq", "_raw_spin_unlock_irq"));
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto instMap = pdgUtils.getInstMap();
+  auto funcMap = pdgUtils.getFuncMap();
+  std::set<Function*> ret;
+  for (auto func : searchDomain)
+  {
+    if (func->isDeclaration() || func->empty())
+      continue;
+    if (!funcMap[func]->hasTrees())
+      continue;
+    for (auto instI = inst_begin(func); instI != inst_end(func); ++instI)
+    {
+      if (CallInst *ci = dyn_cast<CallInst>(&*instI))
+      {
+        auto calledVal = ci->getCalledValue()->stripPointerCasts();
+        if (calledVal == nullptr)
+          continue;
+        if (Function *f = dyn_cast<Function>(calledVal))
+        {
+          if (lockPairMap.find(f->getName().str()) != lockPairMap.end())
+            ret.insert(func);
+        }
+      }
+    }
+  }
+  return ret;
+}
+
 void pdg::AccessInfoTracker::computeSharedData()
 {
   auto globalTypeTrees = PDG->getGlobalTypeTrees();
@@ -306,7 +408,8 @@ void pdg::AccessInfoTracker::computeSharedData()
       // if a field is not shared, continue to next tree node
       if (!accessInDriver || !accessInKernel)
         continue;
-
+      TreeTypeWrapper* treeW = static_cast<TreeTypeWrapper*>(const_cast<InstructionWrapper*>(*treeI));
+      treeW->setShared(true);
       for (auto valDepPair : valDepPairList)
       {
         auto dataW = valDepPair.first->getData();
@@ -362,7 +465,6 @@ void pdg::AccessInfoTracker::computeArgAccessInfo(ArgumentWrapper* argW, TreeTyp
     return;
   }
   
-  // TODO: reimplemente void pointer. Find casted pointer and build parameter tree for it.
   computeIntraprocArgAccessInfo(argW, *func);
   computeInterprocArgAccessInfo(argW, *func);
 }
@@ -633,6 +735,7 @@ void pdg::AccessInfoTracker::computeFuncAccessInfoBottomUp(Function& F)
   {
     if (funcMap[*iter]->isVisited())
       continue;
+    // errs() << (*iter)->getName() << " has tree?" << funcMap[*iter]->hasTrees() << "\n";
     computeFuncAccessInfo(**iter);
     funcMap[*iter]->setVisited(true);
   }
@@ -937,8 +1040,8 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     if (DIUtils::isVoidPointer(argDIType))
     {
       voidPointerNum++;
-      if (voidPointerHasMultipleCasts(*argW->tree_begin(TreeType::FORMAL_IN_TREE)))
-        unhandledVoidPointerNum++;
+      // if (voidPointerHasMultipleCasts(*argW->tree_begin(TreeType::FORMAL_IN_TREE)))
+      //   unhandledVoidPointerNum++;
     }
 
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !argName.empty())
@@ -1290,7 +1393,12 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
 
       OS << "\t\t"
          << projectStr << fieldTypeName << " "
-         << " *" << DIUtils::getDIFieldName(childDITy) << "_" << funcName << ";\n";
+         << " *" << DIUtils::getDIFieldName(childDITy);
+      // a special handling for function ops struct
+      if (fieldTypeName.find("ops") == std::string::npos)
+        OS << "_" << funcName << ";\n";
+      else 
+        OS << ";\n";
     }
     else if (DIUtils::isUnionTy(childLowestTy))
     {
@@ -1350,10 +1458,11 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper* argW)
     std::string str;
     raw_string_ostream OS(str);
     generateProjectionForTreeNode(treeI, OS, argDIType);
-    std::string structName = DIUtils::getDIFieldName(curDIType);
-    if (structName.find("ops") == std::string::npos)
-      structName = structName + "_" + funcName;
-    idl_file << "\tprojection < struct " << structName << "> " << structName << " {\n " << OS.str() << "\t}\n\n";
+    std::string structFieldName = DIUtils::getDIFieldName(curDIType);
+    std::string structTypeName = DIUtils::getDITypeName(curDIType);
+    if (structFieldName.find("ops") == std::string::npos)
+      structFieldName = structFieldName + "_" + structFieldName;
+    idl_file << "\tprojection < struct " << structTypeName << "> " << structFieldName << " {\n " << OS.str() << "\t}\n\n";
   }
 }
 
@@ -1398,8 +1507,12 @@ std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *ins
         {
           if (CallInst *ci = dyn_cast<CallInst>(si->getValueOperand()))
           {
-            if (allocatorMap.find(ci->getCalledFunction()->getName().str()) != allocatorMap.end())
-              return "[alloc(callee)] [out]";
+            auto calledFunc = ci->getCalledFunction();
+            if (calledFunc != nullptr)
+            {
+              if (allocatorMap.find(ci->getCalledFunction()->getName().str()) != allocatorMap.end())
+                return "[alloc(callee)] [out]";
+            }
           }
         }
 
@@ -1418,9 +1531,10 @@ std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *ins
         {
           if (Function *calledFunc = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
           {
-            if (calledFunc->getName().str().find("free") != std::string::npos)
+            if (calledFunc != nullptr)
             {
-              return "[dealloc(caller)]";
+              if (calledFunc->getName().str().find("free") != std::string::npos)
+                return "[dealloc(caller)]";
             }
           }
         }

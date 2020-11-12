@@ -78,6 +78,9 @@ public:
   unsigned computeUsedGlobalNumInDriver();
   void printNumStats();
   void printAsyncCalls();
+  void printCopiableFuncs(std::set<llvm::Function *> &searchDomain);
+  std::set<llvm::Function *> computeFuncsAccessPrivateData(std::set<llvm::Function *> &searchDomain);
+  std::set<llvm::Function *> computeFuncsContainCS(std::set<llvm::Function *> &searchDomain);
 
 private:
   ProgramDependencyGraph *PDG;
