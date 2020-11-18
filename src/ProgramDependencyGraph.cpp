@@ -785,13 +785,13 @@ std::set<InstructionWrapper *> pdg::ProgramDependencyGraph::collectInstWsOnDITyp
     if (searchDomain.find(&F) == searchDomain.end())
       continue;
 
+    std::string DITypeName = DIUtils::getDITypeName(dt);
     for (auto instI = inst_begin(F); instI != inst_end(F); ++instI)
     {
       Instruction* i = &*instI;
       if (instDITypeMap.find(i) == instDITypeMap.end())
         continue;
-      auto instDITypeName = DIUtils::getDITypeName(instDITypeMap[i]);
-      auto DITypeName = DIUtils::getDITypeName(dt);
+      std::string instDITypeName = DIUtils::getDITypeName(instDITypeMap[i]);
       if (instDITypeName == DITypeName)
         ret.insert(instMap[i]);
       // here, gep always produce pointer variable. But the debugging info is misaligning here
@@ -968,7 +968,7 @@ void pdg::ProgramDependencyGraph::buildGlobalTypeTrees(std::set<DIType*> sharedT
 void pdg::ProgramDependencyGraph::buildGlobalTypeTreeForDIType(DIType &DI)
 {
   tree<InstructionWrapper *> typeTree;
-  InstructionWrapper *treeHead = new InstructionWrapper(GraphNodeType::GLOBAL_VALUE);
+  InstructionWrapper *treeHead = new TreeTypeWrapper(GraphNodeType::GLOBAL_VALUE, 0, &DI);
   typeTree.set_head(treeHead);
   auto &pdgUtils = PDGUtils::getInstance();
   std::queue<InstructionWrapper *> instWQ;
@@ -1116,8 +1116,6 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars(std::set<
     {
       PDG->addDependency(*treeBegin, instW, DependencyType::VAL_DEP);
       Function* allocFunc = instW->getInstruction()->getFunction();
-      // if (typeName == "struct blk_mq_tag_set*" || typeName == "struct blk_mq_tag_set")
-      //   errs() << "find initial instW for: " << typeName << " - " << *instW->getInstruction() << " - " << allocFunc->getName() << "\n";
       if (!funcMap[allocFunc]->hasTrees())
       {
         buildFormalTreeForFunc(allocFunc);
@@ -1282,6 +1280,12 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
     if (retTreeBegin != retW->tree_end(TreeType::FORMAL_IN_TREE)) // due ot the miss of alloc for return value 
     {
       retTreeBegin++;
+      if (!retInst->getReturnValue())
+      {
+        errs() << "find return null: " << *retInst << " - " << retInst->getFunction()->getName() << "\n";
+        continue;
+      }
+
       if (Instruction *i = dyn_cast<Instruction>(retInst->getReturnValue()))
         PDG->addDependency(*retTreeBegin, instMap[i], DependencyType::VAL_DEP);
     }
@@ -1298,6 +1302,7 @@ void pdg::ProgramDependencyGraph::connectTreeNodeWithAddrVars(ArgumentWrapper* a
     // for tree nodes that are not root, get parent node's dependent instructions and then find loadInst or GEP Inst from parent's loads instructions
     auto ParentI = tree<InstructionWrapper *>::parent(treeI);
     auto parentValDepNodes = getNodesWithDepType(*ParentI, DependencyType::VAL_DEP);
+    // for union, copy parent's addr var to child node. As they will have the same address.
     if (DIUtils::isUnionTy((*ParentI)->getDIType()))
     {
       for (auto pair : parentValDepNodes)

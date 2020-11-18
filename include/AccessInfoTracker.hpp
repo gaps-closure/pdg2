@@ -27,7 +27,7 @@ public:
   void computeArgAccessInfo(ArgumentWrapper *argW, TreeType treeTy);
   void computeIntraprocArgAccessInfo(ArgumentWrapper *argW, llvm::Function &F);
   void computeInterprocArgAccessInfo(ArgumentWrapper *argW, llvm::Function &F);
-  std::map<std::string, AccessType> computeInterprocAccessedFieldMap(llvm::Function &callee, unsigned argNo, llvm::DIType* parentType);
+  std::map<std::string, AccessType> computeInterprocAccessedFieldMap(llvm::Function &callee, unsigned argNo, llvm::DIType* parentType, std::string fieldNameInCaller);
   std::string getRegisteredFuncPtrName(std::string funcName);
   std::set<llvm::Value *> findAliasInDomainWithOffset(llvm::Value &V, llvm::Function &F, unsigned offset, std::set<llvm::Function *> receiverDomainTrans);
   std::set<llvm::Value *> findAliasInDomain(llvm::Value &V, llvm::Function &F, std::set<llvm::Function *> domainTransitiveClosure);
@@ -61,7 +61,7 @@ public:
   std::set<std::string> computeSharedDataForType(llvm::DIType* dt);
   std::set<std::string> computeAccessedDataInDomain(llvm::DIType* dt, std::set<llvm::Function*> domain);
   void inferAsynchronousCalledFunction(std::set<llvm::Function *> crossDomainFuncs);
-  bool isChildFieldShared(llvm::DIType* argDIType, llvm::DIType* fieldDIType);
+  bool isChildFieldShared(llvm::DIType* parentNodeDIType, llvm::DIType* fieldDIType);
   ProgramDependencyGraph *_getPDG() { return PDG; }
   std::unordered_map<std::string, std::set<std::string>> getSharedDataTypeMap() { return sharedDataTypeMap; }
   std::string getReturnAttributeStr(llvm::Function &F);
@@ -102,6 +102,7 @@ private:
   std::set<std::string> stringOperations;
   std::set<std::string> allocatorMap;
   std::set<llvm::Function*> asyncCallAccessedSharedData;
+  std::string globalOpsStr;
   bool crossBoundary; // indicate whether transitive closure cross two domains
   unsigned numEliminatedPrivateFields;
   unsigned totalNumOfFields;

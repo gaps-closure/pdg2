@@ -60,13 +60,16 @@ DIType *pdg::PDGUtils::getInstDIType(Instruction* inst)
       if (G_InstDITypeMap.find(sourceInst) == G_InstDITypeMap.end())
         return nullptr;
       DIType* sourceInstDIType = G_InstDITypeMap[sourceInst];
-      DIType* retDIType = DIUtils::stripAttributes(sourceInstDIType);
+      // DIType* retDIType = DIUtils::stripAttributes(sourceInstDIType);
+      DIType* retDIType = DIUtils::getLowestDIType(sourceInstDIType);
       return retDIType;
     }
     if (GlobalVariable *gv = dyn_cast<GlobalVariable>(li->getPointerOperand()))
     {
       DIType* sourceGlobalVarDIType = DIUtils::getGlobalVarDIType(*gv);
-      return sourceGlobalVarDIType;
+      if (!sourceGlobalVarDIType)
+        return nullptr;
+      return DIUtils::getLowestDIType(sourceGlobalVarDIType);
     }
   }
 
@@ -77,6 +80,7 @@ DIType *pdg::PDGUtils::getInstDIType(Instruction* inst)
       if (G_InstDITypeMap.find(sourceInst) == G_InstDITypeMap.end())
         return nullptr;
       DIType *sourceInstDIType = G_InstDITypeMap[sourceInst];
+      sourceInstDIType = DIUtils::stripMemberTag(sourceInstDIType);
       sourceInstDIType = DIUtils::stripAttributes(sourceInstDIType);
       if (DIUtils::isStructTy(sourceInstDIType) || DIUtils::isStructPointerTy(sourceInstDIType))
       {

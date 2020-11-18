@@ -148,7 +148,6 @@ public:
     this->parentTreeNodeType = nullptr;
     this->node_offset = node_offset;
     this->dt = dt;
-    // this->isShared = false;
   }
 
   llvm::Type *getLLVMType() const override { return treeNodeType; }

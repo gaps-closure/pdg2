@@ -58,7 +58,7 @@ bool pdg::DataDependencyGraph::isMustAlias(Value &V1, Value &V2, Function &F)
   auto const &c2 = G->getCell(V2);
   auto const &s1 = c1.getNode()->getAllocSites();
   auto const &s2 = c2.getNode()->getAllocSites();
-  return (s1 == s2 && c1.getOffset() == c2.getOffset() && V1.getType() == V2.getType());
+  return (s1 == s2 && c1.getOffset() == c2.getOffset());
 }
 
 bool pdg::DataDependencyGraph::isMayAlias(Value &V1, Value &V2, Function &F)

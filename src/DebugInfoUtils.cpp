@@ -4,6 +4,36 @@
 
 using namespace llvm;
 
+static std::map<std::string, std::string> typeSwitchMap = {
+    {"_Bool", "bool"},
+    {"char", "u8"},
+    {"signed char", "u8"},
+    {"unsigned char", "u8"},
+    {"short", "u16"},
+    {"short int", "u16"},
+    {"signed short", "u16"},
+    {"unsigned short", "u16"},
+    {"signed short int", "u16"},
+    {"unsigned short int", "u16"},
+    {"int", "u32"},
+    {"signed", "u32"},
+    {"unsigned int", "u32"},
+    {"long", "u32"},
+    {"long int", "u32"},
+    {"signed long", "u32"},
+    {"signed long int", "u32"},
+    {"unsigned long", "u32"},
+    {"unsigned long int", "u32"},
+    {"long long unsigned int", "u64"},
+    {"long long", "u64"},
+    {"long long int", "u64"},
+    {"signed long long", "u64"},
+    {"signed long long int", "u64"},
+    {"unsigned long long", "u64"},
+    {"unsigned long long int", "u64"},
+    {"long unsigned int", "u64"},
+};
+
 std::string pdg::DIUtils::getArgName(Argument& arg)
 {
   Function *F = arg.getParent();
@@ -29,10 +59,9 @@ std::string pdg::DIUtils::getArgName(Argument& arg)
 DIType *pdg::DIUtils::stripAttributes(DIType *Ty)
 {
   DIType* ret = Ty;
-  while (ret->getTag() == dwarf::DW_TAG_member ||
-      ret->getTag() == dwarf::DW_TAG_typedef ||
-      ret->getTag() == dwarf::DW_TAG_const_type||
-      ret->getTag() == dwarf::DW_TAG_volatile_type )
+  while (ret->getTag() == dwarf::DW_TAG_typedef ||
+         ret->getTag() == dwarf::DW_TAG_const_type ||
+         ret->getTag() == dwarf::DW_TAG_volatile_type)
   {
     if (auto didt = dyn_cast<DIDerivedType>(ret))
     {
@@ -46,7 +75,6 @@ DIType *pdg::DIUtils::stripAttributes(DIType *Ty)
     else 
       break;
   }
-
   return ret;
 }
 
@@ -375,10 +403,6 @@ std::string pdg::DIUtils::getFuncSigName(DIType *ty, Function *F, std::string fu
 
 std::string pdg::DIUtils::getDITypeName(DIType *ty)
 {
-  std::map<std::string, std::string> typeSwitchMap;
-  typeSwitchMap.insert(std::make_pair("_Bool", "bool"));
-  typeSwitchMap.insert(std::make_pair("long long unsigned int", "long"));
-
   if (ty == nullptr)
     return "void";
 
@@ -405,9 +429,10 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
       {
         auto containedTypeName = getDITypeName(arrTy);
         if (arrTy->getSizeInBits() != 0)
-          return containedTypeName + "[" + std::to_string(ty->getSizeInBits() / arrTy->getSizeInBits()) + "]";
+          return "array<" + containedTypeName + ", " +  std::to_string(ty->getSizeInBits() / arrTy->getSizeInBits()) + ">";
+          // return containedTypeName + "[" + std::to_string(ty->getSizeInBits() / arrTy->getSizeInBits()) + "]";
         else
-          return containedTypeName + "[]";
+          return "array<" + containedTypeName + ", " + "var_len" + ">";
       }
     }
     case dwarf::DW_TAG_pointer_type:
@@ -646,15 +671,21 @@ DbgDeclareInst* pdg::DIUtils::getDbgInstForInst(Instruction* inst, std::set<DbgD
 //   return sharedDataTypes;
 // }
 
-std::string pdg::DIUtils::computeFieldID(DIType *rootDIType, DIType *fieldDIType)
+std::string pdg::DIUtils::computeFieldID(DIType *structDIType, DIType *fieldDIType)
 {
-  std::string rootName = "";
+  std::string structTypeName = "";
   std::string childName = "";
-  if (rootDIType != nullptr)
-    rootName = DIUtils::getDIFieldName(rootDIType);
+  if (structDIType != nullptr)
+  {
+    structDIType = DIUtils::stripAttributes(structDIType);
+    structTypeName = DIUtils::getDITypeName(structDIType);
+  }
   if (fieldDIType != nullptr)
+  {
+    fieldDIType = DIUtils::stripAttributes(fieldDIType);
     childName = DIUtils::getDIFieldName(fieldDIType);
-  std::string id =  rootName + childName;
+  }
+  std::string id =  structTypeName + childName;
   return id;
 }
 
@@ -758,6 +789,7 @@ unsigned pdg::DIUtils::computeTotalFieldNumberInStructType(DIType* dt)
 std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Function *> crossDomainFuncs)
 {
   std::set<DIType*> sharedDITypes;
+  std::set<std::string> seenDITypeName;
   // collect shared type from global variables
   for (Module::global_iterator globalIt = M.global_begin(); globalIt != M.global_end(); ++globalIt)
   {
@@ -767,9 +799,21 @@ std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Functi
       DIType* globalVarDIType = getGlobalVarDIType(*globalVar);
       if (!globalVarDIType) 
         continue;
-      // build object tree for struct pointer global
-      if (isStructPointerTy(globalVarDIType))
-        sharedDITypes.insert(globalVarDIType);
+      auto containedSharedTypes = computeContainedDerivedTypes(globalVarDIType);
+      for (auto dt : containedSharedTypes)
+      {
+        auto DITypeName = DIUtils::getDITypeName(dt);
+        if (seenDITypeName.find(DITypeName) != seenDITypeName.end())
+          continue;
+        seenDITypeName.insert(DITypeName);
+        if (isStructPointerTy(dt) || isStructTy(dt))
+        {
+          auto lowestType = DIUtils::getLowestDIType(dt);
+          if (lowestType)
+            sharedDITypes.insert(lowestType);
+        }
+      }
+      // build object tree for shared struct type
     }
   }
  // collect shared type from interface functions
@@ -784,8 +828,17 @@ std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Functi
       for (auto dt : containedSharedTypes)
       {
         //TODO: add function pointer handle
+        auto DITypeName = DIUtils::getDITypeName(dt);
+        if (seenDITypeName.find(DITypeName) != seenDITypeName.end())
+          continue;
+        seenDITypeName.insert(DITypeName);
+
         if (isStructPointerTy(dt) || isStructTy(dt))
-          sharedDITypes.insert(dt);
+        {
+          auto lowestType = DIUtils::getLowestDIType(dt);
+          if (lowestType)
+            sharedDITypes.insert(lowestType);
+        }
       }
     }
   }
@@ -803,9 +856,9 @@ std::set<DIType *> pdg::DIUtils::computeContainedDerivedTypes(DIType* dt)
   {
     DIType *curDIType = workQ.front();
     workQ.pop();
-    if (seenTypes.find(curDIType) != seenTypes.end())
-      continue;
-    seenTypes.insert(curDIType);
+    // if (seenTypes.find(curDIType) != seenTypes.end())
+    //   continue;
+    // seenTypes.insert(curDIType);
     DIType* lowestDIType = getLowestDIType(curDIType);
     if (seenTypes.find(lowestDIType) != seenTypes.end())
       continue;
