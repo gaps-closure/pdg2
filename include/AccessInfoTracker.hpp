@@ -48,7 +48,7 @@ public:
   void generateIDLForCallInstW(CallWrapper *CW);
   // void generateIDLforArg(ArgumentWrapper *argW, TreeType ty, std::string funcName = "", bool handleFuncPtr = false);
   void generateIDLforArg(ArgumentWrapper *argW);
-  void generateProjectionForTreeNode(tree<InstructionWrapper *>::iterator treeI, llvm::raw_string_ostream &OS, llvm::DIType *argDIType);
+  void generateProjectionForTreeNode(tree<InstructionWrapper *>::iterator treeI, llvm::raw_string_ostream &OS, std::string argName);
   void generateProjectionForGlobalVarInFunc(tree<InstructionWrapper *>::iterator treeI, llvm::raw_string_ostream &OS, llvm::DIType *argDIType, llvm::Function& func);
   tree<InstructionWrapper *>::iterator generateIDLforStructField(ArgumentWrapper *argW, int subtreeSize, tree<InstructionWrapper *>::iterator treeI, std::stringstream &ss, TreeType ty);
   std::string getArgAccessInfo(llvm::Argument &arg);
@@ -72,8 +72,10 @@ public:
   std::string switchIndirectCalledPtrName(std::string funcptr);
   std::string inferFieldAnnotation(InstructionWrapper* instW);
   bool voidPointerHasMultipleCasts(InstructionWrapper *voidPtrW);
+  bool isUsedInStrOps(InstructionWrapper* instW);
   void setupStrOpsMap();
-  void setupAllocatorMap();
+  void setupAllocatorWrappers();
+  void setupDeallocatorWrappers();
   void initializeNumStats();
   unsigned computeUsedGlobalNumInDriver();
   void printNumStats();
@@ -81,6 +83,7 @@ public:
   void printCopiableFuncs(std::set<llvm::Function *> &searchDomain);
   std::set<llvm::Function *> computeFuncsAccessPrivateData(std::set<llvm::Function *> &searchDomain);
   std::set<llvm::Function *> computeFuncsContainCS(std::set<llvm::Function *> &searchDomain);
+  tree<InstructionWrapper *>::iterator getParentIter(tree<InstructionWrapper *>::iterator treeI);
 
 private:
   ProgramDependencyGraph *PDG;
@@ -100,7 +103,9 @@ private:
   std::unordered_map<std::string, AccessType> globalFieldAccessInfo;
   std::set<std::string> seenFuncOps;
   std::set<std::string> stringOperations;
-  std::set<std::string> allocatorMap;
+  std::set<std::string> allocatorWrappers;
+  std::set<std::string> deallocatorWrappers;
+  std::set<std::string> globalStrId;
   std::set<llvm::Function*> asyncCallAccessedSharedData;
   std::string globalOpsStr;
   bool crossBoundary; // indicate whether transitive closure cross two domains

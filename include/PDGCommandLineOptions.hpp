@@ -6,5 +6,6 @@ namespace pdg {
 // command line options
 extern int EXPAND_LEVEL;
 extern int USEDEBUGINFO;
+extern int SHARED_DATA;
 }
 #endif

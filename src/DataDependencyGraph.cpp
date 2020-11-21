@@ -93,8 +93,11 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
     // handle cast
     if (CastInst *ci = dyn_cast<CastInst>(&*I1))
     {
-      Instruction* tmpInst = dyn_cast<Instruction>(&*I1);
-      DDG->addDependency(instMap[tmpInst], instMap[&*I1], DependencyType::DATA_ALIAS);
+      if (Instruction *tmpInst = dyn_cast<Instruction>(I1->getOperand(0)))
+      {
+        DDG->addDependency(instMap[tmpInst], instMap[&*I1], DependencyType::DATA_ALIAS);
+        DDG->addDependency(instMap[&*I1], instMap[tmpInst], DependencyType::DATA_ALIAS);
+      }
       continue;
     }
 
@@ -114,6 +117,23 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
         }
       }
       continue;
+    }
+
+    // reasoning store instruction, sea-dsa fail to track this case
+    if (StoreInst* si = dyn_cast<StoreInst>(&*I1))
+    {
+      auto valueOperand = si->getValueOperand();
+      if (LoadInst *li = dyn_cast<LoadInst>(valueOperand))
+      {
+        if (Instruction *storeAddr = dyn_cast<Instruction>(si->getPointerOperand()))
+        {
+          if (Instruction *loadAddr = dyn_cast<Instruction>(li->getPointerOperand()))
+          {
+            DDG->addDependency(instMap[storeAddr], instMap[loadAddr], DependencyType::DATA_ALIAS);
+            DDG->addDependency(instMap[loadAddr], instMap[storeAddr], DependencyType::DATA_ALIAS);
+          }
+        }
+      }
     }
 
     for (auto I2 = inst_begin(Func); I2 != inst_end(Func); ++I2)

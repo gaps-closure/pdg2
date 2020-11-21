@@ -57,7 +57,7 @@ class PDGUtils final
     std::set<llvm::Function *> computeTransitiveClosure(llvm::Function &F);
     void computeCrossDomainTransFuncs(llvm::Module &M, std::set<llvm::Function *> &crossDomainTransFuncs);
     std::set<llvm::Function *> computeAsyncFuncs(llvm::Module &M);
-    std::set<llvm::Function *> computeModuleInitFuncs(llvm::Module &M);
+    std::set<llvm::Function *> computeDriverEntryExitFuncs(llvm::Module &M);
     std::set<std::string> computeDriverExportFuncPtrName();
     std::set<std::string> getBlackListFuncs();
     std::map<std::string, std::string> computeDriverExportFuncPtrNameMap();
@@ -70,7 +70,7 @@ class PDGUtils final
     bool isGEPforBitField(llvm::GetElementPtrInst *gep);
     llvm::Value *getLShrOnGep(llvm::GetElementPtrInst *gep);
     uint64_t getGEPOffsetInBits(llvm::StructType *structTy, llvm::GetElementPtrInst *gep);
-
+    void stripStr(std::string& targetStr, std::string eliminateStr);
 
   private:
     std::unordered_map<const llvm::Instruction *, InstructionWrapper *> G_instMap;

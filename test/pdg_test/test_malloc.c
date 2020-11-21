@@ -1,10 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
+// imported functions: test 1
+struct bar {
+    int b1;
+    float b2;
+};
 
-int main() {
-    char *name;
-    name = (char*) malloc(10); 
-    printf("%s\n", name);    
+struct foo {
+    int f1;
+    struct bar* b;
+};
 
-    return 0;
+void test1(struct foo* f) {
+    f = (struct foo*)malloc(sizeof(struct foo));
 }

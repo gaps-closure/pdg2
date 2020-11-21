@@ -65,7 +65,9 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   // connectGlobalObjectTreeWithAddressVars(funcsNeedPDGConstruction);
   errs() << "finish connecting global trees with users\n";
   buildGlobalTypeTrees(sharedTypes);
+  errs() << "finish building global type trees\n";
   connectGlobalTypeTreeWithAddressVars(funcsNeedPDGConstruction);
+  errs() << "finish connecting global type trees with addr variables\n";
   return false;
 }
 
@@ -397,9 +399,9 @@ bool pdg::ProgramDependencyGraph::isIndirectCallOrInlineAsm(CallInst *CI)
   return true;
 }
 
-tree<InstructionWrapper *>::iterator pdg::ProgramDependencyGraph::getTreeNodeInsertLoc(tree<InstructionWrapper*> &objectTree, InstructionWrapper* treeW)
+tree<InstructionWrapper *>::iterator pdg::ProgramDependencyGraph::getTreeNodeInsertLoc(tree<InstructionWrapper *> &objectTree, InstructionWrapper *treeW)
 {
-  tree<InstructionWrapper*>::iterator insertLoc = objectTree.begin();
+  tree<InstructionWrapper *>::iterator insertLoc = objectTree.begin();
   while ((*insertLoc) != treeW && insertLoc != objectTree.end())
   {
     insertLoc++;
@@ -1114,8 +1116,13 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars(std::set<
     std::string typeName = DIUtils::getDITypeName(sharedDIType);
     for (auto instW : instWs)
     {
-      PDG->addDependency(*treeBegin, instW, DependencyType::VAL_DEP);
       Function* allocFunc = instW->getInstruction()->getFunction();
+      std::set<InstructionWrapper*> aliasSet;
+      getAllAlias(instW->getInstruction(), aliasSet);
+      for (auto aliasW : aliasSet)
+      {
+        PDG->addDependency(*treeBegin, aliasW, DependencyType::VAL_DEP);
+      }
       if (!funcMap[allocFunc]->hasTrees())
       {
         buildFormalTreeForFunc(allocFunc);
@@ -1132,40 +1139,48 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars(std::set<
       auto parentValDepNodes = getNodesWithDepType(*ParentI, DependencyType::VAL_DEP);
       for (auto pair : parentValDepNodes)
       {
-        auto parentDepInstW = pair.first->getData();
+        auto parentDepInstW = const_cast<InstructionWrapper *>(pair.first->getData());
+        std::set<InstructionWrapper *> readInstsW;
+        getReadInstsOnInst(parentDepInstW->getInstruction(), readInstsW);
         // collect all alias instructions for each parent' dependent instruction
-        std::set<InstructionWrapper*> parentDepInstAliasList;
-        getAllAlias(parentDepInstW->getInstruction(), parentDepInstAliasList);
-        parentDepInstAliasList.insert(const_cast<InstructionWrapper *>(parentDepInstW));
-        for (auto depInstAlias : parentDepInstAliasList)
+        for (auto readInstW : readInstsW)
         {
-          if (depInstAlias->getInstruction() == nullptr)
-            continue;
-          std::set<InstructionWrapper*> readInstWs;
-          getReadInstsOnInst(depInstAlias->getInstruction(), readInstWs);
-          for (auto readInstW : readInstWs)
+          std::set<InstructionWrapper *> aliasSet;
+          Instruction *readInst = readInstW->getInstruction();
+          if (isa<LoadInst>(readInst))
           {
-            Instruction* readInst = readInstW->getInstruction();
-            if (isa<LoadInst>(readInst))
-              PDG->addDependency(*treeI, readInstW, DependencyType::VAL_DEP);
-            // for GEP, checks the offset acutally match
-            else if (isa<GetElementPtrInst>(readInst))
+            getAllAlias(readInstW->getInstruction(), aliasSet);
+            for (auto aliasW : aliasSet)
             {
-              StructType *structTy = getStructTypeFromGEP(readInstW->getInstruction());
-              if (structTy != nullptr)
-              {
-                if (isTreeNodeGEPMatch(structTy, *treeI, readInstW->getInstruction()))
-                  PDG->addDependency(*treeI, readInstW, DependencyType::VAL_DEP);
-              }
-            }
-            // connect this read inst with all other possible shared data types
-            auto iter = globalTypeTrees.find((*treeI)->getDIType());
-            if (iter != globalTypeTrees.end())
-            {
-              auto tHead = iter->second.begin();
-              PDG->addDependency(*tHead, readInstW, DependencyType::VAL_DEP);
+              PDG->addDependency(*treeI, aliasW, DependencyType::VAL_DEP);
+              PDG->addDependency(aliasW, *treeI, DependencyType::VAL_DEP);
             }
           }
+          // for GEP, checks the offset acutally match
+          else if (isa<GetElementPtrInst>(readInst))
+          {
+            Instruction *GEP = readInstW->getInstruction();
+            StructType *structTy = getStructTypeFromGEP(GEP);
+            if (structTy != nullptr)
+            {
+              if (isTreeNodeGEPMatch(structTy, *treeI, GEP))
+              {
+                getAllAlias(GEP, aliasSet);
+                for (auto aliasW : aliasSet)
+                {
+                  PDG->addDependency(*treeI, aliasW, DependencyType::VAL_DEP);
+                  PDG->addDependency(aliasW, *treeI, DependencyType::VAL_DEP);
+                }
+              }
+            }
+          }
+          // connect this read inst with all other possible shared data types
+          // auto iter = globalTypeTrees.find((*treeI)->getDIType());
+          // if (iter != globalTypeTrees.end())
+          // {
+          //   auto tHead = iter->second.begin();
+          //   PDG->addDependency(*tHead, readInstW, DependencyType::VAL_DEP);
+          // }
         }
       }
     }
@@ -1263,10 +1278,14 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
     }
     pdgUtils.getInstMap()[argAlloc]->setGraphNodeType(GraphNodeType::ARG_ALLOC);
     // add dependency between parameter tree root node and arg alloc instruction
-    // std::set<InstructionWrapper*> argAliasSet; 
-    // getAllAlias(argAlloc, argAliasSet);
-    PDG->addDependency(*formalInTreeBegin, pdgUtils.getInstMap()[argAlloc], DependencyType::VAL_DEP);
-    PDG->addDependency(pdgUtils.getInstMap()[argAlloc], *formalInTreeBegin, DependencyType::VAL_DEP);
+    std::set<InstructionWrapper*> argAliasSet; 
+    getAllAlias(argAlloc, argAliasSet);
+    for (auto argAliasW : argAliasSet)
+    {
+      auto argAlias = argAliasW->getInstruction();
+      PDG->addDependency(*formalInTreeBegin, pdgUtils.getInstMap()[argAlias], DependencyType::VAL_DEP);
+      PDG->addDependency(pdgUtils.getInstMap()[argAlias], *formalInTreeBegin, DependencyType::VAL_DEP);
+    }
     connectTreeNodeWithAddrVars(*argI);
   }
 
@@ -1302,7 +1321,7 @@ void pdg::ProgramDependencyGraph::connectTreeNodeWithAddrVars(ArgumentWrapper* a
     // for tree nodes that are not root, get parent node's dependent instructions and then find loadInst or GEP Inst from parent's loads instructions
     auto ParentI = tree<InstructionWrapper *>::parent(treeI);
     auto parentValDepNodes = getNodesWithDepType(*ParentI, DependencyType::VAL_DEP);
-    // for union, copy parent's addr var to child node. As they will have the same address.
+    // for union, copy parent's addr var to child node. As they have the same address.
     if (DIUtils::isUnionTy((*ParentI)->getDIType()))
     {
       for (auto pair : parentValDepNodes)
@@ -1315,41 +1334,45 @@ void pdg::ProgramDependencyGraph::connectTreeNodeWithAddrVars(ArgumentWrapper* a
 
     for (auto pair : parentValDepNodes)
     {
-      auto parentDepInstW = pair.first->getData();
-      // collect all alias instructions for each parent' dependent instruction
-      std::set<InstructionWrapper *> parentDepAliasList;
-      getAllAlias(parentDepInstW->getInstruction(), parentDepAliasList);
-      parentDepAliasList.insert(const_cast<InstructionWrapper *>(parentDepInstW));
-      for (auto depInstAlias : parentDepAliasList)
+      auto parentDepInstW = const_cast<InstructionWrapper *>(pair.first->getData());
+      std::set<InstructionWrapper *> readInsts;
+      getReadInstsOnInst(parentDepInstW->getInstruction(), readInsts);
+      for (auto readInstW : readInsts)
       {
-        if (depInstAlias->getInstruction() == nullptr)
-          continue;
-        PDG->addDependency(*ParentI, depInstAlias, DependencyType::VAL_DEP);
-        std::set<InstructionWrapper *> readInsts;
-        getReadInstsOnInst(depInstAlias->getInstruction(), readInsts);
-        for (auto readInstW : readInsts)
+        std::set<InstructionWrapper *> aliasSet;
+        Instruction *readInst = readInstW->getInstruction();
+        if (isa<LoadInst>(readInst))
         {
-          if (isa<LoadInst>(readInstW->getInstruction()))
+          getAllAlias(readInstW->getInstruction(), aliasSet);
+          for (auto aliasW : aliasSet)
           {
-            PDG->addDependency(*treeI, readInstW, DependencyType::VAL_DEP);
-            PDG->addDependency(readInstW, *treeI, DependencyType::VAL_DEP);
+            PDG->addDependency(*treeI, aliasW, DependencyType::VAL_DEP);
+            PDG->addDependency(aliasW, *treeI, DependencyType::VAL_DEP);
           }
-          // for GEP, checks if the offsets match
-          else if (isa<GetElementPtrInst>(readInstW->getInstruction()))
+        }
+        // for GEP, checks if the offsets match
+        else if (isa<GetElementPtrInst>(readInst))
+        {
+          Instruction *GEP = readInstW->getInstruction();
+          StructType *structTy = getStructTypeFromGEP(GEP);
+          if (structTy != nullptr)
           {
-            Instruction* GEP = readInstW->getInstruction();
-            StructType *structTy = getStructTypeFromGEP(GEP);
-            if (structTy != nullptr)
+            if (isTreeNodeGEPMatch(structTy, *treeI, GEP))
             {
-              // errs() << "gep debugging: " << GEP->getFunction()->getName() << " | " << *GEP << " | " << DIUtils::getDIFieldName((*treeI)->getDIType()) << "\n";
-              if (isTreeNodeGEPMatch(structTy, *treeI, GEP))
+              getAllAlias(GEP, aliasSet);
+              for (auto aliasW : aliasSet)
               {
-                PDG->addDependency(*treeI, readInstW, DependencyType::VAL_DEP);
-                PDG->addDependency(readInstW, *treeI, DependencyType::VAL_DEP);
+                PDG->addDependency(*treeI, aliasW, DependencyType::VAL_DEP);
+                PDG->addDependency(aliasW, *treeI, DependencyType::VAL_DEP);
               }
             }
           }
         }
+        // errs() << "alias set for " << *readInstW->getInstruction() << "\n";
+        // for (auto aliasW : aliasSet)
+        // {
+        //   errs() << "\talias: " << *(aliasW->getInstruction()) << "\n";
+        // }
       }
     }
   }
@@ -1586,7 +1609,7 @@ Function *pdg::ProgramDependencyGraph::getCalledFunction(CallInst *CI)
 //
 // -------------------------------
 
-Value *pdg::ProgramDependencyGraph::getLShrOnGep(GetElementPtrInst* gep)
+Value *pdg::ProgramDependencyGraph::getLShrOnGep(GetElementPtrInst *gep)
 {
   for (auto u : gep->users())
   {
@@ -1602,7 +1625,7 @@ Value *pdg::ProgramDependencyGraph::getLShrOnGep(GetElementPtrInst* gep)
   return nullptr;
 }
 
-bool pdg::ProgramDependencyGraph::isGEPforBitField(GetElementPtrInst* gep)
+bool pdg::ProgramDependencyGraph::isGEPforBitField(GetElementPtrInst *gep)
 {
   for (auto u : gep->users())
   {
@@ -1618,7 +1641,7 @@ bool pdg::ProgramDependencyGraph::isGEPforBitField(GetElementPtrInst* gep)
   return false;
 }
 
-uint64_t pdg::ProgramDependencyGraph::getGEPOffsetInBits(StructType* structTy, GetElementPtrInst* gep)
+uint64_t pdg::ProgramDependencyGraph::getGEPOffsetInBits(StructType *structTy, GetElementPtrInst *gep)
 {
   // get the accessed struct member offset from the gep instruction
   unsigned gepFieldOffset = getGEPAccessFieldOffset(gep);
@@ -1645,7 +1668,7 @@ uint64_t pdg::ProgramDependencyGraph::getGEPOffsetInBits(StructType* structTy, G
   return fieldOffsetInBits;
 }
 
-unsigned pdg::ProgramDependencyGraph::getGEPAccessFieldOffset(GetElementPtrInst* gep)
+unsigned pdg::ProgramDependencyGraph::getGEPAccessFieldOffset(GetElementPtrInst *gep)
 {
   int operand_num = gep->getNumOperands();
   llvm::Value *last_idx = gep->getOperand(operand_num - 1);
@@ -1655,7 +1678,7 @@ unsigned pdg::ProgramDependencyGraph::getGEPAccessFieldOffset(GetElementPtrInst*
   return -1;
 }
 
-bool pdg::ProgramDependencyGraph::isTreeNodeGEPMatch(StructType* structTy, InstructionWrapper *treeNode, Instruction *GEP)
+bool pdg::ProgramDependencyGraph::isTreeNodeGEPMatch(StructType *structTy, InstructionWrapper *treeNode, Instruction *GEP)
 {
   if (structTy == nullptr)
     return false;
@@ -1687,7 +1710,7 @@ bool pdg::ProgramDependencyGraph::isStructPointer(Type *ty)
   return false;
 }
 
-StructType *pdg::ProgramDependencyGraph::getStructTypeFromGEP(Instruction* inst)
+StructType *pdg::ProgramDependencyGraph::getStructTypeFromGEP(Instruction *inst)
 {
   if (GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(inst))
   {
@@ -1697,7 +1720,7 @@ StructType *pdg::ProgramDependencyGraph::getStructTypeFromGEP(Instruction* inst)
       if (StructType *structTy = dyn_cast<StructType>(baseAddr->getType()->getPointerElementType()))
         return structTy;
     }
-    if (StructType* structTy = dyn_cast<StructType>(baseAddr->getType()))
+    if (StructType *structTy = dyn_cast<StructType>(baseAddr->getType()))
       return structTy;
   }
   return nullptr;
@@ -1755,7 +1778,7 @@ void pdg::ProgramDependencyGraph::connectCallerAndActualTrees(Function *caller)
               // for GEP, checks the offset acutally match
               else if (isa<GetElementPtrInst>(readInstW->getInstruction()))
               {
-                StructType* structTy = getStructTypeFromGEP(readInstW->getInstruction());
+                StructType *structTy = getStructTypeFromGEP(readInstW->getInstruction());
                 if (structTy != nullptr)
                 {
                   if (isTreeNodeGEPMatch(structTy, *actualTreeI, readInstW->getInstruction()))
@@ -1837,7 +1860,7 @@ std::set<Function *> pdg::ProgramDependencyGraph::inferAsynchronousCalledFunctio
   return asynCalls;
 }
 
-bool pdg::ProgramDependencyGraph::isUnsafeTypeCast(Instruction* inst)
+bool pdg::ProgramDependencyGraph::isUnsafeTypeCast(Instruction *inst)
 {
   if (inst == nullptr)
     return false;

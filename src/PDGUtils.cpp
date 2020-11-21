@@ -353,10 +353,11 @@ std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
   static_func.close();
 
   // init module function
-  auto initFuncs = computeModuleInitFuncs(M);
+  auto initFuncs = computeDriverEntryExitFuncs(M);
   for (auto initFunc : initFuncs)
   {
     // auto initFuncTrans = computeTransitiveClosure(*initFunc);
+    errs() << "find init func: " << initFunc->getName() << "\n";
     crossDomainFuncs.insert(initFunc);
   }
 
@@ -522,17 +523,29 @@ std::set<Function *> pdg::PDGUtils::getTransitiveClosureInDomain(Function &F, st
   return transClosure;
 }
 
-std::set<Function *> pdg::PDGUtils::computeModuleInitFuncs(Module &M)
+std::set<Function *> pdg::PDGUtils::computeDriverEntryExitFuncs(Module &M)
 {
-  std::set<Function *> initFuncs;
+  std::set<Function *> entryExitFuncs;
   for (auto &F : M)
   {
     if (F.isDeclaration() || F.empty())
       continue;
-    if (F.getName().str().find("init") != std::string::npos)
-      initFuncs.insert(&F);
-    if (F.getName().str().find("main") != std::string::npos)
-      initFuncs.insert(&F);
+    std::set<std::string> entryExitFuncNames = {
+      "init_module",
+      "cleanup_module"
+    };
+    for (auto user : F.users())
+    {
+      if (isa<GlobalValue>(user))
+      {
+        if (entryExitFuncNames.find(user->getName().str()) != entryExitFuncNames.end())
+          entryExitFuncs.insert(&F);
+      }
+    }
+    // if (F.getName().str().find("init") != std::string::npos)
+    //   initFuncs.insert(&F);
+    // if (F.getName().str().find("main") != std::string::npos)
+    //   initFuncs.insert(&F);
     // TODO: use the section prefix information to identify init function. (llvm 5.0 not working for this case)
     // if (!F.getSectionPrefix().hasValue())
     //   continue;
@@ -542,5 +555,13 @@ std::set<Function *> pdg::PDGUtils::computeModuleInitFuncs(Module &M)
     //   initFuncs.insert(&F);
     // }
   }
-  return initFuncs;
+  return entryExitFuncs;
 }
+
+void pdg::PDGUtils::stripStr(std::string &targetStr, std::string eliminateStr)
+{
+  auto pos = targetStr.find(eliminateStr);
+  if (pos != std::string::npos)
+    targetStr = targetStr.substr(pos + eliminateStr.size());
+}
+

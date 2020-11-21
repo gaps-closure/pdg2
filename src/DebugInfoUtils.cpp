@@ -53,7 +53,7 @@ std::string pdg::DIUtils::getArgName(Argument& arg)
       return DLV->getName().str();
   }
 
-  return "no_name";
+  return "";
 }
 
 DIType *pdg::DIUtils::stripAttributes(DIType *Ty)
@@ -229,7 +229,7 @@ std::string pdg::DIUtils::getDIFieldName(DIType *ty)
   case dwarf::DW_TAG_array_type:
   {
     ty = dyn_cast<DICompositeType>(ty)->getBaseType().resolve();
-    return "arr_" + ty->getName().str();
+    return ty->getName().str();
   }
   case dwarf::DW_TAG_pointer_type:
   {
@@ -247,7 +247,7 @@ std::string pdg::DIUtils::getDIFieldName(DIType *ty)
   {
     if (!ty->getName().str().empty())
       return ty->getName().str();
-    return "no name";
+    return "[no name]";
   }
   }
 }
@@ -428,8 +428,15 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
       if (DIType *arrTy = dyn_cast<DICompositeType>(ty)->getBaseType().resolve())
       {
         auto containedTypeName = getDITypeName(arrTy);
+        std::string pointerLevel = "";
+        while (containedTypeName.back() == '*')
+        {
+          containedTypeName.pop_back();
+          pointerLevel += "*";
+        }
+
         if (arrTy->getSizeInBits() != 0)
-          return "array<" + containedTypeName + ", " +  std::to_string(ty->getSizeInBits() / arrTy->getSizeInBits()) + ">";
+          return "array<" + containedTypeName + ", " +  std::to_string(ty->getSizeInBits() / arrTy->getSizeInBits()) + ">" + pointerLevel;
           // return containedTypeName + "[" + std::to_string(ty->getSizeInBits() / arrTy->getSizeInBits()) + "]";
         else
           return "array<" + containedTypeName + ", " + "var_len" + ">";
@@ -520,6 +527,9 @@ bool pdg::DIUtils::isStructPointerTy(DIType *dt)
   if (dt == nullptr)
     return false;
   dt = stripMemberTag(dt);
+  dt = stripAttributes(dt);
+  if (!dt)
+    return false;
   if (dt->getTag() == dwarf::DW_TAG_pointer_type) {
     auto baseTy = getLowestDIType(dt);
     if (baseTy != nullptr) 
@@ -738,7 +748,10 @@ bool pdg::DIUtils::isUnionTy(DIType *dt)
 
 bool pdg::DIUtils::isArrayType(DIType *dt)
 {
-  return (dt->getTag() == dwarf::DW_TAG_array_type);
+  dt = stripMemberTag(dt);
+  if (dt)
+    return (dt->getTag() == dwarf::DW_TAG_array_type);
+  return false;
 }
 
 bool pdg::DIUtils::actualArgHasAllocator(Function& F, unsigned argIdx)
