@@ -1208,42 +1208,37 @@ std::string pdg::AccessInfoTracker::getReturnAttributeStr(Function &F)
     if (!isa<Instruction>(retInst->getReturnValue()))
       continue;
     Instruction *retVal = cast<Instruction>(retInst->getReturnValue());
-    auto aliasSet = getIntraFuncAlias(retVal);
-    for (auto alias : aliasSet)
+    std::set<InstructionWrapper*> retValAliasSet;
+    PDG->getAllAlias(retVal, retValAliasSet);
+    for (auto aliasW : retValAliasSet)
     {
-      if (CallInst *ci = dyn_cast<CallInst>(alias))
+      auto aliasInst = aliasW->getInstruction();
+      CallSite CS(aliasInst);
+      if (CS.isCall() && !CS.isIndirectCall())
       {
-        if (Function *calledFunc = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
-        {
-          if (calledFunc == &F)
-            continue;
-          if (calledFunc->isDeclaration() || calledFunc->empty())
-            continue;
-
-          std::string calleeRetStr = getReturnAttributeStr(*calledFunc);
-          if (!calleeRetStr.empty())
-            return calleeRetStr;
-        }
+        auto calledFunc = CS.getCalledFunction();
+        if (calledFunc->isDeclaration() || calledFunc->empty())
+          continue;
+        std::string calleeRetStr = getReturnAttributeStr(*calledFunc);
+        if (!calleeRetStr.empty())
+          return calleeRetStr;
       }
 
-      if (!G->hasCell(*alias))
+      if (!G->hasCell(*aliasInst))
         continue;
-      auto const &c = G->getCell(*alias);
+      auto const &c = G->getCell(*aliasInst);
       auto const &s = c.getNode()->getAllocSites();
       for (auto const a : s)
       {
         Value *tempV = const_cast<Value *>(a);
-        if (CallInst *ci = dyn_cast<CallInst>(tempV))
-        {
-          if (Function *calledFunc = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
-          {
-            std::string funcName = calledFunc->getName().str();
-            if (allocatorWrappers.find(funcName) != allocatorWrappers.end())
-              return "[alloc(caller)]";
-            // if (funcName.find("zalloc") != std::string::npos || funcName.find("malloc") != std::string::npos)
-            //   return "[alloc(caller)]";
-          }
-        }
+        CallSite CS(tempV);
+        if (!CS.isCall() || CS.isIndirectCall())
+          continue;
+        
+        auto calledFunc = CS.getCalledFunction();
+        std::string funcName = calledFunc->getName().str();
+        if (isAllocator(funcName))
+          return "[alloc(caller)]";
       }
     }
   }
@@ -1521,9 +1516,10 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
   std::string argName = DIUtils::getArgName(*(argW->getArg()));
   auto treeBegin = argW->tree_begin(TreeType::FORMAL_IN_TREE);
   DIType *argDIType = (*treeBegin)->getDIType();
-  if (argW->getArg()->getArgNo() == 100)
+  // for return value, we use "ret_" + type name as the return value's name 
+  if (pdgUtils.isReturnValue(*argW->getArg()))
   {
-    auto argDITypeStr = DIUtils::getDITypeName(argDIType);
+    auto argDITypeStr = DIUtils::getRawDITypeName(argDIType);
     pdgUtils.stripStr(argDITypeStr, "struct ");
     argName = "ret_" + argDITypeStr;
   }
@@ -1564,58 +1560,153 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
         treeNodeQ.push(childI);
     }
 
+    // No projection is needed for pointer. Only for the underlying object
+    if (DIUtils::isStructPointerTy(curDIType))
+      continue;
+
     std::string str;
     raw_string_ostream OS(str);
-    std::string structFieldName = DIUtils::getDIFieldName(curDIType);
-
+    std::string projectionReferenceName = DIUtils::getDIFieldName(curDIType);
+    std::string projectionTypeName = DIUtils::getRawDITypeName(lowestDIType);
+    std::string projectionRawTypeName = projectionTypeName;
+    pdgUtils.stripStr(projectionRawTypeName, "struct ");
     // struct node's di type don't store naming info. Need to go to the parent node for fetching the naming information
-    std::string structTypeName = DIUtils::getDITypeName(lowestDIType);
-    if (structTypeName == structFieldName)
+    if (projectionRawTypeName == projectionReferenceName)
     {
       auto parentI = getParentIter(treeI);
-      structFieldName = DIUtils::getDIFieldName((*parentI)->getDIType());
+      projectionReferenceName = DIUtils::getDIFieldName((*parentI)->getDIType());
     }
-    pdgUtils.stripStr(structFieldName, "struct ");
 
-    if (tree<InstructionWrapper *>::depth(treeI) > 1)
+    // naming for struct field
+    if (!pdgUtils.isRootNode(treeI))
     {
       if (DIUtils::isStructPointerTy(curDIType) || DIUtils::isStructTy(curDIType))
-        structFieldName = argName + "_" + structFieldName;
+        projectionReferenceName = argName + "_" + projectionReferenceName;
     }
     else
     {
-      structFieldName = argName;
+      // naming for root pointer / object
+      projectionReferenceName = argName;
     }
-
-    if (DIUtils::isStructPointerTy(curDIType))
-      continue;
 
     generateProjectionForTreeNode(treeI, OS, argName);
     // if (OS.str().empty())
     //   continue;
     // special handling for global op structs
-    if (structTypeName.find("ops") != std::string::npos)
+    if (projectionTypeName.find("ops") != std::string::npos)
     {
       // find the first ops projection with fields inside
-      if (seenFuncOps.find(structTypeName) != seenFuncOps.end())
+      if (seenFuncOps.find(projectionTypeName) != seenFuncOps.end())
         continue;
-      seenFuncOps.insert(structTypeName);
-      std::string projStr = "\tprojection < " + structTypeName + " > " + structFieldName + " {\n " + OS.str() + "\t}\n";
+      seenFuncOps.insert(projectionTypeName);
+      std::string projStr = "\tprojection < " + projectionTypeName + " > " + projectionReferenceName + " {\n " + OS.str() + "\t}\n";
       globalOpsStr = globalOpsStr + "\n" + projStr;
     }
     else
     {
-      if (argW->getArg()->getArgNo() == 100)
-        idl_file << "\t\tprojection < " << structTypeName << " > "
-                 << "ret_" << structTypeName << " {\n " << OS.str() << "\t\t}\n";
-      else
-        idl_file << "\t\tprojection < " << structTypeName << " > " << structFieldName << " {\n " << OS.str() << "\t\t}\n";
+      idl_file << "\t\tprojection < " << projectionTypeName << " > " << projectionReferenceName << " {\n " << OS.str() << "\t\t}\n";
     }
   }
 }
 
+bool pdg::AccessInfoTracker::isAllocator(std::string funcName)
+{
+  for (auto allocatorWrapper : allocatorWrappers)
+  {
+    if (funcName.find(allocatorWrapper) != std::string::npos)
+      return true;
+  }
+  return false;
+}
+
+bool pdg::AccessInfoTracker::isAssignedNewMemObjInCaller(Value* actualParam, unsigned fieldBitsOffset)
+{
+  if (isa<GlobalVariable>(actualParam))
+    return true;
+  if (Instruction *actualParamInst = dyn_cast<Instruction>(actualParam))
+  {
+    // get alias of passed parameter
+    std::set<InstructionWrapper*> actualParamAlias;
+    PDG->getAllAlias(actualParamInst, actualParamAlias);
+
+    // if alias is a gep instruction, we need to check if this gep is actually 
+    for (auto aliasW : actualParamAlias)
+    {
+      auto aliasInst = aliasW->getInstruction();
+      CallSite CS(aliasInst);
+      if (CS.isCall())
+      {
+        if (CS.isIndirectCall())
+          continue;
+        if (allocatorWrappers.find(CS.getCalledFunction()->getName().str()) != allocatorWrappers.end())
+          return true;
+      }
+
+      // auto depInstsPair = PDG->getNodesWithDepType(aliasW, DependencyType::DATA_DEF_USE);
+      // for (auto depPair : depInstsPair)
+      // {
+      //   auto depInstW = const_cast<InstructionWrapper*>(depPair.first->getData());
+      //   auto depInst = depInstW->getInstruction();
+      //   if (!depInst)
+      //     continue;
+      //   if (StoreInst *si = dyn_cast<StoreInst>(depInst))
+      //   {
+      //     if (si->getPointerOperand() != aliasInst)
+      //       continue;
+      //     // check if a new memory object is written to the address
+      //     // now, we check heap object allocated by malloc wrappers
+      //     auto storedVal = si->getValueOperand();
+      //     if (isa<GlobalVariable>(storedVal->stripPointerCasts()))
+      //       return true;
+      //     if (Instruction *storedValInst = dyn_cast<Instruction>(storedVal))
+      //     {
+      //       std::set<InstructionWrapper *> storedValAliasSet;
+      //       PDG->getAllAlias(storedValInst, storedValAliasSet);
+      //       for (auto storedValAliasW : storedValAliasSet)
+      //       {
+      //         CallSite CS(storedValAliasW->getInstruction());
+      //         if (!CS.isCall() || CS.isIndirectCall())
+      //           continue;
+      //         if (allocatorWrappers.find(CS.getCalledFunction()->getName().str()) != allocatorWrappers.end())
+      //           return true;
+      //       }
+      //     }
+      //   }
+      // }
+    }
+  }
+  return false;
+}
+
+// receive a tree wrapper
 std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *instW)
 {
+  auto &pdgUtils = PDGUtils::getInstance();
+  // infer the accesses in the caller function, currently, alloc(callee) attribute
+  // DIType* dt = instW->getDIType();
+  // if (DIUtils::isStructPointerTy(dt))
+  // {
+  //   Argument *arg = instW->getArgument();
+  //   if (arg != nullptr)
+  //   {
+  //     unsigned fieldBitsOffset = instW->getDIType()->getOffsetInBits();
+  //     unsigned argIdx = arg->getArgNo();
+  //     if (argIdx == 100)
+  //       return "";
+  //     // get call sites
+  //     auto funcCallSites = pdgUtils.computeFunctionCallSites(*arg->getParent());
+  //     for (auto CS : funcCallSites)
+  //     {
+  //       auto actualParam = CS.getArgOperand(argIdx);
+  //       auto calledFunc = CS.getCalledFunction();
+  //       assert(calledFunc != nullptr && "cannot find callee for indirect call site - inferFieldAnnotation\n");
+  //       if (isAssignedNewMemObjInCaller(actualParam, fieldBitsOffset))
+  //         return "alloc(callee)";
+  //     }
+  //   }
+  // }
+
+  // infer the accesses in the calle function
   auto valDepPairList = PDG->getNodesWithDepType(instW, DependencyType::VAL_DEP);
   for (auto valDepPair : valDepPairList)
   {
@@ -1650,7 +1741,7 @@ std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *ins
                   if (calledFunc != nullptr)
                   {
                     auto calledFuncName = calledFunc->getName().str();
-                    if (allocatorWrappers.find(calledFuncName) != allocatorWrappers.end())
+                    if (isAllocator(calledFuncName))
                       return "[alloc(caller)] [out]";
                     if (deallocatorWrappers.find(calledFuncName) != deallocatorWrappers.end())
                       return "[dealloc(caller)]";

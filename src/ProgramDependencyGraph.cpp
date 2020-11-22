@@ -89,6 +89,7 @@ void pdg::ProgramDependencyGraph::buildPDGForFunc(Function *Func)
   {
     buildFormalTreeForFunc(Func);
   }
+
   // errs() << "finish building PDG for: " << Func->getName() << "\n";
 }
 
@@ -169,16 +170,15 @@ bool pdg::ProgramDependencyGraph::processCallInst(InstructionWrapper *instW)
     // special cases done, common function
     CallWrapper *callW = new CallWrapper(CI);
     pdgUtils.getCallMap()[CI] = callW;
-    if (!callee->isDeclaration())
+    if (callee->isDeclaration() || callee->empty())
+      return false;
+    if (!callee->arg_empty())
     {
-      if (!callee->arg_empty())
-      {
-        if (!pdgUtils.getFuncMap()[callee]->hasTrees())
-          buildPDGForFunc(callee);
-        buildActualParameterTrees(CI);
-      } // end if !callee
-      connectCallerAndCallee(instW, callee);
-    }
+      if (!pdgUtils.getFuncMap()[callee]->hasTrees())
+        buildPDGForFunc(callee);
+      buildActualParameterTrees(CI);
+    } // end if !callee
+    connectCallerAndCallee(instW, callee);
   }
   return true;
 }

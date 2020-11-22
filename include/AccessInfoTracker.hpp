@@ -73,6 +73,7 @@ public:
   std::string inferFieldAnnotation(InstructionWrapper* instW);
   bool voidPointerHasMultipleCasts(InstructionWrapper *voidPtrW);
   bool isUsedInStrOps(InstructionWrapper* instW);
+  bool isAssignedNewMemObjInCaller(llvm::Value* actualParam, unsigned fieldBitsOffset);
   void setupStrOpsMap();
   void setupAllocatorWrappers();
   void setupDeallocatorWrappers();
@@ -108,6 +109,7 @@ private:
   std::set<std::string> globalStrId;
   std::set<llvm::Function*> asyncCallAccessedSharedData;
   std::string globalOpsStr;
+  bool isAllocator(std::string funcName);
   bool crossBoundary; // indicate whether transitive closure cross two domains
   unsigned numEliminatedPrivateFields;
   unsigned totalNumOfFields;

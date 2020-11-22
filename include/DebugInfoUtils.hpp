@@ -23,6 +23,7 @@ class DIUtils
     static llvm::DIType *getGlobalVarDIType(llvm::GlobalVariable &globalVar);
     static std::string getDIFieldName(llvm::DIType *dt);
     static std::string getDITypeName(llvm::DIType *dt);
+    static std::string getRawDITypeName(llvm::DIType *dt);
     // static std::string getFuncDITypeName(llvm::DIType *dt, std::string funcName);
     static std::string getArgName(llvm::Argument &arg);
     static std::string getArgTypeName(llvm::Argument &arg);

@@ -58,6 +58,7 @@ class PDGUtils final
     void computeCrossDomainTransFuncs(llvm::Module &M, std::set<llvm::Function *> &crossDomainTransFuncs);
     std::set<llvm::Function *> computeAsyncFuncs(llvm::Module &M);
     std::set<llvm::Function *> computeDriverEntryExitFuncs(llvm::Module &M);
+    std::set<llvm::CallSite> computeFunctionCallSites(llvm::Function &F);
     std::set<std::string> computeDriverExportFuncPtrName();
     std::set<std::string> getBlackListFuncs();
     std::map<std::string, std::string> computeDriverExportFuncPtrNameMap();
@@ -71,6 +72,8 @@ class PDGUtils final
     llvm::Value *getLShrOnGep(llvm::GetElementPtrInst *gep);
     uint64_t getGEPOffsetInBits(llvm::StructType *structTy, llvm::GetElementPtrInst *gep);
     void stripStr(std::string& targetStr, std::string eliminateStr);
+    bool isReturnValue(llvm::Argument& arg);
+    bool isRootNode(tree<InstructionWrapper*>::iterator treeI);
 
   private:
     std::unordered_map<const llvm::Instruction *, InstructionWrapper *> G_instMap;

@@ -462,6 +462,23 @@ std::set<Function *> pdg::PDGUtils::computeAsyncFuncs(Module &M)
   return asynCalls;
 }
 
+std::set<CallSite> pdg::PDGUtils::computeFunctionCallSites(Function& F)
+{
+  std::set<CallSite> funcCallSites;
+  for (auto user : F.users())
+  {
+    if (CallInst *ci = dyn_cast<CallInst>(user))
+    {
+      CallSite CS(ci);
+      if (CS.isIndirectCall())
+        continue;
+      funcCallSites.insert(CS);
+    }
+  }
+  
+  return funcCallSites;
+}
+
 std::set<std::string> pdg::PDGUtils::computeDriverExportFuncPtrName()
 {
   // compute a set of pointer pointer name provided by the driver side
@@ -565,3 +582,12 @@ void pdg::PDGUtils::stripStr(std::string &targetStr, std::string eliminateStr)
     targetStr = targetStr.substr(pos + eliminateStr.size());
 }
 
+bool pdg::PDGUtils::isReturnValue(Argument &arg)
+{
+  return (arg.getArgNo() == 100);
+}
+
+bool pdg::PDGUtils::isRootNode(tree<InstructionWrapper*>::iterator treeI)
+{
+  return tree<InstructionWrapper *>::depth(treeI) <= 1;
+}
