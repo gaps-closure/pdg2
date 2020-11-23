@@ -227,7 +227,7 @@ namespace
       }
 
       auto &pdgUtils = pdg::PDGUtils::getInstance();
-      auto sharedDataTypes = pdg::DIUtils::collectSharedDITypes(*module, pdgUtils.computeCrossDomainFuncs(*module));
+      // auto sharedDataTypes = pdg::DIUtils::collectSharedDITypes(*module, pdgUtils.computeCrossDomainFuncs(*module));
       // check if alloc inst can reach interface function
       for (auto ai : allocInstSet)
       {
@@ -239,9 +239,7 @@ namespace
             if (Function *calledFunc = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
             {
               if (interfaceFuncs.find(calledFunc) != interfaceFuncs.end())
-              {
                 return true;
-              }
             }
           }
         }

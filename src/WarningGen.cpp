@@ -4,7 +4,6 @@
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include <llvm/Support/raw_ostream.h>
-
 #include "DebugInfoUtils.hpp"
 #include "PDGUtils.hpp"
 #include "ProgramDependencyGraph.hpp"
@@ -28,6 +27,7 @@ namespace pdg
     {
       PDG = &getAnalysis<ProgramDependencyGraph>();
       auto &pdgUtils = PDGUtils::getInstance();
+      auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
       pdgUtils.constructFuncMap(M);
       warningNum = 0;
       atomicOpWarningNum = 0;
@@ -45,6 +45,7 @@ namespace pdg
       printWarningsForAtomicOperation(M);
       CSWarningFile.close();
       AtomicWarningFile.close();
+      ksplit_stats_collector.PrintAtomicRegionStats();
       return false;
     }
 
@@ -65,6 +66,7 @@ namespace pdg
 
     void computeCriticalSections()
     {
+      auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
       // a list of locking functions we are looking for
       std::set<Function *> reachableFuncs;
       reachableFuncs.insert(crossDomainTransFuncs.begin(), crossDomainTransFuncs.end());
@@ -78,6 +80,7 @@ namespace pdg
         CS.insert(csInFunc.begin(), csInFunc.end());
       }
       errs() << "number of CS: " << CS.size() << "\n";
+      ksplit_stats_collector.SetNumberOfCriticalSection(CS.size());
     }
 
     std::set<std::pair<Instruction *, Instruction *>> collectCSInFunc(Function &F)
@@ -633,6 +636,7 @@ namespace pdg
 
     void printWarningsForAtomicOperation(Module &M)
     {
+      auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
       for (auto func : crossDomainTransFuncs)
       {
         if (func->isDeclaration() || func->empty())
@@ -645,6 +649,7 @@ namespace pdg
             if (ptrToSharedData.find(modifiedAddrVar) != ptrToSharedData.end())
             {
               printWarningForSharedVarInAtomicOperation(*modifiedAddrVar, *instI, *func);
+              ksplit_stats_collector.IncreaseNumberOfAtomicOperation();
             }
           }
         }

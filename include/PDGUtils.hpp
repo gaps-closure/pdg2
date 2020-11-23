@@ -35,7 +35,7 @@ class PDGUtils final
     {
       static PDGUtils pdgUtils { }; 
       return pdgUtils;
-    };
+    }
 
     std::unordered_map<const llvm::Instruction *, InstructionWrapper *> &getInstMap() { return G_instMap; }
     std::set<InstructionWrapper *> &getGlobalInstsSet() { return G_globalInstsSet; }

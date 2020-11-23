@@ -357,7 +357,6 @@ std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
   for (auto initFunc : initFuncs)
   {
     // auto initFuncTrans = computeTransitiveClosure(*initFunc);
-    errs() << "find init func: " << initFunc->getName() << "\n";
     crossDomainFuncs.insert(initFunc);
   }
 
@@ -542,12 +541,12 @@ std::set<Function *> pdg::PDGUtils::getTransitiveClosureInDomain(Function &F, st
 
 std::set<Function *> pdg::PDGUtils::computeDriverEntryExitFuncs(Module &M)
 {
-  std::set<Function *> entryExitFuncs;
+  std::set<Function *> module_entry_exit_funcs;
   for (auto &F : M)
   {
     if (F.isDeclaration() || F.empty())
       continue;
-    std::set<std::string> entryExitFuncNames = {
+    std::set<std::string> module_entry_exit_funcs_name = {
       "init_module",
       "cleanup_module"
     };
@@ -555,24 +554,12 @@ std::set<Function *> pdg::PDGUtils::computeDriverEntryExitFuncs(Module &M)
     {
       if (isa<GlobalValue>(user))
       {
-        if (entryExitFuncNames.find(user->getName().str()) != entryExitFuncNames.end())
-          entryExitFuncs.insert(&F);
+        if (module_entry_exit_funcs_name.find(user->getName().str()) != module_entry_exit_funcs_name.end())
+          module_entry_exit_funcs.insert(&F);
       }
     }
-    // if (F.getName().str().find("init") != std::string::npos)
-    //   initFuncs.insert(&F);
-    // if (F.getName().str().find("main") != std::string::npos)
-    //   initFuncs.insert(&F);
-    // TODO: use the section prefix information to identify init function. (llvm 5.0 not working for this case)
-    // if (!F.getSectionPrefix().hasValue())
-    //   continue;
-    // auto funcSectionText = F.getSectionPrefix()->str();
-    // if (funcSectionText.find("init.text") != std::string::npos)
-    // {
-    //   initFuncs.insert(&F);
-    // }
   }
-  return entryExitFuncs;
+  return module_entry_exit_funcs;
 }
 
 void pdg::PDGUtils::stripStr(std::string &targetStr, std::string eliminateStr)

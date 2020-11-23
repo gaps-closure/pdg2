@@ -10,8 +10,7 @@
 #include "llvm/Support/Debug.h"
 #include "DebugInfoUtils.hpp"
 #include "PDGCommandLineOptions.hpp"
-#include <fstream>
-#include <sstream>
+#include "KSplitStatsCollector.hpp"
 
 
 namespace pdg
@@ -38,7 +37,8 @@ public:
   void drawActualParameterTree(llvm::CallInst *CI, TreeType treeTy);
   void buildFormalTreeForFunc(llvm::Function *Func);
   void buildFormalTreeForArg(llvm::Argument &arg, TreeType treeTy);
-  llvm::DIType *findCastedDIType(llvm::Argument &arg);
+  llvm::DIType *FindCastFromDIType(llvm::Argument &arg);
+  llvm::DIType *FindCastToDIType(llvm::Argument &arg);
   InstructionWrapper *buildPointerTreeNodeWithDI(llvm::Value &val, InstructionWrapper &parentTreeNodeW, tree<InstructionWrapper *> &objectTree, llvm::DIType &curDIType);
   void collectSharedGlobalVars(std::set<llvm::Function *> &driverDomainFuncs, std::set<llvm::Function *> &kernelDomainFuncs);
   void buildObjectTreeForGlobalVars();

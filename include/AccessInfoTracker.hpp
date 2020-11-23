@@ -70,16 +70,16 @@ public:
   uint64_t getArrayArgSize(llvm::Value &V, llvm::Function &F);
   int getCallOperandIdx(llvm::Value *operand, llvm::CallInst *callInst);
   std::string switchIndirectCalledPtrName(std::string funcptr);
-  std::string inferFieldAnnotation(InstructionWrapper* instW);
+  std::string inferFieldAnnotation(InstructionWrapper* instW, std::string fieldID);
   bool voidPointerHasMultipleCasts(InstructionWrapper *voidPtrW);
   bool isUsedInStrOps(InstructionWrapper* instW);
   bool isAssignedNewMemObjInCaller(llvm::Value* actualParam, unsigned fieldBitsOffset);
+  bool IsCastedToArrayType(llvm::Value& val);
   void setupStrOpsMap();
   void setupAllocatorWrappers();
   void setupDeallocatorWrappers();
   void initializeNumStats();
   unsigned computeUsedGlobalNumInDriver();
-  void printNumStats();
   void printAsyncCalls();
   void printCopiableFuncs(std::set<llvm::Function *> &searchDomain);
   std::set<llvm::Function *> computeFuncsAccessPrivateData(std::set<llvm::Function *> &searchDomain);
@@ -106,26 +106,11 @@ private:
   std::set<std::string> stringOperations;
   std::set<std::string> allocatorWrappers;
   std::set<std::string> deallocatorWrappers;
-  std::set<std::string> globalStrId;
+  std::set<std::string> global_string_struct_fields_;
   std::set<llvm::Function*> asyncCallAccessedSharedData;
   std::string globalOpsStr;
   bool isAllocator(std::string funcName);
   bool crossBoundary; // indicate whether transitive closure cross two domains
-  unsigned numEliminatedPrivateFields;
-  unsigned totalNumOfFields;
-  unsigned numProjectedFields;
-  unsigned savedSyncDataSize;
-  unsigned privateDataSize;
-  unsigned unionNum;
-  unsigned unNamedUnionNum;
-  unsigned voidPointerNum;
-  unsigned unhandledVoidPointerNum;
-  unsigned pointerArithmeticNum;
-  unsigned sentialArrayNum;
-  unsigned arrayNum;
-  unsigned unHandledArrayNum;
-  unsigned stringNum;
-  unsigned concurrentFieldsNum;
 };
 
 std::string getAccessAttributeName(tree<InstructionWrapper *>::iterator treeI);

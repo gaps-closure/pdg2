@@ -15,24 +15,23 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   module = &M;
   PDG = &getAnalysis<ProgramDependencyGraph>();
   auto &pdgUtils = PDGUtils::getInstance();
+  auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
   // get cross domain functions and setup kernel and driver side functions
-  initializeNumStats();
+
   std::set<Function *> crossDomainFuncCalls = pdgUtils.computeCrossDomainFuncs(M);
   importedFuncs = pdgUtils.computeImportedFuncs(M);
+  ksplit_stats_collector.SetNumberOfKernelToDriverCalls(importedFuncs.size());
   driverExportFuncPtrNames = pdgUtils.computeDriverExportFuncPtrName();
+  ksplit_stats_collector.SetNumberOfDriverToKernelCalls(driverExportFuncPtrNames.size());
+
   driverDomainFuncs = pdgUtils.computeDriverDomainFuncs(M);
   kernelDomainFuncs = pdgUtils.computeKernelDomainFuncs(M);
   driverExportFuncPtrNameMap = pdgUtils.computeDriverExportFuncPtrNameMap();
-  // asyncCalls = PDG->inferAsynchronousCalledFunction();
   // counter for how many field we eliminate using shared data
   setupStrOpsMap();
   setupAllocatorWrappers();
   setupDeallocatorWrappers();
   globalOpsStr = "";
-  privateDataSize = 0;
-  savedSyncDataSize = 0;
-  numProjectedFields = 0;
-  numEliminatedPrivateFields = 0;
   
   // start generating IDL
   std::string file_name = "kernel";
@@ -41,6 +40,14 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   idl_file << "module kernel"
            << " {\n";
   computeSharedData();
+  ksplit_stats_collector.SetNumberOfSharedStructType(sharedDataTypeMap.size());
+  unsigned num_of_shared_fields = 0;
+  for (auto pair : sharedDataTypeMap)
+  {
+    num_of_shared_fields += pair.second.size();
+  }
+  ksplit_stats_collector.SetNumberOfSharedStructFields(num_of_shared_fields);
+
   std::set<Function*> crossDomainTransFuncs;
   pdgUtils.computeCrossDomainTransFuncs(M, crossDomainTransFuncs);
   std::set<Function*> reachableFuncInKernel;
@@ -63,16 +70,8 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   idl_file << globalOpsStr << "\n";
   idl_file << "}";
   idl_file.close();
-  // printNumStats();
-  // for (auto pair : sharedDataTypeMap)
-  // {
-  //   errs() << "for struct type: " << pair.first << "\n";
-  //   for (auto sd : pair.second)
-  //   {
-  //     errs() << "\t" << sd << "\n";
-  //   }
-  //   errs() << " --------------- \n";
-  // }
+  ksplit_stats_collector.PrintProjectionStats();
+  ksplit_stats_collector.PrintKernelIdiomStats();
   return false;
 }
 
@@ -96,70 +95,6 @@ void pdg::AccessInfoTracker::setupAllocatorWrappers()
 void pdg::AccessInfoTracker::setupDeallocatorWrappers()
 {
   deallocatorWrappers.insert("kfree");
-}
-
-void pdg::AccessInfoTracker::initializeNumStats()
-{
-  concurrentFieldsNum = 0;
-  totalNumOfFields = 0;
-  unionNum = 0;
-  unNamedUnionNum = 0;
-  voidPointerNum = 0;
-  unhandledVoidPointerNum = 0;
-  pointerArithmeticNum = PDG->getUnsafeTypeCastNum();
-  sentialArrayNum = 0;
-  arrayNum = 0;
-  unHandledArrayNum = 0;
-  stringNum = 0;
-}
-
-void pdg::AccessInfoTracker::printNumStats()
-{
-  auto &pdgUtils = PDGUtils::getInstance();
-  std::ofstream numStats;
-  numStats.open("numStats.txt", std::ios::app);
-  numStats << "union/unhandled type number: " << unionNum << "[" << unNamedUnionNum << "]"<< "\n";
-  numStats << "void pointer/unhandled number: " << voidPointerNum << "[" << unhandledVoidPointerNum << "]" << "\n";
-  numStats << "wild pointer: " << pointerArithmeticNum << "\n";
-  numStats << "sential array number: " << sentialArrayNum << "\n";
-  numStats << "array/unhandled number: " << (arrayNum + unHandledArrayNum) << "[" << unHandledArrayNum << "]" << "\n";
-  numStats << "string number: " << stringNum << "\n";
-  numStats << "global used in driver: " << computeUsedGlobalNumInDriver() << "\n";
-  numStats << "Driver to Kernel Invocation: " << importedFuncs.size() << "\n";
-  numStats << "Kernel to Driver Invocation: " << driverExportFuncPtrNames.size() << "\n";
-  // eliminated fields
-  std::string sharedDataStatsStr = "sharedDataStats.txt";
-  std::ofstream sharedDataStatsFile;
-  sharedDataStatsFile.open(sharedDataStatsStr);
-  sharedDataStatsFile << "shared data stats: \n";
-  sharedDataStatsFile << "number of shared data types: " << sharedDataTypeMap.size() << "\n";
-  sharedDataStatsFile << "Concurrently Executed Fields: " << concurrentFieldsNum << "\n";
-  unsigned numOfSharedFields = 0;
-  for (auto pair : sharedDataTypeMap)
-  {
-    numOfSharedFields += pair.second.size();
-  }
-  sharedDataStatsFile << "total number of fields: " << totalNumOfFields << "\n";
-  // sharedDataStatsFile << "number of shared fields: " << numOfSharedFields << "\n";
-  // sharedDataStatsFile << "number of private fields: " << (totalNumOfFields - numOfSharedFields) << "\n";
-  sharedDataStatsFile << "number of projected fields found by basic algorithm: " << numProjectedFields << "\n";
-  sharedDataStatsFile << "number of projected fields with shared data optimziation: " << (numProjectedFields - numEliminatedPrivateFields ) << "\n";
-  // sharedDataStatsFile << "save data in bytes: " << savedSyncDataSize << "\n";
-  // sharedDataStatsFile << "save data using shared data in bytes: " << privateDataSize << "\n";
-  // sharedDataStatsFile << "total save data in bytes: " << (savedSyncDataSize + privateDataSize) << "\n";
-  sharedDataStatsFile.close();
-}
-
-void pdg::AccessInfoTracker::printAsyncCalls()
-{
-  errs() << "async functions: -----------------------------------------------------\n";
-  errs() << "size of ayns funcs: " << asyncCalls.size() << "\n";
-  errs() << "async func access shared data: " << asyncCallAccessedSharedData.size() << "\n";
-  for (auto asyncFunc : asyncCalls)
-  {
-    errs() << asyncFunc->getName() << "\n";
-  }
-  errs() << "----------------------------------------------------------------------\n";
 }
 
 void pdg::AccessInfoTracker::getAnalysisUsage(AnalysisUsage &AU) const
@@ -461,9 +396,10 @@ void pdg::AccessInfoTracker::computeSharedData()
           if (accType == AccessType::READ && nodeAccessTy != AccessType::WRITE)
             nodeAccessTy = AccessType::READ;
         }
+        
         // here, we also collect string type field on the fly
         if (isUsedInStrOps(dataW))
-          globalStrId.insert(fieldID);
+          global_string_struct_fields_.insert(fieldID);
 
         // verified a field is accessed in both domains
         if (accessInDriver && accessInKernel)
@@ -474,16 +410,10 @@ void pdg::AccessInfoTracker::computeSharedData()
         continue;
       TreeTypeWrapper *treeW = static_cast<TreeTypeWrapper *>(const_cast<InstructionWrapper *>(*treeI));
       treeW->setShared(true);
-      // for (auto valDepPair : valDepPairList)
-      // {
-      // auto dataW = valDepPair.first->getData();
-      // Instruction *inst = dataW->getInstruction();
-      // errs() << " shared field id: " << fieldID << "\n";
       accessedFields.insert(fieldID);
       // update the accessed type for a field
       if (globalFieldAccessInfo.find(fieldID) == globalFieldAccessInfo.end())
         globalFieldAccessInfo.insert(std::make_pair(fieldID, nodeAccessTy));
-      // }
     }
 
     std::string sharedTypeName = DIUtils::getDITypeName(sharedType);
@@ -1014,6 +944,7 @@ void pdg::AccessInfoTracker::printArgAccessInfo(ArgumentWrapper *argW, TreeType 
 void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
 {
   auto &pdgUtils = PDGUtils::getInstance();
+  auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
   DIType *funcRetType = DIUtils::getFuncRetDIType(F);
   std::string retTypeName;
   if (funcRetType == nullptr)
@@ -1065,11 +996,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
         attributeStr = "[out]";
     }
 
-    std::string annotationStr = inferFieldAnnotation(*treeBegin);
-    if (!attributeStr.empty())
-      attributeStr = attributeStr;
-    if (!annotationStr.empty())
-      annotationStr = annotationStr;
+    std::string annotationStr = inferFieldAnnotation(*treeBegin, "");
 
     // infer annotation, such as alloc/dealloc if possible.
     if (DIUtils::isPointerType(argDIType))
@@ -1079,8 +1006,6 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       // 1. we can determine the parameter is an array by looking at the possible allocators of it.
       std::string argTypeName = DIUtils::getArgTypeName(arg);
       pdgUtils.stripStr(argTypeName, "struct ");
-      // getArrayArgSize try to track the allocators of a parameter. Then check if the allocator allocates an array of element.
-      uint64_t arrSize = getArrayArgSize(arg, F);
       // if this is a pointer to struct, we need to also generate the projection keyword
       if (DIUtils::isStructPointerTy(argDIType))
         argTypeName = "projection " + argTypeName;
@@ -1099,14 +1024,30 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
           break;
         baseType = di;
       }
+
+      // getArrayArgSize try to track the allocators of a parameter. Then check if the allocator allocates an array of element.
+      uint64_t arrSize = getArrayArgSize(arg, F);
       std::string argStr = "";
       if (arrSize > 0)
-        argStr = "array<" + argTypeName + ", " + std::to_string(arrSize) + ">" + pointerLevelStr + " " + argName;
+      {
+        // find a char array. We should treat this as a string
+        if (argTypeName.compare("char") == 0)
+        {
+          annotationStr += "[string]";
+          argStr = argTypeName + " " + attributeStr + " " + annotationStr + " " + pointerLevelStr + argName;
+        }
+        else
+        {
+          argStr = "array<" + argTypeName + ", " + std::to_string(arrSize) + ">" + pointerLevelStr + " " + argName;
+        }
+      }
       else
+      {
         argStr = argTypeName + " " + attributeStr + " " + annotationStr + " " + pointerLevelStr + argName;
+      }
       // unHandledArrayNum++;
       idl_file << argStr;
-      arrayNum++;
+      ksplit_stats_collector.IncreaseNumberOfArray();
     }
     else if (DIUtils::isFuncPointerTy(argDIType))
     {
@@ -1118,17 +1059,12 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       idl_file << DIUtils::getArgTypeName(arg) << " " << argName;
 
     // collecting stats
-    if (DIUtils::isUnionPointerTy(argDIType) || DIUtils::isUnionTy(argDIType))
-      unionNum++;
+    if (DIUtils::isUnionPointerTy(argDIType))
+      ksplit_stats_collector.IncreaseNumberOfUnion();
     if (DIUtils::isSentinelType(argDIType))
-      sentialArrayNum++;
+      ksplit_stats_collector.IncreaseNumberOfSentinelArray();
     if (DIUtils::isVoidPointer(argDIType))
-    {
-      voidPointerNum++;
-      // if (voidPointerHasMultipleCasts(*argW->tree_begin(TreeType::FORMAL_IN_TREE)))
-      //   unhandledVoidPointerNum++;
-    }
-
+      ksplit_stats_collector.IncreaseNumberOfVoidPointer();
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !argName.empty())
       idl_file << ", ";
   }
@@ -1155,8 +1091,44 @@ uint64_t pdg::AccessInfoTracker::getArrayArgSize(Value &V, Function &F)
         return pointedTy->getArrayNumElements();
     }
     // TODO: need to handle dynamic allocated array
+    if (CallInst *ci = dyn_cast<CallInst>(tmp))
+    {
+      CallSite CS(ci);
+      if (!CS.isCall() || CS.isIndirectCall())
+        continue;
+      std::string called_func_name = CS.getCalledFunction()->getName().str();
+      if (isAllocator(called_func_name))
+      {
+        if (IsCastedToArrayType(*ci))
+          errs() << "[Warning]: find potential malloc array in function:" << called_func_name << "\n";
+      }
+    }
   }
   return 0;
+}
+
+bool pdg::AccessInfoTracker::IsCastedToArrayType(Value& val)
+{
+  for (auto user : val.users())
+  {
+    if (BitCastInst *bci = dyn_cast<BitCastInst>(user))
+    {
+      if (bci->getOperand(0) == &val)
+      {
+        Type* casted_type = bci->getType();
+        if (casted_type->isArrayTy())
+          return true;
+        while (casted_type->isPointerTy())
+        {
+          Type* element_type = casted_type->getPointerElementType();
+          if (element_type->isArrayTy())
+            return true;
+          casted_type = element_type;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 bool pdg::AccessInfoTracker::mayAlias(Value &V1, Value &V2, Function &F)
@@ -1418,8 +1390,6 @@ void pdg::AccessInfoTracker::generateProjectionForGlobalVarInFunc(tree<Instructi
       std::string fieldName = DIUtils::getDIFieldName(childDITy);
       if (!fieldName.empty())
       {
-        if (fieldName.find("[") != std::string::npos)
-          arrayNum++;
         OS << "\t\t" + DIUtils::getDITypeName(childDITy) << " " << getAccessAttributeName(childI) << " " << DIUtils::getDIFieldName(childDITy) << ";\n";
       }
     }
@@ -1430,31 +1400,46 @@ void pdg::AccessInfoTracker::generateProjectionForGlobalVarInFunc(tree<Instructi
 void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapper *>::iterator treeI, raw_string_ostream &OS, std::string argName)
 {
   auto &pdgUtils = PDGUtils::getInstance();
-  auto curDIType = (*treeI)->getDIType();
-  if (curDIType == nullptr)
+  auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
+  auto parent_struct_di_type = (*treeI)->getDIType();
+  if (parent_struct_di_type == nullptr)
     return;
   std::string indentLevel = "\t\t\t";
   for (int i = 0; i < tree<InstructionWrapper *>::number_of_children(treeI); ++i)
   {
+    ksplit_stats_collector.IncreaseTotalNumberOfField();
     auto childI = tree<InstructionWrapper *>::child(treeI, i);
-    auto childDITy = (*childI)->getDIType();
+    auto struct_field_di_type = (*childI)->getDIType();
+    auto struct_field_lowest_di_type = DIUtils::getLowestDIType(struct_field_di_type);
     // check if field is private
     bool sharedDataFlag = true;
     if (sharedData != 0)
     {
-      bool isSharedField = isChildFieldShared(curDIType, childDITy);
+      bool isSharedField = isChildFieldShared(parent_struct_di_type, struct_field_di_type);
       sharedDataFlag = isSharedField;
     }
     bool isFieldAccess = ((*childI)->getAccessType() != AccessType::NOACCESS);
-    if (!isFieldAccess || !sharedDataFlag)
+    if (!isFieldAccess)
+    {
+      if (struct_field_lowest_di_type != nullptr)
+        ksplit_stats_collector.IncreaseSavedDataSizeUseProjection(struct_field_lowest_di_type->getSizeInBits() / 8); // count in byte
       continue;
+    }
+    ksplit_stats_collector.IncreaseNumberOfProjectedField();
 
-    std::string fieldAnnotation = inferFieldAnnotation(*childI);
-    auto childLowestTy = DIUtils::getLowestDIType(childDITy);
-    if (DIUtils::isFuncPointerTy(childLowestTy))
+    if (!sharedDataFlag)
+    {
+      ksplit_stats_collector.IncreaseNumberOfEliminatedPrivateField();
+      if (struct_field_lowest_di_type != nullptr)
+        ksplit_stats_collector.IncreaseSavedDataSizeUseSharedData(struct_field_lowest_di_type->getSizeInBits() / 8); // count in byte
+      continue;
+    }
+
+    std::string fieldAnnotation = inferFieldAnnotation(*childI, DIUtils::computeFieldID(parent_struct_di_type, struct_field_di_type));
+    if (DIUtils::isFuncPointerTy(struct_field_lowest_di_type))
     {
       // generate rpc for the indirect function call
-      std::string funcName = DIUtils::getDIFieldName(childDITy);
+      std::string funcName = DIUtils::getDIFieldName(struct_field_di_type);
       // generate rpc for defined function in isolated driver. Also, if kernel hook a function to a function pointer, we need to caputre this write
       if (driverExportFuncPtrNames.find(funcName) == driverExportFuncPtrNames.end())
         continue;
@@ -1463,43 +1448,38 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       Function *indirectFunc = module->getFunction(funcName);
       if (indirectFunc == nullptr)
         continue;
-      OS << indentLevel << "rpc " << DIUtils::getFuncSigName(DIUtils::getLowestDIType(childDITy), indirectFunc, DIUtils::getDIFieldName(childDITy)) << ";\n";
+      OS << indentLevel << "rpc " << DIUtils::getFuncSigName(DIUtils::getLowestDIType(struct_field_di_type), indirectFunc, DIUtils::getDIFieldName(struct_field_di_type)) << ";\n";
     }
-    else if (DIUtils::isStructTy(childLowestTy))
+    else if (DIUtils::isStructTy(struct_field_lowest_di_type))
     {
       std::string funcName = "";
       if ((*treeI)->getFunction())
         funcName = (*treeI)->getFunction()->getName().str();
-      auto fieldTypeName = DIUtils::getDITypeName(childDITy);
+      auto struct_field_type_name = DIUtils::getRawDITypeName(struct_field_di_type);
       // formatting functions
-      while (fieldTypeName.back() == '*')
-      {
-        fieldTypeName.pop_back();
-      }
-
       std::string projectStr = "projection ";
-      pdgUtils.stripStr(fieldTypeName, "struct ");
+      pdgUtils.stripStr(struct_field_type_name, "struct ");
 
       OS << indentLevel
          << projectStr
-         << fieldTypeName << fieldAnnotation << " "
+         << struct_field_type_name << fieldAnnotation << " "
          << "*" << argName << "_"
-         << DIUtils::getDIFieldName(childDITy)
+         << DIUtils::getDIFieldName(struct_field_di_type)
          << ";\n";
     }
-    else if (DIUtils::isUnionTy(childLowestTy))
+    else if (DIUtils::isUnionTy(struct_field_lowest_di_type))
     {
       OS << indentLevel << "// union type \n";
     }
     else
     {
-      std::string typeName = DIUtils::getDITypeName(childDITy);
-      std::string fieldName = DIUtils::getDIFieldName(childDITy);
+      std::string typeName = DIUtils::getDITypeName(struct_field_di_type);
+      std::string fieldName = DIUtils::getDIFieldName(struct_field_di_type);
       if (!fieldName.empty())
       {
         if (typeName.find("array") != std::string::npos)
-          arrayNum++;
-        OS << indentLevel << DIUtils::getDITypeName(childDITy) << " " << getAccessAttributeName(childI) << " " << DIUtils::getDIFieldName(childDITy) << ";\n";
+          ksplit_stats_collector.IncreaseNumberOfArray();
+        OS << indentLevel << DIUtils::getDITypeName(struct_field_di_type) << " " << getAccessAttributeName(childI) << " " << DIUtils::getDIFieldName(struct_field_di_type) << ";\n";
       }
     }
   }
@@ -1508,6 +1488,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
 void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
 {
   auto &pdgUtils = PDGUtils::getInstance();
+  auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
   if (argW->getTree(TreeType::FORMAL_IN_TREE).size() == 0)
     return;
   Function &F = *argW->getFunc();
@@ -1527,6 +1508,8 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
   std::queue<tree<InstructionWrapper *>::iterator> treeNodeQ;
   treeNodeQ.push(treeBegin);
   std::queue<tree<InstructionWrapper *>::iterator> funcPtrQ;
+  // used for counting sentienl type
+  std::set<std::string> seen_sentinel_type_names;
 
   while (!treeNodeQ.empty())
   {
@@ -1534,8 +1517,17 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
     treeNodeQ.pop();
     // generate projection for the current node.
     DIType *curDIType = (*treeI)->getDIType();
-    DIType *lowestDIType = DIUtils::getLowestDIType(curDIType);
-    if (!DIUtils::isProjectableTy(lowestDIType))
+    DIType *current_struct_lowest_di_type = DIUtils::getLowestDIType(curDIType);
+    if (DIUtils::isSentinelType(current_struct_lowest_di_type))
+    {
+      std::string current_struct_type_name = DIUtils::getRawDITypeName(current_struct_lowest_di_type);
+      if (seen_sentinel_type_names.find(current_struct_type_name) != seen_sentinel_type_names.end())
+        continue;
+      seen_sentinel_type_names.insert(current_struct_type_name);
+      ksplit_stats_collector.IncreaseNumberOfSentinelArray();
+    }
+
+    if (!DIUtils::isProjectableTy(current_struct_lowest_di_type))
       continue;
     // append child node needs projection to queue
     for (int i = 0; i < tree<InstructionWrapper *>::number_of_children(treeI); ++i)
@@ -1546,28 +1538,31 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
         continue;
       // if child field is struct or pointer to struct, we need to generate projection for it
       auto childDITy = (*childI)->getDIType();
-      auto childLowestDITy = DIUtils::getLowestDIType(childDITy);
+      auto struct_field_lowest_di_type = DIUtils::getLowestDIType(childDITy);
       // generate id for struct field, not for the pointer and the pointed struct
       if (!DIUtils::isStructPointerTy(curDIType))
       {
         if (sharedData != 0 && !isChildFieldShared(curDIType, childDITy))
           continue;
       }
-      // {
-        // errs() << "cannot find shared field: " << DIUtils::computeFieldID(curDIType, childDITy) << " - " << F.getName() << "\n";
-      // }
-      if (DIUtils::isProjectableTy(childLowestDITy))
+
+      if (DIUtils::isProjectableTy(struct_field_lowest_di_type))
+      {
+        if (DIUtils::isUnionTy(struct_field_lowest_di_type))
+          ksplit_stats_collector.IncreaseNumberOfUnion();
         treeNodeQ.push(childI);
+      }
     }
 
     // No projection is needed for pointer. Only for the underlying object
     if (DIUtils::isStructPointerTy(curDIType))
       continue;
+    
 
     std::string str;
     raw_string_ostream OS(str);
     std::string projectionReferenceName = DIUtils::getDIFieldName(curDIType);
-    std::string projectionTypeName = DIUtils::getRawDITypeName(lowestDIType);
+    std::string projectionTypeName = DIUtils::getRawDITypeName(current_struct_lowest_di_type);
     std::string projectionRawTypeName = projectionTypeName;
     pdgUtils.stripStr(projectionRawTypeName, "struct ");
     // struct node's di type don't store naming info. Need to go to the parent node for fetching the naming information
@@ -1590,8 +1585,6 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
     }
 
     generateProjectionForTreeNode(treeI, OS, argName);
-    // if (OS.str().empty())
-    //   continue;
     // special handling for global op structs
     if (projectionTypeName.find("ops") != std::string::npos)
     {
@@ -1679,34 +1672,15 @@ bool pdg::AccessInfoTracker::isAssignedNewMemObjInCaller(Value* actualParam, uns
 }
 
 // receive a tree wrapper
-std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *instW)
+std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *instW, std::string fieldID)
 {
   auto &pdgUtils = PDGUtils::getInstance();
-  // infer the accesses in the caller function, currently, alloc(callee) attribute
-  // DIType* dt = instW->getDIType();
-  // if (DIUtils::isStructPointerTy(dt))
-  // {
-  //   Argument *arg = instW->getArgument();
-  //   if (arg != nullptr)
-  //   {
-  //     unsigned fieldBitsOffset = instW->getDIType()->getOffsetInBits();
-  //     unsigned argIdx = arg->getArgNo();
-  //     if (argIdx == 100)
-  //       return "";
-  //     // get call sites
-  //     auto funcCallSites = pdgUtils.computeFunctionCallSites(*arg->getParent());
-  //     for (auto CS : funcCallSites)
-  //     {
-  //       auto actualParam = CS.getArgOperand(argIdx);
-  //       auto calledFunc = CS.getCalledFunction();
-  //       assert(calledFunc != nullptr && "cannot find callee for indirect call site - inferFieldAnnotation\n");
-  //       if (isAssignedNewMemObjInCaller(actualParam, fieldBitsOffset))
-  //         return "alloc(callee)";
-  //     }
-  //   }
-  // }
 
-  // infer the accesses in the calle function
+  // infer string attributes
+  if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
+    return "[string]";
+
+  // infer alloc(caller) attribures
   auto valDepPairList = PDG->getNodesWithDepType(instW, DependencyType::VAL_DEP);
   for (auto valDepPair : valDepPairList)
   {
@@ -2310,4 +2284,16 @@ static RegisterPass<pdg::AccessInfoTracker>
 //       }
 //     }
 //   }
+// }
+
+// void pdg::AccessInfoTracker::printAsyncCalls()
+// {
+//   errs() << "async functions: -----------------------------------------------------\n";
+//   errs() << "size of ayns funcs: " << asyncCalls.size() << "\n";
+//   errs() << "async func access shared data: " << asyncCallAccessedSharedData.size() << "\n";
+//   for (auto asyncFunc : asyncCalls)
+//   {
+//     errs() << asyncFunc->getName() << "\n";
+//   }
+//   errs() << "----------------------------------------------------------------------\n";
 // }

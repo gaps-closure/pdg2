@@ -50,8 +50,8 @@ class DIUtils
     static bool actualArgHasAllocator(llvm::Function& F, unsigned argIdx);
     static bool isSentinelType(llvm::DIType* dt);
     static unsigned computeTotalFieldNumberInStructType(llvm::DIType* dt);
-    static std::set<llvm::DIType*> computeContainedDerivedTypes(llvm::DIType* dt);
-    static std::set<llvm::DIType*> collectSharedDITypes(llvm::Module &M, std::set<llvm::Function*> crossDomainFuncs);
+    static std::set<llvm::DIType*> computeContainedDerivedTypes(llvm::DIType* dt, int tree_max_height);
+    static std::set<llvm::DIType*> collectSharedDITypes(llvm::Module &M, std::set<llvm::Function*> crossDomainFuncs, int tree_max_height);
 };
 }
 #endif

@@ -36,13 +36,12 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   // start constructing points to graph
   sea_dsa::DsaAnalysis *m_dsa = &getAnalysis<sea_dsa::DsaAnalysis>();
   pdgUtils.setDsaAnalysis(m_dsa);
+  // compute shared struct types
+  auto sharedTypes = DIUtils::collectSharedDITypes(M, pdgUtils.computeCrossDomainFuncs(M), EXPAND_LEVEL);
+  errs() << "number of found shared struct type: " << sharedTypes.size() << "\n";
   // compute a set of functions that need PDG construction
   std::set<Function*> funcsNeedPDGConstruction;
   pdgUtils.computeCrossDomainTransFuncs(M, funcsNeedPDGConstruction);
-  // computeFunctionsNeedPDGConstruction(M);
-  // auto asynCalledFuncs = pdgUtils.computeAsyncFuncs(M);
-  // funcsNeedPDGConstruction.insert(asynCalledFuncs.begin(), asynCalledFuncs.end());
-  // funcsNeedPDGConstruction.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
   errs() << "Num of functions need PDG construction: " << funcsNeedPDGConstruction.size() << "\n";
   unsigned totalFuncInModule = 0;
   // start building pdg for each function
@@ -55,8 +54,6 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   }
   errs() << "total num of func in module: " << totalFuncInModule << "\n";
   errs()  << "Finish PDG Construction\n";
-  auto sharedTypes = DIUtils::collectSharedDITypes(M, pdgUtils.computeCrossDomainFuncs(M));
-  errs() << "number of found shared type: " << sharedTypes.size() << "\n";
   auto driverDomainFuncs = pdgUtils.computeDriverDomainFuncs(M);
   auto kernelDomainFuncs = pdgUtils.computeKernelDomainFuncs(M);
   // collectSharedGlobalVars(driverDomainFuncs, kernelDomainFuncs);
@@ -74,7 +71,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
 void pdg::ProgramDependencyGraph::buildPDGForFunc(Function *Func)
 {
   auto &pdgUtils = PDGUtils::getInstance();
-  // pdgUtils.categorizeInstInFunc(*Func);
+  auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
   // cdg = &getAnalysis<ControlDependencyGraph>(*Func);
   auto ddg = &getAnalysis<DataDependencyGraph>(*Func);
 
@@ -82,7 +79,7 @@ void pdg::ProgramDependencyGraph::buildPDGForFunc(Function *Func)
   {
     addNodeDependencies(instW, ddg);
     if (isUnsafeTypeCast(instW->getInstruction()))
-      unsafeTypeCastNum++;
+      ksplit_stats_collector.IncreaseNumberOfUnsafeCastedStructPointer();
   }
 
   if (!pdgUtils.getFuncMap()[Func]->hasTrees())
@@ -464,19 +461,27 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
   try
   {
     DIType *argDIType = DIUtils::getArgDIType(arg);
+    auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
     if (DIUtils::isVoidPointer(argDIType))
     {
-      DIType* castedDIType = findCastedDIType(arg);
-      if (castedDIType)
+      DIType* void_ptr_cast_type = nullptr;
+      // if a void pointer is return, we need to find the type it is casted from
+      if(pdgUtils.isReturnValue(arg)) 
+        void_ptr_cast_type = FindCastFromDIType(arg);
+      else
+        void_ptr_cast_type = FindCastToDIType(arg);
+      
+      if (void_ptr_cast_type)
       {
-        errs() << "casted di name: " << DIUtils::getDITypeName(castedDIType);
-        argDIType = castedDIType;
+        argDIType = void_ptr_cast_type;
       }
       else
       {
-        errs() << "[Warning]: void pointer has multiple casts\n";
+        errs() << "[Warning]: void pointer has zero or multiple casts << " << arg.getParent()->getName() << "\n";
+        ksplit_stats_collector.IncreaseNumberOfUnhandledVoidPointer();
         return;
       }
+      ksplit_stats_collector.IncreaseNumberOfVoidPointer();
     }
 
     if (!argDIType)
@@ -514,47 +519,85 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
   }
 }
 
-DIType *pdg::ProgramDependencyGraph::findCastedDIType(Argument &arg)
+DIType *pdg::ProgramDependencyGraph::FindCastFromDIType(Argument& arg)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto func_map = pdgUtils.getFuncMap();
+  Function* func = arg.getParent();
+  if (func_map.find(func) == func_map.end())
+    return nullptr;
+  FunctionWrapper* func_w = func_map[func];
+  ArgumentWrapper* arg_w = func_w->getArgWByArg(arg);
+  auto formal_tree_begin_iter = arg_w->tree_begin(TreeType::FORMAL_IN_TREE);
+  auto val_dep_pairs = getNodesWithDepType(*formal_tree_begin_iter, DependencyType::VAL_DEP);
+  for (auto val_dep_pair : val_dep_pairs)
+  {
+    auto dep_inst_w = val_dep_pair.first->getData();
+    Instruction* dep_inst = dep_inst_w->getInstruction();
+    if (dep_inst == nullptr)
+      return nullptr;
+    if (BitCastInst *bci = dyn_cast<BitCastInst>(dep_inst))
+    {
+      Value* casted_from_value = bci->getOperand(0);
+      if (LoadInst *load_i = dyn_cast<LoadInst>(casted_from_value))
+      {
+        Value* load_addr = load_i->getPointerOperand();
+        if (AllocaInst *alloc_i = dyn_cast<AllocaInst>(load_addr))
+          return pdgUtils.getInstDIType(alloc_i);
+      }
+    }
+  }
+  return nullptr;
+}
+
+DIType *pdg::ProgramDependencyGraph::FindCastToDIType(Argument &arg)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   auto funcMap = pdgUtils.getFuncMap();
   auto funcW = funcMap[arg.getParent()];
-  std::set<Value*> argAliasSet;
-  auto argAlloc = getArgAllocaInst(arg);
-  if (!argAlloc)
+  std::set<Value*> load_insts_on_arg_alloc;
+  auto arg_alloc_inst = getArgAllocaInst(arg);
+  if (!arg_alloc_inst)
     return nullptr;
-  for (auto user : argAlloc->users())
+  for (auto user : arg_alloc_inst->users())
   {
     if (LoadInst *li = dyn_cast<LoadInst>(user))
     {
-      if (li->getPointerOperand() == argAlloc)
-        argAliasSet.insert(li);
+      if (li->getPointerOperand() == arg_alloc_inst)
+        load_insts_on_arg_alloc.insert(li);
     }
   }
 
-  // TODO: need to add a warning to indicate cases in which void pointer is casted to multiple 
-  // different type
-  for (auto argAlias : argAliasSet)
+  int num_of_cast_inst = 0;
+  BitCastInst* cast_inst = nullptr;
+  for (auto load_inst_on_arg_inst : load_insts_on_arg_alloc)
   {
-    for (auto argUser : argAlias->users())
+    for (auto user : load_inst_on_arg_inst->users())
     {
-      if (BitCastInst *castI = dyn_cast<BitCastInst>(argUser))
+      if (BitCastInst *cast_i = dyn_cast<BitCastInst>(user))
       {
-        if (castI->getOperand(0) == argAlias)
+        if (cast_i->getOperand(0) == load_inst_on_arg_inst)
         {
-          for (auto user : castI->users())
-          {
-            if (StoreInst *si = dyn_cast<StoreInst>(user))
-            {
-              auto castedValAlloc = si->getPointerOperand();
-              if (AllocaInst *ci = dyn_cast<AllocaInst>(castedValAlloc))
-                return DIUtils::getInstDIType(ci, funcW->getDbgInstList());
-            }
-          }
+          num_of_cast_inst++;
+          cast_inst = cast_i;
         }
       }
     }
   }
+  
+  if (num_of_cast_inst != 1)
+    return nullptr;
+
+  for (auto user : cast_inst->users())
+  {
+    if (StoreInst *si = dyn_cast<StoreInst>(user))
+    {
+      auto casted_val = si->getPointerOperand();
+      if (AllocaInst *ci = dyn_cast<AllocaInst>(casted_val))
+        return DIUtils::getInstDIType(ci, funcW->getDbgInstList());
+    }
+  }
+
   return nullptr;
 }
 
@@ -1174,13 +1217,6 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars(std::set<
               }
             }
           }
-          // connect this read inst with all other possible shared data types
-          // auto iter = globalTypeTrees.find((*treeI)->getDIType());
-          // if (iter != globalTypeTrees.end())
-          // {
-          //   auto tHead = iter->second.begin();
-          //   PDG->addDependency(*tHead, readInstW, DependencyType::VAL_DEP);
-          // }
         }
       }
     }
@@ -1295,7 +1331,6 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
   auto retTreeBegin = retW->tree_begin(TreeType::FORMAL_IN_TREE);
   for (auto retInst : retInstList)
   {
-    PDG->addDependency(*retTreeBegin, instMap[retInst], DependencyType::VAL_DEP);
     if (retTreeBegin != retW->tree_end(TreeType::FORMAL_IN_TREE)) // due ot the miss of alloc for return value 
     {
       retTreeBegin++;
@@ -1867,8 +1902,13 @@ bool pdg::ProgramDependencyGraph::isUnsafeTypeCast(Instruction *inst)
 
   if (CastInst *ci = dyn_cast<CastInst>(inst))
   {
-    if (isStructPointer(ci->getType()) && isStructPointer(ci->getOperand(0)->getType()))
-      return true;
+    Type* casted_type = ci->getType();
+    Type* original_type = ci->getOperand(0)->getType();
+    if (isStructPointer(casted_type) && isStructPointer(original_type))
+    {
+      if (casted_type != original_type)
+        return true;
+    }
   }
 
   return false;
