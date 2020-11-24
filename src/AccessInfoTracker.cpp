@@ -1053,7 +1053,9 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     {
       Function *indirectCalledFunc = nullptr;
       Function *indirectFunc = module->getFunction(switchIndirectCalledPtrName(argName));
-      idl_file << "rpc " << DIUtils::getFuncSigName(DIUtils::getLowestDIType(DIUtils::getArgDIType(arg)), indirectCalledFunc, argName, "");
+      // assumption 1: only driver domain exports function pointer to kernel.
+      // assumption 2: the pointed function by this function pointer parameter is known.
+      idl_file << "rpc " << DIUtils::getFuncSigName(DIUtils::getLowestDIType(argDIType), indirectCalledFunc, argName, "");
     }
     else
       idl_file << DIUtils::getArgTypeName(arg) << " " << argName;
@@ -1418,7 +1420,8 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       // if the current function is a function pointer called from kernel, we can safely assume that the kernel passes all the data that is needed in the callee side. 
       // reason: The kernel code may not be complete. Shared data computation, thus, may missing some fields. If a function is called from kernel domain, we assume 
       // the kernel also accesses the fields accessed in the call back function.
-      is_shared_field = isChildFieldShared(parent_struct_di_type, struct_field_di_type);
+      if (!is_func_ptr_export_from_driver)
+        is_shared_field = isChildFieldShared(parent_struct_di_type, struct_field_di_type);
     }
 
     if (!is_shared_field)
@@ -1599,7 +1602,6 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
 
     std::string str;
     raw_string_ostream arg_projection(str);
-
     // nested pointers are the pointers inside the generated struct fields.
     generateProjectionForTreeNode(treeI, arg_projection, argName, treeNodeQ, is_func_ptr_export_from_driver);
     // special handling for global op structs
@@ -1936,16 +1938,6 @@ tree<InstructionWrapper *>::iterator pdg::AccessInfoTracker::getParentIter(tree<
 bool pdg::AccessInfoTracker::IsFuncPtrExportFromDriver(std::string func_name)
 {
   return driverExportFuncPtrNameMap.find(func_name) != driverExportFuncPtrNameMap.end();
-}
-
-inline void pdg::AccessInfoTracker::TurnOnSharedDataOptimization()
-{
-  SharedDataFlag = 1;
-}
-
-inline void pdg::AccessInfoTracker::TurnOffSharedDataOptimization()
-{
-  SharedDataFlag = 0;
 }
 
 static RegisterPass<pdg::AccessInfoTracker>

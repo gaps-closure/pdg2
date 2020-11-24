@@ -438,6 +438,7 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForFunc(Function *Func)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   auto FuncW = pdgUtils.getFuncMap()[Func];
+  
   for (auto argW : FuncW->getArgWList())
   {
     // build formal in tree first
@@ -466,7 +467,7 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
     {
       DIType* void_ptr_cast_type = nullptr;
       // if a void pointer is return, we need to find the type it is casted from
-      if(pdgUtils.isReturnValue(arg)) 
+      if (pdgUtils.isReturnValue(arg))
         void_ptr_cast_type = FindCastFromDIType(arg);
       else
         void_ptr_cast_type = FindCastToDIType(arg);
@@ -1910,7 +1911,6 @@ bool pdg::ProgramDependencyGraph::isUnsafeTypeCast(Instruction *inst)
         return true;
     }
   }
-
   return false;
 }
 

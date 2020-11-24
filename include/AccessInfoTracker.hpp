@@ -86,8 +86,6 @@ public:
   std::set<llvm::Function *> computeFuncsContainCS(std::set<llvm::Function *> &searchDomain);
   tree<InstructionWrapper *>::iterator getParentIter(tree<InstructionWrapper *>::iterator treeI);
   bool IsFuncPtrExportFromDriver(std::string);
-  inline void TurnOnSharedDataOptimization();
-  inline void TurnOffSharedDataOptimization();
 
 private:
   ProgramDependencyGraph *PDG;

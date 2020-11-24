@@ -282,17 +282,10 @@ namespace
       return ret;
     }
 
-    std::string truncateFuncVersionNum(std::string str)
-    {
-      auto deliPos = str.find('.');
-      if (deliPos == std::string::npos)
-        return str;
-      return str.substr(0, deliPos);
-    }
-
     bool runOnModule(Module &M)
     {
       module = &M;
+      auto &pdgUtils = pdg::PDGUtils::getInstance();
       for (auto &F : M)
       {
         for (const Use &use : F.uses())
@@ -342,7 +335,7 @@ namespace
       for (auto &F : M)
       {
         auto funcName = F.getName().str();
-        funcName = truncateFuncVersionNum(funcName);
+        funcName = pdgUtils.StripFuncnameVersionNumber(funcName);
         if (seenFuncNames.find(funcName) != seenFuncNames.end())
           continue;
         seenFuncNames.insert(funcName);

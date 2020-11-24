@@ -300,28 +300,28 @@ std::set<Function *> pdg::PDGUtils::computeImportedFuncs(Module &M)
   return ret;
 }
 
-std::set<std::string> pdg::PDGUtils::getBlackListFuncs()
+std::set<std::string> &pdg::PDGUtils::GetBlackListFuncs()
 {
-  std::set<std::string> ret;
+  if (!black_list_func_names_.empty())
+    return black_list_func_names_;
   std::string filename("liblcd_funcs.txt");
   std::ifstream blackListFuncs(filename);
-
-  if (!blackListFuncs) {
-    std::cout << "Failed to open: " << filename << " errno: " << strerror(errno) << std::endl;
-    std::cout << "WARNING: List of interface functions would not be filtered!\n";
-  } else {
+  if (!blackListFuncs)
+    errs() << "[WARNING]: Failed to open: " << filename << "\n";
+  else
+  {
     for (std::string line; std::getline(blackListFuncs, line);)
     {
-      ret.insert(line);
+      black_list_func_names_.insert(line);
     }
   }
-  return ret;
+  return black_list_func_names_;
 }
 
 std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
 {
   std::set<Function *> crossDomainFuncs;
-  auto blackListFuncs = getBlackListFuncs();
+  auto &blackListFuncs = GetBlackListFuncs();
   // cross-domain function from driver to kernel
   unsigned importedFuncNum = 0;
   std::ifstream importedFuncs("imported_func.txt");
@@ -577,4 +577,22 @@ bool pdg::PDGUtils::isReturnValue(Argument &arg)
 bool pdg::PDGUtils::isRootNode(tree<InstructionWrapper*>::iterator treeI)
 {
   return tree<InstructionWrapper *>::depth(treeI) <= 1;
+}
+
+bool pdg::PDGUtils::IsBlackListFunc(std::string func_name)
+{
+  for (std::string black_list_func_name : black_list_func_names_)
+  {
+    if (black_list_func_name.find(func_name) != std::string::npos)
+      return true;
+  }
+  return false;
+}
+
+std::string pdg::PDGUtils::StripFuncnameVersionNumber(std::string func_name)
+{
+  auto deliPos = func_name.find('.');
+  if (deliPos == std::string::npos)
+    return func_name;
+  return func_name.substr(0, deliPos);
 }

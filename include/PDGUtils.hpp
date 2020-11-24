@@ -60,7 +60,7 @@ class PDGUtils final
     std::set<llvm::Function *> computeDriverEntryExitFuncs(llvm::Module &M);
     std::set<llvm::CallSite> computeFunctionCallSites(llvm::Function &F);
     std::set<std::string> computeDriverExportFuncPtrName();
-    std::set<std::string> getBlackListFuncs();
+    std::set<std::string>& GetBlackListFuncs();
     std::map<std::string, std::string> computeDriverExportFuncPtrNameMap();
     std::set<llvm::Function *> getTransitiveClosureInDomain(llvm::Function &F, std::set<llvm::Function *> &searchDomain);
     // building debugging info types
@@ -74,6 +74,8 @@ class PDGUtils final
     void stripStr(std::string& targetStr, std::string eliminateStr);
     bool isReturnValue(llvm::Argument& arg);
     bool isRootNode(tree<InstructionWrapper*>::iterator treeI);
+    bool IsBlackListFunc(std::string func_name);
+    std::string StripFuncnameVersionNumber(std::string func_name);
 
   private:
     std::unordered_map<const llvm::Instruction *, InstructionWrapper *> G_instMap;
@@ -83,6 +85,7 @@ class PDGUtils final
     std::unordered_map<const llvm::Function *, FunctionWrapper *> G_funcMap;
     std::unordered_map<const llvm::CallInst *, CallWrapper *> G_callMap;
     sea_dsa::DsaAnalysis *m_dsa;
+    std::set<std::string> black_list_func_names_;
 };
 } // namespace pdg
 #endif
