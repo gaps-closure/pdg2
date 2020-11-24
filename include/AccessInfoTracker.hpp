@@ -48,7 +48,7 @@ public:
   void generateIDLForCallInstW(CallWrapper *CW);
   // void generateIDLforArg(ArgumentWrapper *argW, TreeType ty, std::string funcName = "", bool handleFuncPtr = false);
   void generateIDLforArg(ArgumentWrapper *argW);
-  void generateProjectionForTreeNode(tree<InstructionWrapper *>::iterator treeI, llvm::raw_string_ostream &OS, std::string argName);
+  void generateProjectionForTreeNode(tree<InstructionWrapper *>::iterator treeI, llvm::raw_string_ostream &OS, std::string argName, bool is_func_ptr_export_from_driver = false, std::string parent_struct_indent_level="\t\t");
   void generateProjectionForGlobalVarInFunc(tree<InstructionWrapper *>::iterator treeI, llvm::raw_string_ostream &OS, llvm::DIType *argDIType, llvm::Function& func);
   tree<InstructionWrapper *>::iterator generateIDLforStructField(ArgumentWrapper *argW, int subtreeSize, tree<InstructionWrapper *>::iterator treeI, std::stringstream &ss, TreeType ty);
   std::string getArgAccessInfo(llvm::Argument &arg);
@@ -85,6 +85,9 @@ public:
   std::set<llvm::Function *> computeFuncsAccessPrivateData(std::set<llvm::Function *> &searchDomain);
   std::set<llvm::Function *> computeFuncsContainCS(std::set<llvm::Function *> &searchDomain);
   tree<InstructionWrapper *>::iterator getParentIter(tree<InstructionWrapper *>::iterator treeI);
+  bool IsFuncPtrExportFromDriver(std::string);
+  inline void TurnOnSharedDataOptimization();
+  inline void TurnOffSharedDataOptimization();
 
 private:
   ProgramDependencyGraph *PDG;

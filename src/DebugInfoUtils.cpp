@@ -626,6 +626,20 @@ bool pdg::DIUtils::isUnionPointerTy(DIType *dt)
   return false;
 }
 
+bool pdg::DIUtils::IsPointerToProjectableTy(DIType* dt)
+{
+  if (dt == nullptr)
+    return false;
+  dt = stripMemberTag(dt);
+  if (dt->getTag() == dwarf::DW_TAG_pointer_type)
+  {
+    auto di_lowest_type = getLowestDIType(dt);
+    if (di_lowest_type != nullptr)
+      return isProjectableTy(di_lowest_type);
+  }
+  return false;
+}
+
 bool pdg::DIUtils::isStructTy(DIType *dt)
 {
   if (dt == nullptr)
@@ -990,5 +1004,8 @@ bool pdg::DIUtils::isSentinelType(DIType* parent_struct_di_type)
 
 bool pdg::DIUtils::isProjectableTy(DIType *dt)
 {
-  return (isStructTy(dt) || isUnionTy(dt));
+  dt = stripMemberTag(dt);
+  if (dt != nullptr)
+    return (isStructTy(dt) || isUnionTy(dt));
+  return false;
 }
