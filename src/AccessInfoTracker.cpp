@@ -1245,68 +1245,68 @@ void pdg::AccessInfoTracker::generateIDLforFunc(Function &F)
 }
 
 // the purpose of this function is synchronizing data that won't sync correctly due to lack of cross-domain function call
-void pdg::AccessInfoTracker::generateSyncDataStubAtFuncEnd(Function &F)
-{
-  // handle global variable accesses
-  // 1. check if function access global variable
-  std::string funcName = F.getName().str();
-  auto globalObjectTrees = PDG->getGlobalObjectTrees();
-  for (auto globalObjectTreePair : globalObjectTrees)
-  {
-    auto globalVar = globalObjectTreePair.first;
-    bool accessedInFunc = false;
-    for (auto user : globalVar->users())
-    {
-      if (Instruction *i = dyn_cast<Instruction>(user))
-      {
-        if (i->getFunction() == &F)
-        {
-          accessedInFunc = true;
-          break;
-        }
-      }
-    }
-    if (!accessedInFunc)
-      continue;
-    auto globalObjectTree = globalObjectTreePair.second;
-    // if global variable is accessed in the function, start generating idl for the global which summarize the accessed data
-    auto treeBegin = globalObjectTree.begin();
-    std::queue<tree<InstructionWrapper *>::iterator> treeNodeQ;
-    treeNodeQ.push(treeBegin);
-    while (!treeNodeQ.empty())
-    {
-      auto treeI = treeNodeQ.front();
-      treeNodeQ.pop();
-      // generate projection for the current node.
-      DIType *curDIType = (*treeI)->getDIType();
-      if (!curDIType)
-        continue;
-      DIType *lowestDIType = DIUtils::getLowestDIType(curDIType);
-      if (!DIUtils::isProjectableTy(lowestDIType))
-        continue;
-      for (int i = 0; i < tree<InstructionWrapper *>::number_of_children(treeI); ++i)
-      {
-        auto childI = tree<InstructionWrapper *>::child(treeI, i);
-        bool isAccessed = ((*childI)->getAccessType() != AccessType::NOACCESS);
-        if (!isAccessed)
-          continue;
-        auto childDITy = (*childI)->getDIType();
-        childDITy = DIUtils::getLowestDIType(childDITy);
-        if (DIUtils::isProjectableTy(childDITy))
-          treeNodeQ.push(childI);
-      }
-      std::string str;
-      raw_string_ostream OS(str);
-      // idl_file << "Insert sync stab at end of function: " << funcName << "\n";
-      std::string globalVarName = DIUtils::getDIFieldName(DIUtils::getGlobalVarDIType(*globalVar));
-      generateProjectionForTreeNode(treeI, OS, globalVarName);
-      std::string structName = DIUtils::getDIFieldName(curDIType);
-      if (structName.find("ops") == std::string::npos)
-        structName = structName + "_" + funcName;
-      idl_file << "=== Data Sync at end of function " << funcName << " ===\n\tprojection < struct " << structName << "> " << structName << " {\n " << OS.str() << "\t}\n\n";
-    }
-  }
-}
+// void pdg::AccessInfoTracker::generateSyncDataStubAtFuncEnd(Function &F)
+// {
+//   // handle global variable accesses
+//   // 1. check if function access global variable
+//   std::string funcName = F.getName().str();
+//   auto globalObjectTrees = PDG->getGlobalObjectTrees();
+//   for (auto globalObjectTreePair : globalObjectTrees)
+//   {
+//     auto globalVar = globalObjectTreePair.first;
+//     bool accessedInFunc = false;
+//     for (auto user : globalVar->users())
+//     {
+//       if (Instruction *i = dyn_cast<Instruction>(user))
+//       {
+//         if (i->getFunction() == &F)
+//         {
+//           accessedInFunc = true;
+//           break;
+//         }
+//       }
+//     }
+//     if (!accessedInFunc)
+//       continue;
+//     auto globalObjectTree = globalObjectTreePair.second;
+//     // if global variable is accessed in the function, start generating idl for the global which summarize the accessed data
+//     auto treeBegin = globalObjectTree.begin();
+//     std::queue<tree<InstructionWrapper *>::iterator> treeNodeQ;
+//     treeNodeQ.push(treeBegin);
+//     while (!treeNodeQ.empty())
+//     {
+//       auto treeI = treeNodeQ.front();
+//       treeNodeQ.pop();
+//       // generate projection for the current node.
+//       DIType *curDIType = (*treeI)->getDIType();
+//       if (!curDIType)
+//         continue;
+//       DIType *lowestDIType = DIUtils::getLowestDIType(curDIType);
+//       if (!DIUtils::isProjectableTy(lowestDIType))
+//         continue;
+//       for (int i = 0; i < tree<InstructionWrapper *>::number_of_children(treeI); ++i)
+//       {
+//         auto childI = tree<InstructionWrapper *>::child(treeI, i);
+//         bool isAccessed = ((*childI)->getAccessType() != AccessType::NOACCESS);
+//         if (!isAccessed)
+//           continue;
+//         auto childDITy = (*childI)->getDIType();
+//         childDITy = DIUtils::getLowestDIType(childDITy);
+//         if (DIUtils::isProjectableTy(childDITy))
+//           treeNodeQ.push(childI);
+//       }
+//       std::string str;
+//       raw_string_ostream OS(str);
+//       // idl_file << "Insert sync stab at end of function: " << funcName << "\n";
+//       std::string globalVarName = DIUtils::getDIFieldName(DIUtils::getGlobalVarDIType(*globalVar));
+//       generateProjectionForTreeNode(treeI, OS, globalVarName);
+//       std::string structName = DIUtils::getDIFieldName(curDIType);
+//       if (structName.find("ops") == std::string::npos)
+//         structName = structName + "_" + funcName;
+//       idl_file << "=== Data Sync at end of function " << funcName << " ===\n\tprojection < struct " << structName << "> " << structName << " {\n " << OS.str() << "\t}\n\n";
+//     }
+//   }
+// }
 
 void pdg::AccessInfoTracker::generateProjectionForGlobalVarInFunc(tree<InstructionWrapper *>::iterator treeI, raw_string_ostream &OS, DIType *parentNodeDIType, Function &func)
 {
@@ -1397,7 +1397,7 @@ void pdg::AccessInfoTracker::generateProjectionForGlobalVarInFunc(tree<Instructi
 }
 
 // receive a tree iterator and start
-void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapper *>::iterator treeI, raw_string_ostream &OS, std::string argName, bool is_func_ptr_export_from_driver , std::string parent_struct_indent_level)
+void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapper *>::iterator treeI, raw_string_ostream &OS, std::string argName, std::queue<tree<InstructionWrapper *>::iterator> &pointer_queue, bool is_func_ptr_export_from_driver, std::string parent_struct_indent_level)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
@@ -1467,12 +1467,13 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
          << "*" << argName << "_"
          << DIUtils::getDIFieldName(struct_field_di_type)
          << ";\n";
+      pointer_queue.push(childI);
     }
     else if (DIUtils::isProjectableTy(struct_field_di_type))
     {
       std::string sub_fields_str;
       raw_string_ostream nested_fields_str(sub_fields_str);
-      generateProjectionForTreeNode(childI, nested_fields_str, argName, is_func_ptr_export_from_driver, field_indent_level);
+      generateProjectionForTreeNode(childI, nested_fields_str, argName, pointer_queue, is_func_ptr_export_from_driver, field_indent_level);
       if (nested_fields_str.str().empty())
         continue;
       // for struct and union, directly generate a nested projection in the parent struct definition
@@ -1482,10 +1483,6 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
          << field_indent_level
          << "};\n";
     }
-    // else if (DIUtils::isUnionTy(struct_field_di_type))
-    // {
-    //   OS << indentLevel << "// union type \n";
-    // }
     else
     {
       std::string typeName = DIUtils::getDITypeName(struct_field_di_type);
@@ -1496,6 +1493,12 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
           ksplit_stats_collector.IncreaseNumberOfArray();
         OS << field_indent_level << DIUtils::getDITypeName(struct_field_di_type) << " " << getAccessAttributeName(childI) << " " << DIUtils::getDIFieldName(struct_field_di_type) << ";\n";
       }
+    }
+    // collect union number stats
+    if (DIUtils::isProjectableTy(struct_field_lowest_di_type))
+    {
+      if (DIUtils::isUnionTy(struct_field_lowest_di_type))
+        ksplit_stats_collector.IncreaseNumberOfUnion();
     }
   }
 }
@@ -1566,15 +1569,6 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
             continue;
         }
       }
-
-      if (DIUtils::isProjectableTy(struct_field_lowest_di_type))
-      {
-        if (DIUtils::isUnionTy(struct_field_lowest_di_type))
-          ksplit_stats_collector.IncreaseNumberOfUnion();
-        // we only push pointer type data to queue. For a nested struct or union, we directly generate nested projection.
-        if (DIUtils::isPointerType(struct_field_di_type))
-          treeNodeQ.push(childI);
-      }
     }
 
     // No projection is needed for pointer. Only for the underlying object
@@ -1605,7 +1599,9 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
 
     std::string str;
     raw_string_ostream arg_projection(str);
-    generateProjectionForTreeNode(treeI, arg_projection, argName, is_func_ptr_export_from_driver);
+
+    // nested pointers are the pointers inside the generated struct fields.
+    generateProjectionForTreeNode(treeI, arg_projection, argName, treeNodeQ, is_func_ptr_export_from_driver);
     // special handling for global op structs
     if (projectionTypeName.find("ops") != std::string::npos)
     {

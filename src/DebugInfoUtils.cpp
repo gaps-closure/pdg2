@@ -498,11 +498,11 @@ std::string pdg::DIUtils::getRawDITypeName(DIType* ty)
     switch (ty->getTag())
     {
     case dwarf::DW_TAG_typedef:
-      return getDITypeName(getBaseDIType(ty)); // need to know the underlying name
+      return getRawDITypeName(getBaseDIType(ty)); // need to know the underlying name
       // return ty->getName(); // directly return typedef name
     case dwarf::DW_TAG_member:
     {
-      auto baseTypeName = getDITypeName(getBaseDIType(ty));
+      auto baseTypeName = getRawDITypeName(getBaseDIType(ty));
       if (baseTypeName == "struct")
         baseTypeName = baseTypeName + " " + ty->getName().str();
       return baseTypeName;
@@ -511,7 +511,7 @@ std::string pdg::DIUtils::getRawDITypeName(DIType* ty)
     {
       if (DIType *arrTy = dyn_cast<DICompositeType>(ty)->getBaseType().resolve())
       {
-        auto containedTypeName = getDITypeName(arrTy);
+        auto containedTypeName = getRawDITypeName(arrTy);
         if (arrTy->getSizeInBits() != 0)
           return "array<" + containedTypeName + ", " +  std::to_string(ty->getSizeInBits() / arrTy->getSizeInBits()) + ">";
           // return containedTypeName + "[" + std::to_string(ty->getSizeInBits() / arrTy->getSizeInBits()) + "]";
@@ -520,7 +520,7 @@ std::string pdg::DIUtils::getRawDITypeName(DIType* ty)
       }
     }
     case dwarf::DW_TAG_pointer_type:
-      return getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
+      return getRawDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
     case dwarf::DW_TAG_subroutine_type:
       return getFuncSigName(ty);
     case dwarf::DW_TAG_union_type:
@@ -533,7 +533,7 @@ std::string pdg::DIUtils::getRawDITypeName(DIType* ty)
       return "struct";
     }
     case dwarf::DW_TAG_const_type:
-      return getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
+      return getRawDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
     case dwarf::DW_TAG_enumeration_type:
     {
       if (!ty->getName().str().empty())
@@ -541,7 +541,7 @@ std::string pdg::DIUtils::getRawDITypeName(DIType* ty)
       return "enum";
     }
     case dwarf::DW_TAG_volatile_type:
-      return getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
+      return getRawDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
     default:
     {
       std::string typeName = ty->getName().str();
