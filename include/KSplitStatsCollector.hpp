@@ -12,6 +12,7 @@ private:
   /* data */
   unsigned total_num_of_fields_;
   unsigned num_of_projected_fields_;
+  unsigned num_of_no_accessed_fields_;
   unsigned num_of_eliminated_private_fields_;
   unsigned num_of_final_sync_fields_;
   unsigned saved_data_size_use_projection_;
@@ -54,6 +55,7 @@ public:
   void IncreaseStringNum() { num_of_string_++; }
   void IncreaseTotalNumberOfField() { total_num_of_fields_++; }
   void IncreaseNumberOfProjectedField() {num_of_projected_fields_++;}
+  void IncreaseNumberOfNoAccessedFields() { num_of_no_accessed_fields_++; }
   void IncreaseNumberOfEliminatedPrivateField() { num_of_eliminated_private_fields_++; }
   void IncreaseNumberOfFinalSyncField() { num_of_final_sync_fields_++; }
   void IncreaseNumberOfUnion() { num_of_union_++; }

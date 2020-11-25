@@ -86,7 +86,8 @@ public:
   DependencyGraph<InstructionWrapper> *_getPDG() { return PDG; }
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(llvm::Instruction *inst);
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodesWithDepType(const InstructionWrapper* instW, DependencyType depType);
-  llvm::Function* getCalledFunction(llvm::CallInst* CI);
+  void GetDependentInstructionsWithDepType(llvm::Instruction *source_inst, DependencyType target_dep_type, std::set<llvm::Instruction *> &dep_insts);
+  llvm::Function *getCalledFunction(llvm::CallInst *CI);
   bool isFuncPointer(llvm::Type *ty);
   bool isStructPointer(llvm::Type *ty);
   std::map<llvm::GlobalVariable*, tree<InstructionWrapper *>> getGlobalObjectTrees() { return globalObjectTrees; }

@@ -79,7 +79,9 @@ void pdg::ProgramDependencyGraph::buildPDGForFunc(Function *Func)
   {
     addNodeDependencies(instW, ddg);
     if (isUnsafeTypeCast(instW->getInstruction()))
+    {
       ksplit_stats_collector.IncreaseNumberOfUnsafeCastedStructPointer();
+    }
   }
 
   if (!pdgUtils.getFuncMap()[Func]->hasTrees())
@@ -426,6 +428,21 @@ typename DependencyNode<InstructionWrapper>::DependencyLinkList pdg::ProgramDepe
   assert(instW != nullptr);
   auto node = PDG->getNodeByData(instW);
   return node->getNodesWithDepType(depType);
+}
+
+void pdg::ProgramDependencyGraph::GetDependentInstructionsWithDepType(Instruction *source_inst, DependencyType target_dep_type, std::set<Instruction *> &dep_insts)
+{
+  auto node_dep_list = getNodeDepList(source_inst);
+  for (auto dep_pair : node_dep_list)
+  {
+    auto inst_w = const_cast<InstructionWrapper*>(dep_pair.first->getData());
+    auto dep_inst = inst_w->getInstruction();
+    if (!dep_inst)
+      continue;
+    auto dep_type = dep_pair.second;
+    if (dep_type == target_dep_type)
+      dep_insts.insert(dep_inst);
+  }
 }
 
 // --------------------------------------
@@ -1902,6 +1919,13 @@ bool pdg::ProgramDependencyGraph::isUnsafeTypeCast(Instruction *inst)
 
   if (CastInst *ci = dyn_cast<CastInst>(inst))
   {
+    // an adhoc way for checking if this is a union type cast
+    std::string inst_str;
+    llvm::raw_string_ostream ss(inst_str);
+    ss << *ci;
+    if (ss.str().find("union.anon") != std::string::npos)
+      return false;
+
     Type* casted_type = ci->getType();
     Type* original_type = ci->getOperand(0)->getType();
     if (isStructPointer(casted_type) && isStructPointer(original_type))

@@ -72,8 +72,7 @@ public:
   std::string switchIndirectCalledPtrName(std::string funcptr);
   std::string inferFieldAnnotation(InstructionWrapper* instW, std::string fieldID);
   bool voidPointerHasMultipleCasts(InstructionWrapper *voidPtrW);
-  bool isUsedInStrOps(InstructionWrapper* instW);
-  bool isAssignedNewMemObjInCaller(llvm::Value* actualParam, unsigned fieldBitsOffset);
+  bool IsUsedInStrOps(InstructionWrapper* candidate_string_inst_w);
   bool IsCastedToArrayType(llvm::Value& val);
   void setupStrOpsMap();
   void setupAllocatorWrappers();
@@ -86,6 +85,8 @@ public:
   std::set<llvm::Function *> computeFuncsContainCS(std::set<llvm::Function *> &searchDomain);
   tree<InstructionWrapper *>::iterator getParentIter(tree<InstructionWrapper *>::iterator treeI);
   bool IsFuncPtrExportFromDriver(std::string);
+  bool IsAllocator(std::string funcName);
+  bool IsStringOps(std::string funcName);
 
 private:
   ProgramDependencyGraph *PDG;
@@ -110,7 +111,6 @@ private:
   std::set<std::string> global_string_struct_fields_;
   std::set<llvm::Function*> asyncCallAccessedSharedData;
   std::string globalOpsStr;
-  bool isAllocator(std::string funcName);
   bool crossBoundary; // indicate whether transitive closure cross two domains
 };
 

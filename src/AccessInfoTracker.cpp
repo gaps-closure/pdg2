@@ -78,6 +78,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
 void pdg::AccessInfoTracker::setupStrOpsMap()
 {
   stringOperations.insert("strcpy");
+  stringOperations.insert("strncpy");
   stringOperations.insert("strlen");
   stringOperations.insert("strlcpy");
   stringOperations.insert("strcmp");
@@ -305,26 +306,30 @@ std::set<Function *> pdg::AccessInfoTracker::computeFuncsContainCS(std::set<Func
   return ret;
 }
 
-bool pdg::AccessInfoTracker::isUsedInStrOps(InstructionWrapper *instW)
+bool pdg::AccessInfoTracker::IsUsedInStrOps(InstructionWrapper *candidate_string_inst_w)
 {
-  auto dataDList = PDG->getNodeDepList(instW->getInstruction());
-  for (auto depPair : dataDList)
+  // step 1: collect all the load on this instW. A load inst on 
+  std::set<Instruction*> dep_insts_on_string_inst;
+  Instruction* candidate_string_inst = candidate_string_inst_w->getInstruction();
+  if (candidate_string_inst == nullptr)
+    return false;
+  PDG->GetDependentInstructionsWithDepType(candidate_string_inst, DependencyType::DATA_READ, dep_insts_on_string_inst);
+  for (Instruction* i : dep_insts_on_string_inst)
   {
-    InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-    DependencyType depType = depPair.second;
-    Instruction *depInst = depInstW->getInstruction();
-    if (!depInst)
-      continue;
-    if (depType == DependencyType::DATA_DEF_USE)
+    if (LoadInst *li = dyn_cast<LoadInst>(i))
     {
-      if (CallInst *ci = dyn_cast<CallInst>(depInst))
+      std::set<Instruction*> intra_func_users;
+      PDG->GetDependentInstructionsWithDepType(li, DependencyType::DATA_DEF_USE, intra_func_users);
+      for (Instruction* intra_func_user : intra_func_users)
       {
-        if (Function *calledFunc = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
+        CallSite CS(intra_func_user);
+        if (CS.isCall() && !CS.isIndirectCall())
         {
-          if (calledFunc != nullptr)
+          Function* called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts());
+          if (called_func != nullptr)
           {
-            std::string calledFuncName = calledFunc->getName().str();
-            if (stringOperations.find(calledFuncName) != stringOperations.end())
+            std::string called_func_name = called_func->getName().str();
+            if (IsStringOps(called_func_name))
               return true;
           }
         }
@@ -398,7 +403,7 @@ void pdg::AccessInfoTracker::computeSharedData()
         }
         
         // here, we also collect string type field on the fly
-        if (isUsedInStrOps(dataW))
+        if (IsUsedInStrOps(dataW))
           global_string_struct_fields_.insert(fieldID);
 
         // verified a field is accessed in both domains
@@ -1043,10 +1048,12 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
         {
           annotationStr += "[string]";
           argStr = argTypeName + " " + attributeStr + " " + annotationStr + " " + pointerLevelStr + argName;
+          ksplit_stats_collector.IncreaseNumberOfString();
         }
         else
         {
           argStr = "array<" + argTypeName + ", " + std::to_string(arrSize) + ">" + pointerLevelStr + " " + argName;
+          ksplit_stats_collector.IncreaseNumberOfArray();
         }
       }
       else
@@ -1055,7 +1062,6 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       }
       // unHandledArrayNum++;
       idl_file << argStr;
-      ksplit_stats_collector.IncreaseNumberOfArray();
     }
     else if (DIUtils::isFuncPointerTy(argDIType))
     {
@@ -1107,7 +1113,7 @@ uint64_t pdg::AccessInfoTracker::getArrayArgSize(Value &V, Function &F)
       if (!CS.isCall() || CS.isIndirectCall())
         continue;
       std::string called_func_name = CS.getCalledFunction()->getName().str();
-      if (isAllocator(called_func_name))
+      if (IsAllocator(called_func_name))
       {
         if (IsCastedToArrayType(*ci))
           errs() << "[Warning]: find potential malloc array in function:" << called_func_name << "\n";
@@ -1219,7 +1225,7 @@ std::string pdg::AccessInfoTracker::getReturnAttributeStr(Function &F)
         
         auto calledFunc = CS.getCalledFunction();
         std::string funcName = calledFunc->getName().str();
-        if (isAllocator(funcName))
+        if (IsAllocator(funcName))
           return "[alloc(caller)]";
       }
     }
@@ -1421,7 +1427,17 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     auto childI = tree<InstructionWrapper *>::child(treeI, i);
     auto struct_field_di_type = (*childI)->getDIType();
     auto struct_field_lowest_di_type = DIUtils::getLowestDIType(struct_field_di_type);
-
+    
+    // check if current field is accessed
+    bool is_field_accessed = ((*childI)->getAccessType() != AccessType::NOACCESS);
+    if (!is_field_accessed)
+    {
+      ksplit_stats_collector.IncreaseNumberOfNoAccessedFields();
+      if (struct_field_lowest_di_type != nullptr)
+        ksplit_stats_collector.IncreaseSavedDataSizeUseProjection(struct_field_lowest_di_type->getSizeInBits() / 8); // count in byte
+      continue;
+    }
+    
     // check if field is private
     bool is_shared_field = true;
     if (SharedDataFlag)
@@ -1438,14 +1454,6 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       ksplit_stats_collector.IncreaseNumberOfEliminatedPrivateField();
       if (struct_field_lowest_di_type != nullptr)
         ksplit_stats_collector.IncreaseSavedDataSizeUseSharedData(struct_field_lowest_di_type->getSizeInBits() / 8); // count in byte
-      continue;
-    }
-
-    bool is_field_accessed = ((*childI)->getAccessType() != AccessType::NOACCESS);
-    if (!is_field_accessed)
-    {
-      if (struct_field_lowest_di_type != nullptr)
-        ksplit_stats_collector.IncreaseSavedDataSizeUseProjection(struct_field_lowest_di_type->getSizeInBits() / 8); // count in byte
       continue;
     }
     ksplit_stats_collector.IncreaseNumberOfProjectedField();
@@ -1518,7 +1526,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       {
         if (typeName.find("array") != std::string::npos)
           ksplit_stats_collector.IncreaseNumberOfArray();
-        OS << field_indent_level << DIUtils::getDITypeName(struct_field_di_type) << " " << getAccessAttributeName(childI) << " " << DIUtils::getDIFieldName(struct_field_di_type) << ";\n";
+        OS << field_indent_level << DIUtils::getDITypeName(struct_field_di_type) << " " << getAccessAttributeName(childI) << fieldAnnotation << " " << DIUtils::getDIFieldName(struct_field_di_type) << ";\n";
       }
     }
     // collect union number stats
@@ -1645,71 +1653,22 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
   }
 }
 
-bool pdg::AccessInfoTracker::isAllocator(std::string funcName)
+bool pdg::AccessInfoTracker::IsAllocator(std::string func_name)
 {
   for (auto allocatorWrapper : allocatorWrappers)
   {
-    if (funcName.find(allocatorWrapper) != std::string::npos)
+    if (func_name.find(allocatorWrapper) != std::string::npos)
       return true;
   }
   return false;
 }
 
-bool pdg::AccessInfoTracker::isAssignedNewMemObjInCaller(Value* actualParam, unsigned fieldBitsOffset)
+bool pdg::AccessInfoTracker::IsStringOps(std::string func_name)
 {
-  if (isa<GlobalVariable>(actualParam))
-    return true;
-  if (Instruction *actualParamInst = dyn_cast<Instruction>(actualParam))
+  for (auto str_op_name : stringOperations)
   {
-    // get alias of passed parameter
-    std::set<InstructionWrapper*> actualParamAlias;
-    PDG->getAllAlias(actualParamInst, actualParamAlias);
-
-    // if alias is a gep instruction, we need to check if this gep is actually 
-    for (auto aliasW : actualParamAlias)
-    {
-      auto aliasInst = aliasW->getInstruction();
-      CallSite CS(aliasInst);
-      if (CS.isCall())
-      {
-        if (CS.isIndirectCall())
-          continue;
-        if (allocatorWrappers.find(CS.getCalledFunction()->getName().str()) != allocatorWrappers.end())
-          return true;
-      }
-
-      // auto depInstsPair = PDG->getNodesWithDepType(aliasW, DependencyType::DATA_DEF_USE);
-      // for (auto depPair : depInstsPair)
-      // {
-      //   auto depInstW = const_cast<InstructionWrapper*>(depPair.first->getData());
-      //   auto depInst = depInstW->getInstruction();
-      //   if (!depInst)
-      //     continue;
-      //   if (StoreInst *si = dyn_cast<StoreInst>(depInst))
-      //   {
-      //     if (si->getPointerOperand() != aliasInst)
-      //       continue;
-      //     // check if a new memory object is written to the address
-      //     // now, we check heap object allocated by malloc wrappers
-      //     auto storedVal = si->getValueOperand();
-      //     if (isa<GlobalVariable>(storedVal->stripPointerCasts()))
-      //       return true;
-      //     if (Instruction *storedValInst = dyn_cast<Instruction>(storedVal))
-      //     {
-      //       std::set<InstructionWrapper *> storedValAliasSet;
-      //       PDG->getAllAlias(storedValInst, storedValAliasSet);
-      //       for (auto storedValAliasW : storedValAliasSet)
-      //       {
-      //         CallSite CS(storedValAliasW->getInstruction());
-      //         if (!CS.isCall() || CS.isIndirectCall())
-      //           continue;
-      //         if (allocatorWrappers.find(CS.getCalledFunction()->getName().str()) != allocatorWrappers.end())
-      //           return true;
-      //       }
-      //     }
-      //   }
-      // }
-    }
+    if (func_name.find(str_op_name) != std::string::npos)
+      return true;
   }
   return false;
 }
@@ -1718,10 +1677,14 @@ bool pdg::AccessInfoTracker::isAssignedNewMemObjInCaller(Value* actualParam, uns
 std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *instW, std::string fieldID)
 {
   auto &pdgUtils = PDGUtils::getInstance();
+  auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
 
-  // infer string attributes
+  // infer string attributes for struct field
   if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
+  {
+    ksplit_stats_collector.IncreaseStringNum();
     return "[string]";
+  }
 
   // infer alloc(caller) attribures
   auto valDepPairList = PDG->getNodesWithDepType(instW, DependencyType::VAL_DEP);
@@ -1758,7 +1721,7 @@ std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *ins
                   if (calledFunc != nullptr)
                   {
                     auto calledFuncName = calledFunc->getName().str();
-                    if (isAllocator(calledFuncName))
+                    if (IsAllocator(calledFuncName))
                       return "[alloc(caller)] [out]";
                     if (deallocatorWrappers.find(calledFuncName) != deallocatorWrappers.end())
                       return "[dealloc(caller)]";
@@ -1768,7 +1731,6 @@ std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *ins
             }
           }
         }
-
         // alloc caller annotation for global variables
         if (StoreInst *si = dyn_cast<StoreInst>(depInst))
         {
@@ -1776,6 +1738,29 @@ std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *ins
           {
             if (isa<GlobalVariable>(si->getValueOperand()->stripPointerCasts()))
               return "[alloc(caller)] [out]";
+          }
+        }
+
+        // infer string annotation for argument
+        if (LoadInst *li = dyn_cast<LoadInst>(depInst))
+        {
+          std::set<Instruction*> dep_insts;
+          PDG->GetDependentInstructionsWithDepType(li, DependencyType::DATA_DEF_USE, dep_insts);
+          for (Instruction* dep_inst : dep_insts)
+          {
+            CallSite CS(dep_inst);
+            if (CS.isCall() && !CS.isIndirectCall())
+            {
+              if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
+              {
+                std::string called_func_name = called_func->getName();
+                if (IsStringOps(called_func_name))
+                {
+                  ksplit_stats_collector.IncreaseStringNum();
+                  return "[string]";
+                }
+              }
+            }
           }
         }
       }

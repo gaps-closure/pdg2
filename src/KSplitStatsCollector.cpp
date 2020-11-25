@@ -65,8 +65,9 @@ void pdg::KSplitStatsCollector::PrintKernelIdiomStats()
 void pdg::KSplitStatsCollector::PrintProjectionStats()
 {
   projection_stats_file << "total number of fields: " << total_num_of_fields_ << "\n";
-  projection_stats_file << "number of projected fields algorithm: " << num_of_projected_fields_ << "\n";
-  projection_stats_file << "number of projected fields after shared data optimziation: " << (num_of_projected_fields_ - num_of_eliminated_private_fields_ ) << "\n";
+  projection_stats_file << "number of fields eliminated by field access analysis: " << num_of_no_accessed_fields_ << "\n";
+  projection_stats_file << "number of projected fields eliminated by shared data optimziation: " << num_of_eliminated_private_fields_ << "\n";
+  projection_stats_file << "number of final projected fields: " << num_of_projected_fields_ << "\n";
   projection_stats_file << "size of saved data by using projection (byte): " << saved_data_size_use_projection_ << "\n";
   projection_stats_file << "size of saved data by using shared data (byte): " << saved_data_size_use_shared_data_ << "\n";
 }
