@@ -1112,11 +1112,14 @@ uint64_t pdg::AccessInfoTracker::getArrayArgSize(Value &V, Function &F)
       CallSite CS(ci);
       if (!CS.isCall() || CS.isIndirectCall())
         continue;
-      std::string called_func_name = CS.getCalledFunction()->getName().str();
-      if (IsAllocator(called_func_name))
+      if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
       {
-        if (IsCastedToArrayType(*ci))
-          errs() << "[Warning]: find potential malloc array in function:" << called_func_name << "\n";
+        std::string called_func_name = called_func->getName().str();
+        if (IsAllocator(called_func_name))
+        {
+          if (IsCastedToArrayType(*ci))
+            errs() << "[Warning]: find potential malloc array in function:" << called_func_name << "\n";
+        }
       }
     }
   }
