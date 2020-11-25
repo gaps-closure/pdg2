@@ -438,7 +438,9 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForFunc(Function *Func)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   auto FuncW = pdgUtils.getFuncMap()[Func];
-  
+  bool is_black_list_func = pdgUtils.IsBlackListFunc(Func->getName().str());
+  if (is_black_list_func)
+    return;
   for (auto argW : FuncW->getArgWList())
   {
     // build formal in tree first
@@ -447,12 +449,11 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForFunc(Function *Func)
     // argW->copyTree(argW->getTree(TreeType::FORMAL_IN_TREE), TreeType::FORMAL_OUT_TREE);
   }
   buildFormalTreeForArg(*FuncW->getRetW()->getArg(), TreeType::FORMAL_IN_TREE);
-  pdgUtils.getFuncMap()[Func]->setTreeFlag(true);
   drawFormalParameterTree(Func, TreeType::FORMAL_IN_TREE);
-  // drawFormalParameterTree(Func, TreeType::FORMAL_OUT_TREE);
   connectFunctionAndFormalTrees(Func);
-  // connectCallerAndActualTrees(Func);
   pdgUtils.getFuncMap()[Func]->setTreeFlag(true);
+  // drawFormalParameterTree(Func, TreeType::FORMAL_OUT_TREE);
+  // connectCallerAndActualTrees(Func);
 }
 
 void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType treeTy)
@@ -897,7 +898,6 @@ void pdg::ProgramDependencyGraph::connectGlobalObjectTreeWithAddressVars(std::se
         if (!funcMap[userFunc]->hasTrees())
         {
           buildFormalTreeForFunc(userFunc);
-          funcMap[userFunc]->setTreeFlag(true);
         }
       }
     }
@@ -1170,7 +1170,6 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars(std::set<
       if (!funcMap[allocFunc]->hasTrees())
       {
         buildFormalTreeForFunc(allocFunc);
-        funcMap[allocFunc]->setTreeFlag(true);
       }
     }
     

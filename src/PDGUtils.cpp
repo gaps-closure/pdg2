@@ -581,6 +581,7 @@ bool pdg::PDGUtils::isRootNode(tree<InstructionWrapper*>::iterator treeI)
 
 bool pdg::PDGUtils::IsBlackListFunc(std::string func_name)
 {
+  func_name = StripFuncnameVersionNumber(func_name);
   for (std::string black_list_func_name : black_list_func_names_)
   {
     if (black_list_func_name.find(func_name) != std::string::npos)

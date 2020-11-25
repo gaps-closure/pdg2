@@ -247,7 +247,7 @@ std::string pdg::DIUtils::getDIFieldName(DIType *ty)
   {
     if (!ty->getName().str().empty())
       return ty->getName().str();
-    return "[no name]";
+    return "";
   }
   }
 }

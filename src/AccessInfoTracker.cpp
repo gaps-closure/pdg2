@@ -573,10 +573,10 @@ std::vector<Function *> pdg::AccessInfoTracker::computeBottomUpCallChain(Functio
     searchDomain = driverDomainFuncs;
   std::vector<Function *> ret;
   ret.push_back(&F);
-  std::set<Function *> seenFuncs;
+  std::set<Function *> seen_funcs;
   std::queue<Function *> funcQ;
   funcQ.push(&F);
-  seenFuncs.insert(&F);
+  seen_funcs.insert(&F);
   while (!funcQ.empty())
   {
     Function *func = funcQ.front();
@@ -584,15 +584,23 @@ std::vector<Function *> pdg::AccessInfoTracker::computeBottomUpCallChain(Functio
     auto callInstList = funcMap[func]->getCallInstList();
     for (auto ci : callInstList)
     {
-      if (Function *calledF = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
+      CallSite CS(ci);
+      if (CS.isCall() && !CS.isIndirectCall())
       {
-        if (calledF->isDeclaration() || calledF->empty())
-          continue;
-        if (seenFuncs.find(calledF) != seenFuncs.end()) // skip if already visited the called function
-          continue;
-        ret.push_back(calledF);
-        seenFuncs.insert(calledF);
-        funcQ.push(calledF);
+        if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
+        {
+          std::string called_func_name = called_func->getName().str();
+          if (pdgUtils.IsBlackListFunc(called_func_name))
+            continue;
+          if (called_func->isDeclaration() || called_func->empty())
+            continue;
+          if (seen_funcs.find(called_func) != seen_funcs.end())
+            continue;
+
+          seen_funcs.insert(called_func);
+          ret.push_back(called_func);
+          funcQ.push(called_func);
+        }
       }
     }
   }
@@ -1413,6 +1421,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     auto childI = tree<InstructionWrapper *>::child(treeI, i);
     auto struct_field_di_type = (*childI)->getDIType();
     auto struct_field_lowest_di_type = DIUtils::getLowestDIType(struct_field_di_type);
+
     // check if field is private
     bool is_shared_field = true;
     if (SharedDataFlag)
@@ -1444,16 +1453,16 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     if (DIUtils::isFuncPointerTy(struct_field_lowest_di_type))
     {
       // generate rpc for the indirect function call
-      std::string funcName = DIUtils::getDIFieldName(struct_field_di_type);
+      std::string func_ptr_name = DIUtils::getDIFieldName(struct_field_di_type);
       // generate rpc for defined function in isolated driver. Also, if kernel hook a function to a function pointer, we need to caputre this write
-      if (driverExportFuncPtrNames.find(funcName) == driverExportFuncPtrNames.end())
+      if (driverExportFuncPtrNames.find(func_ptr_name) == driverExportFuncPtrNames.end())
         continue;
       // for each function pointer, swap it with the function name registered to the pointer.
-      funcName = switchIndirectCalledPtrName(funcName);
-      Function *indirectFunc = module->getFunction(funcName);
-      if (indirectFunc == nullptr)
+      std::string indirect_called_func_name = switchIndirectCalledPtrName(func_ptr_name);
+      Function *indirect_called_func = module->getFunction(indirect_called_func_name);
+      if (indirect_called_func == nullptr)
         continue;
-      OS << field_indent_level << "rpc " << DIUtils::getFuncSigName(DIUtils::getLowestDIType(struct_field_di_type), indirectFunc, DIUtils::getDIFieldName(struct_field_di_type)) << ";\n";
+      OS << field_indent_level << "rpc " << DIUtils::getFuncSigName(DIUtils::getLowestDIType(struct_field_di_type), indirect_called_func, DIUtils::getDIFieldName(struct_field_di_type)) << ";\n";
     }
     else if (DIUtils::isStructPointerTy(struct_field_di_type))
     {
@@ -1474,17 +1483,32 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     }
     else if (DIUtils::isProjectableTy(struct_field_di_type))
     {
+      // assumption: if a child field is an struct or union, we consider them as anonymous. So, we directly put these fields in the projection.
       std::string sub_fields_str;
       raw_string_ostream nested_fields_str(sub_fields_str);
+      std::string struct_field_name = DIUtils::getDIFieldName(struct_field_di_type);
+      // formating the indent. For anonymous struct, make the indent same as the parent struct
+      if (struct_field_name.empty())
+        field_indent_level.pop_back();
       generateProjectionForTreeNode(childI, nested_fields_str, argName, pointer_queue, is_func_ptr_export_from_driver, field_indent_level);
       if (nested_fields_str.str().empty())
         continue;
-      // for struct and union, directly generate a nested projection in the parent struct definition
-      OS << field_indent_level 
-         << "projection {\n" 
-         << nested_fields_str.str()
-         << field_indent_level
-         << "};\n";
+      // for struct and union, if the field doesn't has a name, then this is an anonymous struct or union. 
+      // in this case, directly generated nested projection
+      if (struct_field_name.empty())
+      {
+        OS << nested_fields_str.str();
+      }
+      else
+      {
+        OS << field_indent_level
+           << "projection " 
+           << struct_field_name
+           << " {\n"
+           << nested_fields_str.str()
+           << field_indent_level
+           << "};\n";
+      }
     }
     else
     {
