@@ -321,11 +321,7 @@ namespace
         if (globalVar.getType()->isPointerTy())
         {
           if (globalVar.getType()->getPointerElementType()->isStructTy())
-          {
-            // auto globalVarDIType = pdg::DIUtils::getGlobalVarDIType(globalVar);
-            // driver_globalvars << pdg::DIUtils::getDITypeName(globalVarDIType) <<"\n";
-            driver_globalvars << globalVar.getName().str() <<"\n";
-          }
+            driver_globalvars << globalVar.getName().str() << "\n";
         }
       }
 

@@ -26,7 +26,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
 
   driverDomainFuncs = pdgUtils.computeDriverDomainFuncs(M);
   kernelDomainFuncs = pdgUtils.computeKernelDomainFuncs(M);
-  driverExportFuncPtrNameMap = pdgUtils.computeDriverExportFuncPtrNameMap();
+  driverExportFuncPtrNameMap = pdgUtils.computeDriverExportFuncPtrNameMap(M);
   // counter for how many field we eliminate using shared data
   setupStrOpsMap();
   setupAllocatorWrappers();
@@ -83,6 +83,7 @@ void pdg::AccessInfoTracker::setupStrOpsMap()
   stringOperations.insert("strlcpy");
   stringOperations.insert("strcmp");
   stringOperations.insert("strncmp");
+  stringOperations.insert("kobject_set_name");
 }
 
 void pdg::AccessInfoTracker::setupAllocatorWrappers()
@@ -116,13 +117,13 @@ bool pdg::AccessInfoTracker::voidPointerHasMultipleCasts(InstructionWrapper* voi
 {
   // get dep list
   unsigned castTimes = 0;
-  auto valDepList = PDG->getNodesWithDepType(voidPtrW, DependencyType::VAL_DEP);
+  auto valDepList = PDG->GetNodesWithDepType(voidPtrW, DependencyType::VAL_DEP);
   for (auto depPair : valDepList)
   {
     auto dataW = const_cast<InstructionWrapper *>(depPair.first->getData());
     if (dataW->getInstruction() != nullptr)
     {
-      auto depInsts = PDG->getNodesWithDepType(dataW, DependencyType::VAL_DEP);
+      auto depInsts = PDG->GetNodesWithDepType(dataW, DependencyType::VAL_DEP);
       for (auto depInstPair : depInsts)
       {
         auto instW = const_cast<InstructionWrapper *>(depInstPair.first->getData());
@@ -250,7 +251,7 @@ std::set<Function*> pdg::AccessInfoTracker::computeFuncsAccessPrivateData(std::s
     for (auto instI = inst_begin(func); instI != inst_end(func); ++instI)
     {
       auto instW = instMap[&*instI];
-      auto valDepPairs = PDG->getNodesWithDepType(instW, DependencyType::VAL_DEP);
+      auto valDepPairs = PDG->GetNodesWithDepType(instW, DependencyType::VAL_DEP);
       if (valDepPairs.size() == 0)
         continue;
       for (auto valDepPair : valDepPairs)
@@ -313,13 +314,13 @@ bool pdg::AccessInfoTracker::IsUsedInStrOps(InstructionWrapper *candidate_string
   Instruction* candidate_string_inst = candidate_string_inst_w->getInstruction();
   if (candidate_string_inst == nullptr)
     return false;
-  PDG->GetDependentInstructionsWithDepType(candidate_string_inst, DependencyType::DATA_READ, dep_insts_on_string_inst);
+  PDG->GetDepInstsWithDepType(candidate_string_inst, DependencyType::DATA_READ, dep_insts_on_string_inst);
   for (Instruction* i : dep_insts_on_string_inst)
   {
     if (LoadInst *li = dyn_cast<LoadInst>(i))
     {
       std::set<Instruction*> intra_func_users;
-      PDG->GetDependentInstructionsWithDepType(li, DependencyType::DATA_DEF_USE, intra_func_users);
+      PDG->GetDepInstsWithDepType(li, DependencyType::DATA_DEF_USE, intra_func_users);
       for (Instruction* intra_func_user : intra_func_users)
       {
         CallSite CS(intra_func_user);
@@ -374,7 +375,7 @@ void pdg::AccessInfoTracker::computeSharedData()
       }
 
       // get valdep pair, and check for intraprocedural accesses
-      auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+      auto valDepPairList = PDG->GetNodesWithDepType(*treeI, DependencyType::VAL_DEP);
       bool accessInKernel = false;
       bool accessInDriver = false;
       AccessType nodeAccessTy = AccessType::NOACCESS;
@@ -484,7 +485,7 @@ void pdg::AccessInfoTracker::computeIntraprocArgAccessInfo(ArgumentWrapper *argW
     }
 
     // get valdep pair, and check for intraprocedural accesses
-    auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+    auto valDepPairList = PDG->GetNodesWithDepType(*treeI, DependencyType::VAL_DEP);
     for (auto valDepPair : valDepPairList)
     {
       auto dataW = valDepPair.first->getData();
@@ -520,12 +521,12 @@ void pdg::AccessInfoTracker::computeInterprocArgAccessInfo(ArgumentWrapper *argW
       auto parentI = tree<InstructionWrapper *>::parent(treeI);
       parentNodeDIType = (*parentI)->getDIType();
     }
-    auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+    auto valDepPairList = PDG->GetNodesWithDepType(*treeI, DependencyType::VAL_DEP);
     for (auto valDepPair : valDepPairList)
     {
       auto dataW = valDepPair.first->getData();
       // compute interprocedural access info in the receiver domain
-      auto depNodePairs = PDG->getNodesWithDepType(dataW, DependencyType::DATA_CALL_PARA);
+      auto depNodePairs = PDG->GetNodesWithDepType(dataW, DependencyType::DATA_CALL_PARA);
       for (auto depNodePair : depNodePairs)
       {
         // check if the struct or some of its fields are passed through function calls
@@ -792,7 +793,7 @@ void pdg::AccessInfoTracker::computeGlobalVarsAccessInfo()
       }
 
       // get valdep pair, and check for intraprocedural accesses
-      auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+      auto valDepPairList = PDG->GetNodesWithDepType(*treeI, DependencyType::VAL_DEP);
       for (auto valDepPair : valDepPairList)
       {
         auto dataW = valDepPair.first->getData();
@@ -958,32 +959,24 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
-  DIType *funcRetType = DIUtils::getFuncRetDIType(F);
-  std::string retTypeName;
-  if (funcRetType == nullptr)
-    retTypeName = "void";
-  else
-    retTypeName = DIUtils::getDITypeName(funcRetType);
+  auto funcMap = pdgUtils.getFuncMap();
+  auto funcW = funcMap[&F];
+  DIType *func_ret_di_type = DIUtils::getFuncRetDIType(F);
+  std::string ret_type_name = DIUtils::getDITypeName(func_ret_di_type);
   // when referencing a projection, discard the struct keyword.
-  if (DIUtils::isStructPointerTy(funcRetType))
+  auto ret_argw = funcW->getRetW();
+  if (DIUtils::isStructPointerTy(func_ret_di_type))
   {
-    pdgUtils.stripStr(retTypeName, "struct ");
-    retTypeName = "ret_" + retTypeName;
+    pdgUtils.stripStr(ret_type_name, "struct ");
+    ret_type_name = "projection ret_" + ret_type_name;
+    auto ret_tree_begin_iter = ret_argw->tree_begin(TreeType::FORMAL_IN_TREE);
+    std::string ret_annotation = ComputeNodeAnnotationStr(ret_tree_begin_iter);
+    ret_type_name += ret_annotation;
   }
-
-  // swap the function name with its registered function pointer. Just to align with the IDL syntax
+  // swap the function name with its registered function pointer to align with the IDL syntax
   auto funcName = F.getName().str();
   funcName = getRegisteredFuncPtrName(funcName);
-  // handle return type, concate with function name
-  if (PDG->isStructPointer(F.getReturnType())) // generate alloc(caller) as return struct pointer is from the other side
-  {
-    retTypeName = "projection " + retTypeName;
-    std::string retAttributeStr = getReturnAttributeStr(F);
-    if (!retAttributeStr.empty())
-      retTypeName = retTypeName + " " + retAttributeStr;
-  }
-
-  idl_file << "\trpc " << retTypeName << " " << funcName;
+  idl_file << "\trpc " << ret_type_name << " " << funcName;
   if (funcName.find("ioremap") != std::string::npos)
     idl_file << " [ioremap(caller)] ";
   idl_file << "( ";
@@ -996,21 +989,10 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     auto &dbgInstList = pdgUtils.getFuncMap()[&F]->getDbgInstList();
     std::string argName = DIUtils::getArgName(arg);
     // infer in/out attributes, default assume in and no attribute is needed
-    std::string attributeStr = "";
     auto treeBegin = argW->tree_begin(TreeType::FORMAL_IN_TREE);
-    auto addrVarsDepPairs = PDG->getNodesWithDepType((*treeBegin), DependencyType::VAL_DEP);
-    for (auto depPair : addrVarsDepPairs)
-    {
-      auto depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-      if (!depInstW->getInstruction())
-        break;
-      auto accType = getAccessTypeForInstW(depInstW);
-      if (accType == AccessType::WRITE)
-        attributeStr = "[out]";
-    }
-
-    std::string annotationStr = inferFieldAnnotation(*treeBegin, "");
-
+    if (treeBegin == argW->tree_end(TreeType::FORMAL_IN_TREE))
+      continue;
+    std::string annotation_str = ComputeNodeAnnotationStr(treeBegin);
     // infer annotation, such as alloc/dealloc if possible.
     if (DIUtils::isPointerType(argDIType))
     {
@@ -1046,8 +1028,8 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
         // find a char array. We should treat this as a string
         if (argTypeName.compare("char") == 0)
         {
-          annotationStr += "[string]";
-          argStr = argTypeName + " " + attributeStr + " " + annotationStr + " " + pointerLevelStr + argName;
+          annotation_str += "[string]";
+          argStr = argTypeName + " " + annotation_str + " " + pointerLevelStr + argName;
           ksplit_stats_collector.IncreaseNumberOfString();
         }
         else
@@ -1058,7 +1040,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       }
       else
       {
-        argStr = argTypeName + " " + attributeStr + " " + annotationStr + " " + pointerLevelStr + argName;
+        argStr = argTypeName + " " + annotation_str + " " + pointerLevelStr + argName;
       }
       // unHandledArrayNum++;
       idl_file << argStr;
@@ -1342,7 +1324,7 @@ void pdg::AccessInfoTracker::generateProjectionForGlobalVarInFunc(tree<Instructi
     if (!isFieldAccess || isPrivateField)
       continue;
     // also check if this field is accessed in the target function
-    auto treeNodeDepPairs = PDG->getNodesWithDepType(*childI, DependencyType::VAL_DEP);
+    auto treeNodeDepPairs = PDG->GetNodesWithDepType(*childI, DependencyType::VAL_DEP);
     bool accessedInTargetFunc = false;
     for (auto depPair : treeNodeDepPairs)
     {
@@ -1420,8 +1402,8 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
 {
   auto &pdgUtils = PDGUtils::getInstance();
   auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
-  auto parent_struct_di_type = (*treeI)->getDIType();
-  if (parent_struct_di_type == nullptr)
+  auto struct_di_type = (*treeI)->getDIType();
+  if (struct_di_type == nullptr)
     return;
   std::string field_indent_level = parent_struct_indent_level + "\t";
   for (int i = 0; i < tree<InstructionWrapper *>::number_of_children(treeI); ++i)
@@ -1449,7 +1431,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       // reason: The kernel code may not be complete. Shared data computation, thus, may missing some fields. If a function is called from kernel domain, we assume 
       // the kernel also accesses the fields accessed in the call back function.
       if (!is_func_ptr_export_from_driver)
-        is_shared_field = isChildFieldShared(parent_struct_di_type, struct_field_di_type);
+        is_shared_field = isChildFieldShared(struct_di_type, struct_field_di_type);
     }
 
     if (!is_shared_field)
@@ -1460,7 +1442,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       continue;
     }
     ksplit_stats_collector.IncreaseNumberOfProjectedField();
-    std::string fieldAnnotation = inferFieldAnnotation(*childI, DIUtils::computeFieldID(parent_struct_di_type, struct_field_di_type));
+    std::string field_annotation = ComputeNodeAnnotationStr(childI);
     if (DIUtils::isFuncPointerTy(struct_field_lowest_di_type))
     {
       // generate rpc for the indirect function call
@@ -1486,7 +1468,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       // formatting functions
       OS << field_indent_level
          << "projection "
-         << struct_field_type_name << fieldAnnotation << " "
+         << struct_field_type_name << field_annotation << " "
          << "*" << argName << "_"
          << DIUtils::getDIFieldName(struct_field_di_type)
          << ";\n";
@@ -1529,7 +1511,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       {
         if (typeName.find("array") != std::string::npos)
           ksplit_stats_collector.IncreaseNumberOfArray();
-        OS << field_indent_level << DIUtils::getDITypeName(struct_field_di_type) << " " << getAccessAttributeName(childI) << fieldAnnotation << " " << DIUtils::getDIFieldName(struct_field_di_type) << ";\n";
+        OS << field_indent_level << DIUtils::getDITypeName(struct_field_di_type) << " " << getAccessAttributeName(childI) << field_annotation << " " << DIUtils::getDIFieldName(struct_field_di_type) << ";\n";
       }
     }
     // collect union number stats
@@ -1587,6 +1569,8 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
     if (!DIUtils::IsPointerToProjectableTy(current_struct_di_type))
       continue;
     treeI++;
+    if (treeI == argW->tree_end(TreeType::FORMAL_IN_TREE))
+      continue;
     
     // append child node needs projection to queue
     for (int i = 0; i < tree<InstructionWrapper *>::number_of_children(treeI); ++i)
@@ -1676,102 +1660,137 @@ bool pdg::AccessInfoTracker::IsStringOps(std::string func_name)
   return false;
 }
 
-// receive a tree wrapper
-std::string pdg::AccessInfoTracker::inferFieldAnnotation(InstructionWrapper *instW, std::string fieldID)
+std::string pdg::AccessInfoTracker::ComputeNodeAnnotationStr(tree<InstructionWrapper *>::iterator tree_node_iter)
+{
+  std::set<std::string> annotations;
+  std::set<Function*> visited_funcs;
+  InferTreeNodeAnnotation(tree_node_iter, annotations, visited_funcs);
+  std::string annotation_str = "";
+  for (auto annotation : annotations)
+  {
+    annotation_str += annotation;
+  }
+  return annotation_str;
+}
+
+void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>::iterator tree_node_iter, std::set<std::string> &annotations, std::set<Function *> &visited_funcs)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
-
+  auto funcMap = pdgUtils.getFuncMap();
+  auto parent_node_iter = getParentIter(tree_node_iter);
+  // compute field id
+  DIType* tree_node_di_type = (*tree_node_iter)->getDIType();
+  DIType* parent_node_di_type = (*parent_node_iter)->getDIType();
+  std::string fieldID = DIUtils::computeFieldID(parent_node_di_type, tree_node_di_type);
   // infer string attributes for struct field
   if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
   {
     ksplit_stats_collector.IncreaseStringNum();
-    return "[string]";
+    annotations.insert("[string]");
   }
 
-  // infer alloc(caller) attribures
-  auto valDepPairList = PDG->getNodesWithDepType(instW, DependencyType::VAL_DEP);
-  for (auto valDepPair : valDepPairList)
+  // obtain address variables for a tree node
+  // analyze the accesses to the address variable
+  auto addr_var_wrappers = PDG->GetDepInstWrapperWithDepType(*tree_node_iter, DependencyType::VAL_DEP);
+  for (auto addr_var_w : addr_var_wrappers)
   {
-    auto dataW = valDepPair.first->getData();
-    if (!dataW->getInstruction())
-      continue;
-    auto dataDList = PDG->getNodeDepList(dataW->getInstruction());
-    for (auto depPair : dataDList)
+    // first infer the access type for the tree node
+    auto accType = getAccessTypeForInstW(addr_var_w);
+    if (accType == AccessType::WRITE)
+      annotations.insert("[out]");
+    auto addr_var_inst = addr_var_w->getInstruction();
+    assert(addr_var_inst != nullptr && "cannot analyze nullptr address var");
+    std::set<Instruction *> user_insts_on_addr_var;
+    // start infering string / alloc(caller) annotation
+    PDG->GetDepInstsWithDepType(addr_var_inst, DependencyType::DATA_DEF_USE, user_insts_on_addr_var);
+    for (auto user_inst : user_insts_on_addr_var)
     {
-      InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
-      DependencyType depType = depPair.second;
-      Instruction *depInst = depInstW->getInstruction();
-      if (!depInst)
-        continue;
-      if (depType == DependencyType::DATA_DEF_USE)
+      if (LoadInst *li = dyn_cast<LoadInst>(user_inst))
       {
-        // alloc callee annotation
-        if (StoreInst *si = dyn_cast<StoreInst>(depInst))
+        // case 1: if address variable is directly accessed, check if it is used in string operations.
+        std::set<Instruction *> dep_insts_on_li;
+        PDG->GetDepInstsWithDepType(li, DependencyType::DATA_DEF_USE, dep_insts_on_li);
+        for (Instruction *dep_inst : dep_insts_on_li)
         {
-          auto storedValue = si->getValueOperand();
-          if (auto storedValInst = dyn_cast<Instruction>(storedValue))
+          CallSite CS(dep_inst);
+          if (!CS.isCall() || CS.isIndirectCall())
+            continue;
+          if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
           {
-            std::set<InstructionWrapper*> aliasSet;
-            PDG->getAllAlias(storedValInst, aliasSet);
-            for (auto aliasW : aliasSet)
+            std::string called_func_name = called_func->getName();
+            if (IsStringOps(called_func_name))
             {
-              auto aliasInst = aliasW->getInstruction();
-              if (CallInst *ci = dyn_cast<CallInst>(aliasInst))
-              {
-                if (Function *calledFunc = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
-                {
-                  if (calledFunc != nullptr)
-                  {
-                    auto calledFuncName = calledFunc->getName().str();
-                    if (IsAllocator(calledFuncName))
-                      return "[alloc(caller)] [out]";
-                    if (deallocatorWrappers.find(calledFuncName) != deallocatorWrappers.end())
-                      return "[dealloc(caller)]";
-                  }
-                }
-              }
+              ksplit_stats_collector.IncreaseStringNum();
+              annotations.insert("[string]");
             }
           }
         }
-        // alloc caller annotation for global variables
-        if (StoreInst *si = dyn_cast<StoreInst>(depInst))
+        // case 2: if address variable is passed to other function, need to infer the node annotation in the callee, and return an annotation if there is any.
+        if (annotations.find("string") == annotations.end()) // if the string annotation is already inffered in current function, there is no need to infer string annotation in the callee
         {
-          if (si->getPointerOperand() == dataW->getInstruction())
+          std::set<Instruction *> call_insts_on_li;
+          PDG->GetDepInstsWithDepType(li, DependencyType::DATA_CALL_PARA, call_insts_on_li);
+          for (auto call_inst_on_li : call_insts_on_li)
           {
-            if (isa<GlobalVariable>(si->getValueOperand()->stripPointerCasts()))
-              return "[alloc(caller)] [out]";
+            CallSite CS(call_inst_on_li);
+            if (!CS.isCall() || CS.isIndirectCall())
+              continue;
+            if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
+            {
+              if (called_func->isDeclaration())
+                continue;
+              // avoid recursive calls
+              if (visited_funcs.find(called_func) != visited_funcs.end())
+                continue;
+              visited_funcs.insert(called_func);
+              Argument *arg = (*tree_node_iter)->getArgument();
+              if (arg == nullptr)
+                continue;
+              auto func_w = funcMap[called_func];
+              if (!func_w->hasTrees())
+                continue;
+              unsigned argIdx = arg->getArgNo();
+              auto arg_w = func_w->getArgWByIdx(argIdx);
+              if (arg_w == nullptr) // this could happen for varidic function
+                continue;
+              InferTreeNodeAnnotation(arg_w->tree_begin(TreeType::FORMAL_IN_TREE), annotations, visited_funcs);
+            }
           }
         }
+      }
 
-        // infer string annotation for argument
-        if (LoadInst *li = dyn_cast<LoadInst>(depInst))
+      if (StoreInst *si = dyn_cast<StoreInst>(user_inst))
+      {
+        auto stored_val = si->getValueOperand();
+        if (auto stored_val_inst = dyn_cast<Instruction>(stored_val))
         {
-          std::set<Instruction*> dep_insts;
-          PDG->GetDependentInstructionsWithDepType(li, DependencyType::DATA_DEF_USE, dep_insts);
-          for (Instruction* dep_inst : dep_insts)
+          std::set<InstructionWrapper *> alias_set;
+          PDG->getAllAlias(stored_val_inst, alias_set);
+          for (auto alias_w : alias_set)
           {
-            CallSite CS(dep_inst);
-            if (CS.isCall() && !CS.isIndirectCall())
+            auto alias_inst = alias_w->getInstruction();
+            CallSite CS(alias_inst);
+            if (!CS.isCall() || CS.isIndirectCall())
+              continue;
+            if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
             {
-              if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
-              {
-                std::string called_func_name = called_func->getName();
-                if (IsStringOps(called_func_name))
-                {
-                  ksplit_stats_collector.IncreaseStringNum();
-                  return "[string]";
-                }
-              }
+              if (called_func->isDeclaration())
+                continue;
+              auto called_func_name = called_func->getName().str();
+              if (IsAllocator(called_func_name))
+                annotations.insert("[alloc(caller)]");
+              if (deallocatorWrappers.find(called_func_name) != deallocatorWrappers.end())
+                annotations.insert("[dealloc(caller)]");
             }
           }
         }
       }
     }
   }
-  return "";
 }
 
+// receive a tree wrapper
 std::string pdg::getAccessAttributeName(tree<InstructionWrapper *>::iterator treeI)
 {
   std::vector<std::string> access_attribute = {
@@ -1884,7 +1903,7 @@ std::set<std::string> pdg::AccessInfoTracker::computeAccessedFieldsForDIType(tre
     }
 
     // get valdep pair, and check for intraprocedural accesses
-    auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+    auto valDepPairList = PDG->GetNodesWithDepType(*treeI, DependencyType::VAL_DEP);
     for (auto valDepPair : valDepPairList)
     {
       auto dataW = valDepPair.first->getData();

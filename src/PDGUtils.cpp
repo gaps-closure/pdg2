@@ -408,58 +408,58 @@ void pdg::PDGUtils::computeCrossDomainTransFuncs(Module &M, std::set<Function *>
   }
 }
 
-std::set<Function *> pdg::PDGUtils::computeAsyncFuncs(Module &M)
-{
-  auto crossDomainFuncs = computeCrossDomainFuncs(M);
-  auto kernelDomainFuncs = computeKernelDomainFuncs(M);
-  auto driverDomainFuncs = computeDriverDomainFuncs(M);
-  auto driverExportFuncPtrNameMap = computeDriverExportFuncPtrNameMap();
-  std::set<Function *> asynCalls;
-  // interate through all call instructions and determine all the possible call targets.
-  std::set<Function *> calledFuncs;
-  for (Function &F : M)
-  {
-    if (F.isDeclaration() || F.empty())
-      continue;
-    auto funcW = G_funcMap[&F];
-    auto callInstList = funcW->getCallInstList();
-    for (auto callInst : callInstList)
-    {
-      Function *calledFunc = dyn_cast<Function>(callInst->getCalledValue()->stripPointerCasts());
-      // direct call
-      if (calledFunc != nullptr)
-        calledFuncs.insert(calledFunc);
-    }
-  }
+// std::set<Function *> pdg::PDGUtils::computeAsyncFuncs(Module &M)
+// {
+//   auto crossDomainFuncs = computeCrossDomainFuncs(M);
+//   auto kernelDomainFuncs = computeKernelDomainFuncs(M);
+//   auto driverDomainFuncs = computeDriverDomainFuncs(M);
+//   auto driverExportFuncPtrNameMap = computeDriverExportFuncPtrNameMap();
+//   std::set<Function *> asynCalls;
+//   // interate through all call instructions and determine all the possible call targets.
+//   std::set<Function *> calledFuncs;
+//   for (Function &F : M)
+//   {
+//     if (F.isDeclaration() || F.empty())
+//       continue;
+//     auto funcW = G_funcMap[&F];
+//     auto callInstList = funcW->getCallInstList();
+//     for (auto callInst : callInstList)
+//     {
+//       Function *calledFunc = dyn_cast<Function>(callInst->getCalledValue()->stripPointerCasts());
+//       // direct call
+//       if (calledFunc != nullptr)
+//         calledFuncs.insert(calledFunc);
+//     }
+//   }
 
-  // driver export functions, assume to be called from kernel to driver
-  for (auto pair : driverExportFuncPtrNameMap)
-  {
-    Function *f = M.getFunction(pair.first);
-    if (f != nullptr)
-      calledFuncs.insert(f);
-  }
+//   // driver export functions, assume to be called from kernel to driver
+//   for (auto pair : driverExportFuncPtrNameMap)
+//   {
+//     Function *f = M.getFunction(pair.first);
+//     if (f != nullptr)
+//       calledFuncs.insert(f);
+//   }
 
-  // determien if transitive closure of uncalled functions contains cross-domain functions
-  std::set<Function *> searchDomain;
-  searchDomain.insert(kernelDomainFuncs.begin(), kernelDomainFuncs.end());
-  searchDomain.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
-  for (auto &F : M)
-  {
-    if (F.isDeclaration() || F.empty())
-      continue;
-    if (calledFuncs.find(&F) != calledFuncs.end())
-      continue;
-    if (F.getName().find("init_module") != std::string::npos || F.getName().find("cleanup_module") != std::string::npos)
-      continue;
-    std::set<Function *> transitiveFuncs = getTransitiveClosureInDomain(F, searchDomain);
-    for (auto f : transitiveFuncs)
-    {
-      asynCalls.insert(f);
-    }
-  }
-  return asynCalls;
-}
+//   // determien if transitive closure of uncalled functions contains cross-domain functions
+//   std::set<Function *> searchDomain;
+//   searchDomain.insert(kernelDomainFuncs.begin(), kernelDomainFuncs.end());
+//   searchDomain.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
+//   for (auto &F : M)
+//   {
+//     if (F.isDeclaration() || F.empty())
+//       continue;
+//     if (calledFuncs.find(&F) != calledFuncs.end())
+//       continue;
+//     if (F.getName().find("init_module") != std::string::npos || F.getName().find("cleanup_module") != std::string::npos)
+//       continue;
+//     std::set<Function *> transitiveFuncs = getTransitiveClosureInDomain(F, searchDomain);
+//     for (auto f : transitiveFuncs)
+//     {
+//       asynCalls.insert(f);
+//     }
+//   }
+//   return asynCalls;
+// }
 
 std::set<CallSite> pdg::PDGUtils::computeFunctionCallSites(Function& F)
 {
@@ -491,16 +491,22 @@ std::set<std::string> pdg::PDGUtils::computeDriverExportFuncPtrName()
   return driverExportFuncPtrNames;
 }
 
-std::map<std::string, std::string> pdg::PDGUtils::computeDriverExportFuncPtrNameMap()
+std::map<std::string, std::string> pdg::PDGUtils::computeDriverExportFuncPtrNameMap(Module &M)
 {
   std::ifstream driverExportFuncPtrs("static_funcptr.txt");
   std::ifstream driverExportFuncs("static_func.txt");
   std::map<std::string, std::string> exportFuncPtrMap;
-  // int s1 = std::count(std::istreambuf_iterator<char>(driverExportFuncPtrs), std::istreambuf_iterator<char>(), '\n');
-  // int s2 = std::count(std::istreambuf_iterator<char>(driverExportFuncs), std::istreambuf_iterator<char>(), '\n');
-  // assert(s1 == s2 && "driver export ptrs cannot be matched to a defined function.");
+  
   for (std::string line1, line2; std::getline(driverExportFuncPtrs, line1), std::getline(driverExportFuncs, line2);)
   {
+    // in some cases, a function pointer exported from driver may point to a kernel function
+    // in this case, we don't treat this exported pointer as a interface function.
+    Function* pointed_func = M.getFunction(line2);
+    if (pointed_func == nullptr || pointed_func->isDeclaration())
+      continue;
+    auto kernel_func = computeKernelDomainFuncs(M);
+    if (kernel_func.find(pointed_func) != kernel_func.end())
+      continue;
     exportFuncPtrMap[line2] = line1; // key: registered driver side function, value: the registered function pointer name
   }
 

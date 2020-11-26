@@ -61,7 +61,7 @@ class PDGUtils final
     std::set<llvm::CallSite> computeFunctionCallSites(llvm::Function &F);
     std::set<std::string> computeDriverExportFuncPtrName();
     std::set<std::string>& GetBlackListFuncs();
-    std::map<std::string, std::string> computeDriverExportFuncPtrNameMap();
+    std::map<std::string, std::string> computeDriverExportFuncPtrNameMap(llvm::Module &M);
     std::set<llvm::Function *> getTransitiveClosureInDomain(llvm::Function &F, std::set<llvm::Function *> &searchDomain);
     // building debugging info types
     llvm::DIType* getInstDIType(llvm::Instruction* inst);

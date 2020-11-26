@@ -423,14 +423,24 @@ typename pdg::DependencyNode<pdg::InstructionWrapper>::DependencyLinkList pdg::P
   return PDG->getNodeDepList(PDGUtils::getInstance().getInstMap()[inst]);
 }
 
-typename DependencyNode<InstructionWrapper>::DependencyLinkList pdg::ProgramDependencyGraph::getNodesWithDepType(const InstructionWrapper *instW, DependencyType depType)
+typename DependencyNode<InstructionWrapper>::DependencyLinkList pdg::ProgramDependencyGraph::GetNodesWithDepType(const InstructionWrapper *instW, DependencyType depType)
 {
   assert(instW != nullptr);
   auto node = PDG->getNodeByData(instW);
   return node->getNodesWithDepType(depType);
 }
 
-void pdg::ProgramDependencyGraph::GetDependentInstructionsWithDepType(Instruction *source_inst, DependencyType target_dep_type, std::set<Instruction *> &dep_insts)
+std::set<InstructionWrapper *> pdg::ProgramDependencyGraph::GetDepInstWrapperWithDepType(const InstructionWrapper *inst_w, DependencyType dep_type)
+{
+  std::set<InstructionWrapper *> dep_instws;
+  auto dep_instw_pairs = GetNodesWithDepType(inst_w, dep_type);
+  for (auto dep_instw_pair : dep_instw_pairs)
+  {
+    dep_instws.insert(const_cast<InstructionWrapper *>(dep_instw_pair.first->getData()));
+  }
+  return dep_instws;
+}
+void pdg::ProgramDependencyGraph::GetDepInstsWithDepType(Instruction *source_inst, DependencyType target_dep_type, std::set<Instruction *> &dep_insts)
 {
   auto node_dep_list = getNodeDepList(source_inst);
   for (auto dep_pair : node_dep_list)
@@ -548,7 +558,7 @@ DIType *pdg::ProgramDependencyGraph::FindCastFromDIType(Argument& arg)
   FunctionWrapper* func_w = func_map[func];
   ArgumentWrapper* arg_w = func_w->getArgWByArg(arg);
   auto formal_tree_begin_iter = arg_w->tree_begin(TreeType::FORMAL_IN_TREE);
-  auto val_dep_pairs = getNodesWithDepType(*formal_tree_begin_iter, DependencyType::VAL_DEP);
+  auto val_dep_pairs = GetNodesWithDepType(*formal_tree_begin_iter, DependencyType::VAL_DEP);
   for (auto val_dep_pair : val_dep_pairs)
   {
     auto dep_inst_w = val_dep_pair.first->getData();
@@ -926,7 +936,7 @@ void pdg::ProgramDependencyGraph::connectGlobalObjectTreeWithAddressVars(std::se
         continue;
       // for tree nodes that are not root, get parent node's dependent instructions and then find loadInst or GEP Inst from parent's address
       auto ParentI = tree<InstructionWrapper *>::parent(treeI);
-      auto parentValDepNodes = getNodesWithDepType(*ParentI, DependencyType::VAL_DEP);
+      auto parentValDepNodes = GetNodesWithDepType(*ParentI, DependencyType::VAL_DEP);
       for (auto pair : parentValDepNodes)
       {
         auto parentDepInstW = pair.first->getData();
@@ -1196,7 +1206,7 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars(std::set<
         continue;
       // for tree nodes that are not root, get parent node's dependent instructions and then find loadInst or GEP Inst from parent's address
       auto ParentI = tree<InstructionWrapper *>::parent(treeI);
-      auto parentValDepNodes = getNodesWithDepType(*ParentI, DependencyType::VAL_DEP);
+      auto parentValDepNodes = GetNodesWithDepType(*ParentI, DependencyType::VAL_DEP);
       for (auto pair : parentValDepNodes)
       {
         auto parentDepInstW = const_cast<InstructionWrapper *>(pair.first->getData());
@@ -1372,7 +1382,7 @@ void pdg::ProgramDependencyGraph::connectTreeNodeWithAddrVars(ArgumentWrapper* a
       continue;
     // for tree nodes that are not root, get parent node's dependent instructions and then find loadInst or GEP Inst from parent's loads instructions
     auto ParentI = tree<InstructionWrapper *>::parent(treeI);
-    auto parentValDepNodes = getNodesWithDepType(*ParentI, DependencyType::VAL_DEP);
+    auto parentValDepNodes = GetNodesWithDepType(*ParentI, DependencyType::VAL_DEP);
     // for union, copy parent's addr var to child node. As they have the same address.
     if (DIUtils::isUnionTy((*ParentI)->getDIType()))
     {
@@ -1808,7 +1818,7 @@ void pdg::ProgramDependencyGraph::connectCallerAndActualTrees(Function *caller)
           continue;
 
         auto parentI = tree<InstructionWrapper *>::parent(actualTreeI);
-        auto parentValDepNodes = getNodesWithDepType(*parentI, DependencyType::VAL_DEP);
+        auto parentValDepNodes = GetNodesWithDepType(*parentI, DependencyType::VAL_DEP);
         for (auto pair : parentValDepNodes)
         {
           auto parentDepInstW = pair.first->getData();
@@ -1855,62 +1865,62 @@ Value *pdg::ProgramDependencyGraph::getCallSiteParamVal(CallInst *CI, unsigned i
   return CI->getArgOperand(idx);
 }
 
-std::set<Function *> pdg::ProgramDependencyGraph::inferAsynchronousCalledFunction()
-{
-  auto &pdgUtils = PDGUtils::getInstance();
-  auto funcMap = pdgUtils.getFuncMap();
-  auto crossDomainFuncs = pdgUtils.computeCrossDomainFuncs(*module);
-  auto kernelDomainFuncs = pdgUtils.computeKernelDomainFuncs(*module);
-  auto driverDomainFuncs = pdgUtils.computeDriverDomainFuncs(*module);
-  auto driverExportFuncPtrNameMap = pdgUtils.computeDriverExportFuncPtrNameMap();
-  std::set<Function *> asynCalls;
-  // interate through all call instructions and determine all the possible call targets.
-  std::set<Function *> calledFuncs;
-  for (Function &F : *module)
-  {
-    if (F.isDeclaration() || F.empty())
-      continue;
-    auto funcW = funcMap[&F];
-    auto callInstList = funcW->getCallInstList();
-    for (auto callInst : callInstList)
-    {
-      Function *calledFunc = dyn_cast<Function>(callInst->getCalledValue()->stripPointerCasts());
-      // direct call
-      if (calledFunc != nullptr)
-        calledFuncs.insert(calledFunc);
-    }
-  }
+// std::set<Function *> pdg::ProgramDependencyGraph::inferAsynchronousCalledFunction()
+// {
+//   auto &pdgUtils = PDGUtils::getInstance();
+//   auto funcMap = pdgUtils.getFuncMap();
+//   auto crossDomainFuncs = pdgUtils.computeCrossDomainFuncs(*module);
+//   auto kernelDomainFuncs = pdgUtils.computeKernelDomainFuncs(*module);
+//   auto driverDomainFuncs = pdgUtils.computeDriverDomainFuncs(*module);
+//   auto driverExportFuncPtrNameMap = pdgUtils.computeDriverExportFuncPtrNameMap();
+//   std::set<Function *> asynCalls;
+//   // interate through all call instructions and determine all the possible call targets.
+//   std::set<Function *> calledFuncs;
+//   for (Function &F : *module)
+//   {
+//     if (F.isDeclaration() || F.empty())
+//       continue;
+//     auto funcW = funcMap[&F];
+//     auto callInstList = funcW->getCallInstList();
+//     for (auto callInst : callInstList)
+//     {
+//       Function *calledFunc = dyn_cast<Function>(callInst->getCalledValue()->stripPointerCasts());
+//       // direct call
+//       if (calledFunc != nullptr)
+//         calledFuncs.insert(calledFunc);
+//     }
+//   }
 
-  // driver export functions, assume to be called from kernel to driver
-  for (auto pair : driverExportFuncPtrNameMap)
-  {
-    Function *f = module->getFunction(pair.first);
-    if (f != nullptr)
-      calledFuncs.insert(f);
-  }
+//   // driver export functions, assume to be called from kernel to driver
+//   for (auto pair : driverExportFuncPtrNameMap)
+//   {
+//     Function *f = module->getFunction(pair.first);
+//     if (f != nullptr)
+//       calledFuncs.insert(f);
+//   }
 
-  // determien if transitive closure of uncalled functions contains cross-domain functions
-  std::set<Function *> searchDomain;
-  searchDomain.insert(kernelDomainFuncs.begin(), kernelDomainFuncs.end());
-  searchDomain.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
-  for (auto &F : *module)
-  {
-    if (F.isDeclaration() || F.empty())
-      continue;
-    if (calledFuncs.find(&F) != calledFuncs.end())
-      continue;
-    if (driverDomainFuncs.find(&F) == driverDomainFuncs.end())
-      continue;
-    if (F.getName().find("init_module") != std::string::npos || F.getName().find("cleanup_module") != std::string::npos)
-      continue;
-    std::set<Function *> transitiveFuncs = pdgUtils.getTransitiveClosureInDomain(F, searchDomain);
-    for (auto transAsyncFunc : transitiveFuncs)
-    {
-      asynCalls.insert(transAsyncFunc);
-    }
-  }
-  return asynCalls;
-}
+//   // determien if transitive closure of uncalled functions contains cross-domain functions
+//   std::set<Function *> searchDomain;
+//   searchDomain.insert(kernelDomainFuncs.begin(), kernelDomainFuncs.end());
+//   searchDomain.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
+//   for (auto &F : *module)
+//   {
+//     if (F.isDeclaration() || F.empty())
+//       continue;
+//     if (calledFuncs.find(&F) != calledFuncs.end())
+//       continue;
+//     if (driverDomainFuncs.find(&F) == driverDomainFuncs.end())
+//       continue;
+//     if (F.getName().find("init_module") != std::string::npos || F.getName().find("cleanup_module") != std::string::npos)
+//       continue;
+//     std::set<Function *> transitiveFuncs = pdgUtils.getTransitiveClosureInDomain(F, searchDomain);
+//     for (auto transAsyncFunc : transitiveFuncs)
+//     {
+//       asynCalls.insert(transAsyncFunc);
+//     }
+//   }
+//   return asynCalls;
+// }
 
 bool pdg::ProgramDependencyGraph::isUnsafeTypeCast(Instruction *inst)
 {

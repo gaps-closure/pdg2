@@ -85,8 +85,9 @@ public:
   std::vector<DependencyNode<InstructionWrapper> *> getNodeSet() { return PDG->getNodeSet(); }
   DependencyGraph<InstructionWrapper> *_getPDG() { return PDG; }
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(llvm::Instruction *inst);
-  typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodesWithDepType(const InstructionWrapper* instW, DependencyType depType);
-  void GetDependentInstructionsWithDepType(llvm::Instruction *source_inst, DependencyType target_dep_type, std::set<llvm::Instruction *> &dep_insts);
+  typename DependencyNode<InstructionWrapper>::DependencyLinkList GetNodesWithDepType(const InstructionWrapper* instW, DependencyType depType);
+  std::set<InstructionWrapper *> GetDepInstWrapperWithDepType(const InstructionWrapper *instW, DependencyType depType);
+  void GetDepInstsWithDepType(llvm::Instruction *source_inst, DependencyType target_dep_type, std::set<llvm::Instruction *> &dep_insts);
   llvm::Function *getCalledFunction(llvm::CallInst *CI);
   bool isFuncPointer(llvm::Type *ty);
   bool isStructPointer(llvm::Type *ty);

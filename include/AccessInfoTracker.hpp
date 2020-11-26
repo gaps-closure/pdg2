@@ -70,6 +70,8 @@ public:
   uint64_t getArrayArgSize(llvm::Value &V, llvm::Function &F);
   int getCallOperandIdx(llvm::Value *operand, llvm::CallInst *callInst);
   std::string switchIndirectCalledPtrName(std::string funcptr);
+  void InferTreeNodeAnnotation(tree<InstructionWrapper *>::iterator tree_node_iter, std::set<std::string> &annotations, std::set<llvm::Function *> &visited_funcs);
+  std::string ComputeNodeAnnotationStr(tree<InstructionWrapper *>::iterator tree_node_iter);
   std::string inferFieldAnnotation(InstructionWrapper* instW, std::string fieldID);
   bool voidPointerHasMultipleCasts(InstructionWrapper *voidPtrW);
   bool IsUsedInStrOps(InstructionWrapper* candidate_string_inst_w);
@@ -97,8 +99,6 @@ private:
   std::set<llvm::Function *> driverDomainFuncs;
   std::set<llvm::Function*> importedFuncs;
   std::set<std::string> driverExportFuncPtrNames;
-  std::set<std::string> accessedFieldsInAsyncCalls;
-  std::set<llvm::Function*> asyncCalls;
   std::map<std::string, std::string> driverExportFuncPtrNameMap;
   std::set<std::string> usedCallBackFuncs;
   std::unordered_map<std::string, std::set<std::string>> sharedDataTypeMap;
