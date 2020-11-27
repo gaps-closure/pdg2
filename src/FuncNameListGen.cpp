@@ -358,14 +358,16 @@ namespace
       // through function pointers.
       auto crossDomainFuncStructs = getCrossDomainGlobals(M, importedFuncs);
       SmallVector<DIGlobalVariableExpression *, 4> sv;
-      for (auto Global : crossDomainFuncStructs)
+      for (auto global_var : crossDomainFuncStructs)
       {
+        if (!global_var->hasInitializer())
+          continue;
         DIGlobalVariable *gv = nullptr;
-        Global->getDebugInfo(sv);
+        global_var->getDebugInfo(sv);
         /* errs() << Global.getName() << " " << sv.size() << "\n"; */
         for (auto d : sv)
         {
-          if (d->getVariable()->getName() == Global->getName())
+          if (d->getVariable()->getName() == global_var->getName())
           {
             gv = d->getVariable(); // get global variable from global expression
           }
@@ -373,29 +375,62 @@ namespace
 
         if (gv == nullptr)
           continue;
-
-        auto gvDItype = gv->getType().resolve();
-        if (getLowestDIType(gvDItype)->getTag() != dwarf::DW_TAG_structure_type)
+        auto gv_di_type = gv->getType().resolve();
+        auto gv_lowest_di_type = pdg::DIUtils::getLowestDIType(gv_di_type);
+        if (gv_lowest_di_type->getTag() != dwarf::DW_TAG_structure_type)
           continue;
-
-        const auto &typeArrRef = dyn_cast<DICompositeType>(getLowestDIType(gvDItype))->getElements();
-        if (Global->getType()->isPointerTy())
+        const auto &typeArrRef = dyn_cast<DICompositeType>(gv_lowest_di_type)->getElements();
+        Type* global_type = global_var->getType();
+        if (auto t = dyn_cast<PointerType>(global_type)) 
+          global_type = t->getPointerElementType();
+        if (global_type->isStructTy())
         {
-          auto pointerEle = Global->getType()->getPointerElementType();
-          /* errs() << typeArrRef.size() << " - " << pointerEle->getStructNumElements() << "\n"; */
-          if (pointerEle->isStructTy())
+          if (global_type->getStructNumElements() != typeArrRef.size())
+            continue;
+          for (unsigned i = 0; i < global_type->getStructNumElements(); ++i)
           {
-            for (unsigned i = 0; i < pointerEle->getStructNumElements(); ++i)
+            auto struct_element = global_var->getInitializer()->getAggregateElement(i);
+            if (struct_element != nullptr)
             {
-              if (!Global->hasInitializer())
-                continue;
-              auto cons = Global->getInitializer()->getAggregateElement(i);
-              if (cons != nullptr)
+              if (DIType *struct_field_di_type = dyn_cast<DIType>(typeArrRef[i]))
               {
-                if (cons->hasName())
+                // if the field is a function pointer, directly print it to map
+                // if a nested struct is found
+                if (!struct_element->getName().str().empty())
                 {
-                  static_funcptr << getDIFieldName(dyn_cast<DIType>(typeArrRef[i])) << "\n";
-                  static_func << cons->getName().str() << "\n";
+                  if (!pdg::DIUtils::isFuncPointerTy(struct_field_di_type))
+                    continue;
+                  static_funcptr << getDIFieldName(struct_field_di_type) << "\n";
+                  static_func << struct_element->getName().str() << "\n";
+                }
+
+                // if the field is a constant struct
+                if (pdg::DIUtils::isStructTy(struct_field_di_type))
+                {
+                  DIType *nested_struct_field_di_type = pdg::DIUtils::getLowestDIType(struct_field_di_type);
+                  if (DICompositeType *dicp = dyn_cast<DICompositeType>(nested_struct_field_di_type))
+                  {
+                    const auto &nested_struct_type_arr_ref = dicp->getElements();
+                    Type* struct_element_type = struct_element->getType();
+                    if (!struct_element_type->isStructTy())
+                      continue;
+                    if (struct_element_type->getStructNumElements() != nested_struct_type_arr_ref.size())
+                      continue;
+                    for (unsigned j = 0; j < struct_element_type->getStructNumElements(); ++j)
+                    {
+                      auto nested_struct_element = struct_element->getAggregateElement(j);
+                      if (nested_struct_element->getName().str().empty())
+                        continue;
+                      if (DIType *nested_field_di_type = dyn_cast<DIType>(nested_struct_type_arr_ref[j]))
+                      {
+                        errs() << *nested_field_di_type << "\n";
+                        if (!pdg::DIUtils::isFuncPointerTy(nested_field_di_type))
+                          continue;
+                        static_funcptr << getDIFieldName(nested_field_di_type) << "\n";
+                        static_func << nested_struct_element->getName().str() << "\n";
+                      }
+                    }
+                  }
                 }
               }
             }

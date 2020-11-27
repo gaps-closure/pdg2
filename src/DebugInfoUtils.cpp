@@ -598,15 +598,12 @@ bool pdg::DIUtils::isFuncPointerTy(DIType *dt)
 {
   if (dt == nullptr)
     return false;
-  if (dt->getTag() == dwarf::DW_TAG_subroutine_type || isa<DISubroutineType>(dt))
-    return true;
   dt = stripMemberTag(dt);
-  if (dt->getTag() == dwarf::DW_TAG_pointer_type)
-  {
-    auto baseTy = getBaseDIType(dt);
-    if (baseTy != nullptr)
-      return (getBaseDIType(dt)->getTag() == dwarf::DW_TAG_subroutine_type) || isa<DISubroutineType>(baseTy);
-  }
+  if (dt->getTag() == dwarf::DW_TAG_subroutine_type || isa<DISubroutineType>(dt) || isa<DISubprogram>(dt))
+    return true;
+  auto lowest_di_type = getLowestDIType(dt);
+  if (lowest_di_type != nullptr)
+    return (lowest_di_type->getTag() == dwarf::DW_TAG_subroutine_type) || isa<DISubroutineType>(lowest_di_type) || isa<DISubprogram>(lowest_di_type);
   return false;
 }
 

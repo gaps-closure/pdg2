@@ -51,6 +51,7 @@ public:
   void buildTypeTreeWithDI(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType, llvm::DIType *argDIType);
   void buildGlobalTypeTrees(std::set<llvm::DIType *> sharedTypes);
   void buildGlobalTypeTreeForDIType(llvm::DIType &DI);
+  void CollectInstsWithDIType(std::set<llvm::Function *> &search_domain);
   void connectGlobalTypeTreeWithAddressVars(std::set<llvm::Function *> &searchDomain);
   void drawFormalParameterTree(llvm::Function *Func, TreeType treeTy);
   void connectFunctionAndFormalTrees(llvm::Function *callee);
@@ -103,6 +104,7 @@ private:
   // DataDependencyGraph *ddg;
   std::map<llvm::GlobalVariable*, tree<InstructionWrapper*>> globalObjectTrees;
   std::map<llvm::DIType*, tree<InstructionWrapper*>> globalTypeTrees;
+  std::map<std::string, std::set<InstructionWrapper*>> shared_data_name_and_instw_map_;
   std::set<llvm::GlobalVariable *> sharedGlobalVars;
   unsigned unsafeTypeCastNum;
 };

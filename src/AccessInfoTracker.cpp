@@ -1511,7 +1511,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       {
         if (typeName.find("array") != std::string::npos)
           ksplit_stats_collector.IncreaseNumberOfArray();
-        OS << field_indent_level << DIUtils::getDITypeName(struct_field_di_type) << " " << getAccessAttributeName(childI) << field_annotation << " " << DIUtils::getDIFieldName(struct_field_di_type) << ";\n";
+        OS << field_indent_level << DIUtils::getDITypeName(struct_field_di_type) << " " << field_annotation << " " << DIUtils::getDIFieldName(struct_field_di_type) << ";\n";
       }
     }
     // collect union number stats
@@ -1672,6 +1672,13 @@ std::string pdg::AccessInfoTracker::ComputeNodeAnnotationStr(tree<InstructionWra
   }
   return annotation_str;
 }
+
+// bool pdg::AccessInfoTracker::IsTreeNodeFuncOps(tree<InstructionWrapper*>::iterator tree_node_iter)
+// {
+//   DIType* dt = (*tree_node_iter)->getDIType();
+//   if 
+
+// }
 
 void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>::iterator tree_node_iter, std::set<std::string> &annotations, std::set<Function *> &visited_funcs)
 {

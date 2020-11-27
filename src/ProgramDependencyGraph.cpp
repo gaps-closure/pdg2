@@ -63,9 +63,43 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   errs() << "finish connecting global trees with users\n";
   buildGlobalTypeTrees(sharedTypes);
   errs() << "finish building global type trees\n";
+  CollectInstsWithDIType(funcsNeedPDGConstruction);
   connectGlobalTypeTreeWithAddressVars(funcsNeedPDGConstruction);
   errs() << "finish connecting global type trees with addr variables\n";
   return false;
+}
+
+void pdg::ProgramDependencyGraph::CollectInstsWithDIType(std::set<Function *> &search_domain)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto instMap = pdgUtils.getInstMap();
+  auto inst_di_type_map = pdgUtils.getInstDITypeMap();
+  for (Function &F : *module)
+  {
+    if (F.isDeclaration() || F.empty())
+      continue;
+    if (search_domain.find(&F) == search_domain.end())
+      continue;
+    for (auto instI = inst_begin(F); instI != inst_end(F); ++instI)
+    {
+      Instruction* i = &*instI;
+      if (inst_di_type_map.find(i) == inst_di_type_map.end())
+        continue;
+      // here, we don't use getRawName, as we want the instruction with struct type, not including the struct pointers.
+      std::string inst_di_type_name = DIUtils::getDITypeName(inst_di_type_map[i]);
+      auto iter = shared_data_name_and_instw_map_.find(inst_di_type_name);
+      if (iter != shared_data_name_and_instw_map_.end())
+      {
+        errs() << "inserting to " << inst_di_type_name << "\n";
+        iter->second.insert(instMap[i]);
+      }
+    }
+  }
+  // for (Function *func : search_domain)
+  // {
+  //   if (func->isDeclaration() || func->empty())
+  //     continue;
+  // }
 }
 
 void pdg::ProgramDependencyGraph::buildPDGForFunc(Function *Func)
@@ -867,13 +901,19 @@ std::set<InstructionWrapper *> pdg::ProgramDependencyGraph::collectInstWsOnDITyp
         continue;
       std::string instDITypeName = DIUtils::getDITypeName(instDITypeMap[i]);
       if (instDITypeName == DITypeName)
+      {
+        errs() << "find di type name: " << instDITypeName << "\n";
         ret.insert(instMap[i]);
+      }
       // here, gep always produce pointer variable. But the debugging info is misaligning here
       if (DITypeName.back() == '*')
       {
         DITypeName.pop_back();
         if (instDITypeName == DITypeName && isa<GetElementPtrInst>(i))
+        {
+          errs() << "insert gep di type: " << instDITypeName << "\n";
           ret.insert(instMap[i]);
+        }
       }
     }
     // auto dbgInstList = funcMap[&F]->getDbgInstList(); 
@@ -1035,6 +1075,8 @@ void pdg::ProgramDependencyGraph::buildGlobalTypeTrees(std::set<DIType*> sharedT
   for (DIType *dt : sharedTypes)
   {
     buildGlobalTypeTreeForDIType(*dt);
+    std::set<InstructionWrapper*> s;
+    shared_data_name_and_instw_map_.insert(std::make_pair(DIUtils::getRawDITypeName(dt), s));
   }
 }
 
@@ -1177,14 +1219,16 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars(std::set<
   auto &pdgUtils = PDGUtils::getInstance();
   auto instMap = pdgUtils.getInstMap();
   auto funcMap = pdgUtils.getFuncMap();
+
   for (auto pair : globalTypeTrees)
   {
-    DIType* sharedDIType = pair.first;
+    DIType* shared_di_type = pair.first;
     auto typeTree = pair.second;
     // link with all local variable of the struct type that is not handeled by global var or cross-domain parameter
-    auto instWs = collectInstWsOnDIType(sharedDIType, searchDomain);
+    std::string inst_di_type_name = DIUtils::getRawDITypeName(shared_di_type);
+    auto instWs = shared_data_name_and_instw_map_[inst_di_type_name];
+    // collectInstWsOnDIType(shared_di_type, searchDomain);
     auto treeBegin = typeTree.begin();
-    std::string typeName = DIUtils::getDITypeName(sharedDIType);
     for (auto instW : instWs)
     {
       Function* allocFunc = instW->getInstruction()->getFunction();
@@ -1195,9 +1239,7 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars(std::set<
         PDG->addDependency(*treeBegin, aliasW, DependencyType::VAL_DEP);
       }
       if (!funcMap[allocFunc]->hasTrees())
-      {
         buildFormalTreeForFunc(allocFunc);
-      }
     }
     
     for (tree<InstructionWrapper *>::iterator treeI = typeTree.begin(); treeI != typeTree.end(); ++treeI)
