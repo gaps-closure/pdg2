@@ -56,7 +56,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
     if (kernelDomainFuncs.find(func) != kernelDomainFuncs.end())
       reachableFuncInKernel.insert(func);
   }
-  printCopiableFuncs(reachableFuncInKernel);
+  // printCopiableFuncs(reachableFuncInKernel);
   // computeGlobalVarsAccessInfo();
   for (Function *F : crossDomainFuncCalls)
   {
@@ -1482,7 +1482,10 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       std::string struct_field_name = DIUtils::getDIFieldName(struct_field_di_type);
       // formating the indent. For anonymous struct, make the indent same as the parent struct
       if (struct_field_name.empty())
-        field_indent_level.pop_back();
+      {
+        if (!field_indent_level.empty())
+          field_indent_level.pop_back();
+      }
       generateProjectionForTreeNode(childI, nested_fields_str, argName, pointer_queue, is_func_ptr_export_from_driver, field_indent_level);
       if (nested_fields_str.str().empty())
         continue;
@@ -1607,6 +1610,8 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
       projectionReferenceName = DIUtils::getDIFieldName((*parentI)->getDIType());
     }
 
+    if (treeI == argW->tree_end(TreeType::FORMAL_IN_TREE))
+      continue;
     // naming for struct field
     if (!pdgUtils.isRootNode(treeI))
     {

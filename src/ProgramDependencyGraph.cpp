@@ -90,7 +90,6 @@ void pdg::ProgramDependencyGraph::CollectInstsWithDIType(std::set<Function *> &s
       auto iter = shared_data_name_and_instw_map_.find(inst_di_type_name);
       if (iter != shared_data_name_and_instw_map_.end())
       {
-        errs() << "inserting to " << inst_di_type_name << "\n";
         iter->second.insert(instMap[i]);
       }
     }
