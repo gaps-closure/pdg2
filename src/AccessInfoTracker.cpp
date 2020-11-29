@@ -1711,7 +1711,6 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
   // obtain address variables for a tree node
   // analyze the accesses to the address variable
   auto addr_var_wrappers = PDG->GetDepInstWrapperWithDepType(*tree_node_iter, DependencyType::VAL_DEP);
-  errs() << "check point 1\n";
   for (auto addr_var_w : addr_var_wrappers)
   {
     // first infer the access type for the tree node
@@ -1771,10 +1770,13 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
               if (!func_w->hasTrees())
                 continue;
               unsigned argIdx = arg->getArgNo();
-              auto arg_w = func_w->getArgWByIdx(argIdx);
-              if (arg_w == nullptr) // this could happen for varidic function
+              auto callee_arg_w = func_w->getArgWByIdx(argIdx);
+              if (callee_arg_w == nullptr) // this could happen for varidic function
                 continue;
-              InferTreeNodeAnnotation(arg_w->tree_begin(TreeType::FORMAL_IN_TREE), annotations, visited_funcs);
+              auto callee_arg_tree_begin = callee_arg_w->tree_begin(TreeType::FORMAL_IN_TREE);
+              if (callee_arg_tree_begin == callee_arg_w->tree_end(TreeType::FORMAL_IN_TREE))
+                continue;
+              InferTreeNodeAnnotation(callee_arg_tree_begin, annotations, visited_funcs);
             }
           }
         }
