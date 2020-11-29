@@ -78,9 +78,11 @@ DIType *pdg::DIUtils::stripAttributes(DIType *Ty)
   return ret;
 }
 
-DIType *pdg::DIUtils::getLowestDIType(DIType *Ty) 
+DIType *pdg::DIUtils::getLowestDIType(DIType *dt) 
 {
-  DIType* tmp_di_ty = Ty;
+  if (dt == nullptr)
+    return nullptr;
+  DIType* tmp_di_ty = dt;
   while (tmp_di_ty->getTag() == dwarf::DW_TAG_pointer_type ||
       tmp_di_ty->getTag() == dwarf::DW_TAG_member ||
       tmp_di_ty->getTag() == dwarf::DW_TAG_typedef ||
@@ -98,7 +100,7 @@ DIType *pdg::DIUtils::getLowestDIType(DIType *Ty)
   }
   if (tmp_di_ty != nullptr)
     return tmp_di_ty;
-  return Ty;
+  return dt;
 }
 
 std::set<DbgInfoIntrinsic *> pdg::DIUtils::collectDbgInstInFunc(Function &F)

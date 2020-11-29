@@ -995,14 +995,21 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     // infer annotation, such as alloc/dealloc if possible.
     if (DIUtils::isFuncPointerTy(arg_di_type))
     {
+      errs() << "gen func pointer type\n";
       Function *indirect_called_func = module->getFunction(switchIndirectCalledPtrName(arg_name));
       // assert((indirect_called_func != nullptr) && "cannot generate arg sig for empty indirect called func");
+      if (indirect_called_func == nullptr)
+      {
+        errs() << "cannot generate arg sig for empty indirect called func " << funcName << "\n" ;
+        continue;
+      }
       // assumption 1: only driver domain exports function pointer to kernel.
       // assumption 2: the pointed function by this function pointer parameter is known.
       idl_file << "rpc " << DIUtils::getFuncSigName(DIUtils::getLowestDIType(arg_di_type), indirect_called_func, arg_name, "");
     }
     else if (DIUtils::isPointerType(arg_di_type))
     {
+      errs() << "gen pointer pointer type\n";
       // for a pointer type parameter, we don't know if the pointer could point
       // to an array of elements. So, we need to infer it.
       // if current arg is a struct, need to generate projection keyword and strip struct keyword
@@ -1051,6 +1058,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !arg_name.empty())
       idl_file << ", ";
   }
+  errs() << "finish generating rpc " << funcName << "\n";
   idl_file << " )";
 }
 
@@ -1174,12 +1182,14 @@ std::string pdg::AccessInfoTracker::getReturnValAnnotationStr(Function &F)
       CallSite CS(aliasInst);
       if (CS.isCall() && !CS.isIndirectCall())
       {
-        auto calledFunc = CS.getCalledFunction();
-        if (calledFunc->isDeclaration() || calledFunc->empty())
-          continue;
-        std::string calleeRetStr = getReturnValAnnotationStr(*calledFunc);
-        if (!calleeRetStr.empty())
-          return calleeRetStr;
+        if (Function *called_func = dyn_cast<Function>(CS.getCalledFunction()->stripPointerCasts()))
+        {
+          if (called_func->isDeclaration() || called_func->empty())
+            continue;
+          std::string calleeRetStr = getReturnValAnnotationStr(*called_func);
+          if (!calleeRetStr.empty())
+            return calleeRetStr;
+        }
       }
 
       if (!G->hasCell(*aliasInst))
@@ -1701,6 +1711,7 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
   // obtain address variables for a tree node
   // analyze the accesses to the address variable
   auto addr_var_wrappers = PDG->GetDepInstWrapperWithDepType(*tree_node_iter, DependencyType::VAL_DEP);
+  errs() << "check point 1\n";
   for (auto addr_var_w : addr_var_wrappers)
   {
     // first infer the access type for the tree node
@@ -1735,6 +1746,7 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
           }
         }
         // case 2: if address variable is passed to other function, need to infer the node annotation in the callee, and return an annotation if there is any.
+        errs() << "check point 2\n";
         if (annotations.find("string") == annotations.end()) // if the string annotation is already inffered in current function, there is no need to infer string annotation in the callee
         {
           std::set<Instruction *> call_insts_on_li;
@@ -1768,6 +1780,7 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
         }
       }
 
+      errs() << "check point 3\n";
       if (StoreInst *si = dyn_cast<StoreInst>(user_inst))
       {
         auto stored_val = si->getValueOperand();

@@ -532,6 +532,9 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
   try
   {
     DIType *argDIType = DIUtils::getArgDIType(arg);
+    if (!argDIType)
+      return;
+
     auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
     if (DIUtils::isVoidPointer(argDIType))
     {
@@ -555,8 +558,6 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
       ksplit_stats_collector.IncreaseNumberOfVoidPointer();
     }
 
-    if (!argDIType)
-      return;
     // assert(argDIType != nullptr && "cannot build formal tree due to lack of argument debugging info.");
     InstructionWrapper *treeTyW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::FORMAL_IN, &arg, arg.getType(), nullptr, 0, argDIType);
     pdgUtils.getFuncInstWMap()[Func].insert(treeTyW);
