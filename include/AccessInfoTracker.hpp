@@ -64,7 +64,7 @@ public:
   bool isChildFieldShared(llvm::DIType* parentNodeDIType, llvm::DIType* fieldDIType);
   ProgramDependencyGraph *_getPDG() { return PDG; }
   std::unordered_map<std::string, std::set<std::string>> getSharedDataTypeMap() { return sharedDataTypeMap; }
-  std::string getReturnAttributeStr(llvm::Function &F);
+  std::string getReturnValAnnotationStr(llvm::Function &F);
   bool mayAlias(llvm::Value &V1, llvm::Value &V2, llvm::Function &F);
   std::set<llvm::Instruction *> getIntraFuncAlias(llvm::Instruction *inst);
   uint64_t getArrayArgSize(llvm::Value &V, llvm::Function &F);
@@ -89,6 +89,7 @@ public:
   bool IsFuncPtrExportFromDriver(std::string);
   bool IsAllocator(std::string funcName);
   bool IsStringOps(std::string funcName);
+  bool IsStoreOfAlias(llvm::StoreInst* store_inst);
 
 private:
   ProgramDependencyGraph *PDG;

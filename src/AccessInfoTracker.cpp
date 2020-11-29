@@ -4,14 +4,9 @@
 using namespace llvm;
 
 char pdg::AccessInfoTracker::ID = 0;
-int pdg::SHARED_DATA;
-llvm::cl::opt<int> SharedDataFlag("sd", llvm::cl::desc("turn on shared data optimization"), llvm::cl::value_desc("shared_data"));
 
 bool pdg::AccessInfoTracker::runOnModule(Module &M)
 {
-  if (!SharedDataFlag)
-    SharedDataFlag = 0;
-  errs() << "Shared Data Optimization On: " << SharedDataFlag << "\n";
   module = &M;
   PDG = &getAnalysis<ProgramDependencyGraph>();
   auto &pdgUtils = PDGUtils::getInstance();
@@ -168,6 +163,7 @@ AccessType pdg::AccessInfoTracker::getAccessTypeForInstW(const InstructionWrappe
 {
   auto dataDList = PDG->getNodeDepList(instW->getInstruction());
   AccessType accessType = AccessType::NOACCESS;
+
   for (auto depPair : dataDList)
   {
     InstructionWrapper *depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
@@ -189,10 +185,13 @@ AccessType pdg::AccessInfoTracker::getAccessTypeForInstW(const InstructionWrappe
       if (StoreInst *st = dyn_cast<StoreInst>(depInstW->getInstruction()))
       {
         // if a value is used in a store instruction and is the store destination
-        if (dyn_cast<Instruction>(st->getPointerOperand()) == instW->getInstruction())
+        if (st->getPointerOperand() == instW->getInstruction())
         {
           if (isa<Argument>(st->getValueOperand())) // ignore the store inst that store arg to stack mem
-            break;
+            continue;
+          // if the modified field is a pointer field, then we assume that 
+          if (IsStoreOfAlias(st))
+            continue;
           accessType = AccessType::WRITE;
           break;
         }
@@ -969,8 +968,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
   {
     pdgUtils.stripStr(ret_type_name, "struct ");
     ret_type_name = "projection ret_" + ret_type_name;
-    auto ret_tree_begin_iter = ret_argw->tree_begin(TreeType::FORMAL_IN_TREE);
-    std::string ret_annotation = ComputeNodeAnnotationStr(ret_tree_begin_iter);
+    std::string ret_annotation = getReturnValAnnotationStr(F);
     ret_type_name += ret_annotation;
   }
   // swap the function name with its registered function pointer to align with the IDL syntax
@@ -984,86 +982,73 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
   for (auto argW : pdgUtils.getFuncMap()[&F]->getArgWList())
   {
     Argument &arg = *argW->getArg();
-    Type *argType = arg.getType();
-    DIType *argDIType = DIUtils::getArgDIType(arg);
-    auto &dbgInstList = pdgUtils.getFuncMap()[&F]->getDbgInstList();
-    std::string argName = DIUtils::getArgName(arg);
     // infer in/out attributes, default assume in and no attribute is needed
-    auto treeBegin = argW->tree_begin(TreeType::FORMAL_IN_TREE);
-    if (treeBegin == argW->tree_end(TreeType::FORMAL_IN_TREE))
+    auto arg_tree_begin = argW->tree_begin(TreeType::FORMAL_IN_TREE);
+    if (arg_tree_begin == argW->tree_end(TreeType::FORMAL_IN_TREE))
       continue;
-    std::string annotation_str = ComputeNodeAnnotationStr(treeBegin);
+    DIType* arg_di_type = (*arg_tree_begin)->getDIType();
+    assert(arg_di_type != nullptr && "cannot generate rpc due to missing arg debugging type info");
+    DIType *arg_lowest_di_type = DIUtils::getLowestDIType(arg_di_type);
+    std::string arg_name = DIUtils::getArgName(arg);
+    std::string arg_type_name = DIUtils::getRawDITypeName(arg_di_type);
+    std::string annotation_str = ComputeNodeAnnotationStr(arg_tree_begin);
     // infer annotation, such as alloc/dealloc if possible.
-    if (DIUtils::isPointerType(argDIType))
+    if (DIUtils::isFuncPointerTy(arg_di_type))
+    {
+      Function *indirect_called_func = module->getFunction(switchIndirectCalledPtrName(arg_name));
+      // assert((indirect_called_func != nullptr) && "cannot generate arg sig for empty indirect called func");
+      // assumption 1: only driver domain exports function pointer to kernel.
+      // assumption 2: the pointed function by this function pointer parameter is known.
+      idl_file << "rpc " << DIUtils::getFuncSigName(DIUtils::getLowestDIType(arg_di_type), indirect_called_func, arg_name, "");
+    }
+    else if (DIUtils::isPointerType(arg_di_type))
     {
       // for a pointer type parameter, we don't know if the pointer could point
       // to an array of elements. So, we need to infer it.
-      // 1. we can determine the parameter is an array by looking at the possible allocators of it.
-      std::string argTypeName = DIUtils::getArgTypeName(arg);
-      pdgUtils.stripStr(argTypeName, "struct ");
-      // if this is a pointer to struct, we need to also generate the projection keyword
-      if (DIUtils::isStructPointerTy(argDIType))
-        argTypeName = "projection " + argTypeName;
-      // if the pointed element is yet another pointer, need to put * before argName
-      std::string pointerLevelStr = "";
-      auto baseType = argDIType;
-      while (baseType != nullptr)
+      // if current arg is a struct, need to generate projection keyword and strip struct keyword
+      if (DIUtils::isStructPointerTy(arg_di_type))
       {
-        if (baseType->getTag() == dwarf::DW_TAG_pointer_type)
-        {
-          pointerLevelStr += "*";
-          argTypeName.pop_back();
-        }
-        auto di = DIUtils::getBaseDIType(baseType);
-        if (di == baseType)
-          break;
-        baseType = di;
+        pdgUtils.stripStr(arg_type_name, "struct ");
+        arg_type_name = "projection " + arg_type_name;
       }
-
-      // getArrayArgSize try to track the allocators of a parameter. Then check if the allocator allocates an array of element.
+      // if the pointed element is yet another pointer, need to put * before argName
+      // all pointer could point to array, need to check if the pointed buffer could be an array
       uint64_t arrSize = getArrayArgSize(arg, F);
-      std::string argStr = "";
+      std::string pointerLevelStr = DIUtils::ComputePointerLevelStr(arg_di_type);
+      std::string arg_str = "";
       if (arrSize > 0)
       {
         // find a char array. We should treat this as a string
-        if (argTypeName.compare("char") == 0)
+        if (arg_type_name.compare("char") == 0)
         {
           annotation_str += "[string]";
-          argStr = argTypeName + " " + annotation_str + " " + pointerLevelStr + argName;
+          arg_str = arg_type_name + " " + annotation_str + " " + pointerLevelStr + arg_name;
           ksplit_stats_collector.IncreaseNumberOfString();
         }
         else
         {
-          argStr = "array<" + argTypeName + ", " + std::to_string(arrSize) + ">" + pointerLevelStr + " " + argName;
+          arg_str = "array<" + arg_type_name + ", " + std::to_string(arrSize) + ">" + pointerLevelStr + " " + arg_name;
           ksplit_stats_collector.IncreaseNumberOfArray();
         }
       }
       else
       {
-        argStr = argTypeName + " " + annotation_str + " " + pointerLevelStr + argName;
+        arg_str = arg_type_name + " " + annotation_str + " " + pointerLevelStr + arg_name;
       }
       // unHandledArrayNum++;
-      idl_file << argStr;
-    }
-    else if (DIUtils::isFuncPointerTy(argDIType))
-    {
-      Function *indirectCalledFunc = nullptr;
-      Function *indirectFunc = module->getFunction(switchIndirectCalledPtrName(argName));
-      // assumption 1: only driver domain exports function pointer to kernel.
-      // assumption 2: the pointed function by this function pointer parameter is known.
-      idl_file << "rpc " << DIUtils::getFuncSigName(DIUtils::getLowestDIType(argDIType), indirectCalledFunc, argName, "");
+      idl_file << arg_str;
     }
     else
-      idl_file << DIUtils::getArgTypeName(arg) << " " << argName;
+      idl_file << DIUtils::getArgTypeName(arg) << " " << arg_name;
 
     // collecting stats
-    if (DIUtils::isUnionPointerTy(argDIType))
+    if (DIUtils::isUnionTy(arg_lowest_di_type))
       ksplit_stats_collector.IncreaseNumberOfUnion();
-    if (DIUtils::isSentinelType(argDIType))
+    if (DIUtils::isSentinelType(arg_lowest_di_type))
       ksplit_stats_collector.IncreaseNumberOfSentinelArray();
-    if (DIUtils::isVoidPointer(argDIType))
+    if (DIUtils::isVoidPointer(arg_di_type))
       ksplit_stats_collector.IncreaseNumberOfVoidPointer();
-    if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !argName.empty())
+    if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !arg_name.empty())
       idl_file << ", ";
   }
   idl_file << " )";
@@ -1168,7 +1153,7 @@ std::set<Instruction *> pdg::AccessInfoTracker::getIntraFuncAlias(Instruction *i
   return aliasSet;
 }
 
-std::string pdg::AccessInfoTracker::getReturnAttributeStr(Function &F)
+std::string pdg::AccessInfoTracker::getReturnValAnnotationStr(Function &F)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   auto m_dsa = pdgUtils.getDsaAnalysis();
@@ -1192,7 +1177,7 @@ std::string pdg::AccessInfoTracker::getReturnAttributeStr(Function &F)
         auto calledFunc = CS.getCalledFunction();
         if (calledFunc->isDeclaration() || calledFunc->empty())
           continue;
-        std::string calleeRetStr = getReturnAttributeStr(*calledFunc);
+        std::string calleeRetStr = getReturnValAnnotationStr(*calledFunc);
         if (!calleeRetStr.empty())
           return calleeRetStr;
       }
@@ -1425,7 +1410,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     
     // check if field is private
     bool is_shared_field = true;
-    if (SharedDataFlag)
+    if (SHARED_DATA_FLAG)
     {
       // if the current function is a function pointer called from kernel, we can safely assume that the kernel passes all the data that is needed in the callee side. 
       // reason: The kernel code may not be complete. Shared data computation, thus, may missing some fields. If a function is called from kernel domain, we assume 
@@ -1588,7 +1573,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
       // The current struct should always be struct or union pointer, since we don't compute shared data for union using type, we only check if a 
       if (!DIUtils::IsPointerToProjectableTy(current_struct_di_type))
       {
-        if (SharedDataFlag)
+        if (SHARED_DATA_FLAG)
         {
           if (!isChildFieldShared(current_struct_di_type, struct_field_di_type) && !is_func_ptr_export_from_driver)
             continue;
@@ -1647,6 +1632,8 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
 
 bool pdg::AccessInfoTracker::IsAllocator(std::string func_name)
 {
+  auto &pdgUtils = PDGUtils::getInstance();
+  std::string func_name_without_version_num = pdgUtils.StripFuncnameVersionNumber(func_name);
   for (auto allocatorWrapper : allocatorWrappers)
   {
     if (func_name.find(allocatorWrapper) != std::string::npos)
@@ -1665,6 +1652,22 @@ bool pdg::AccessInfoTracker::IsStringOps(std::string func_name)
   return false;
 }
 
+bool pdg::AccessInfoTracker::IsStoreOfAlias(StoreInst* store_inst)
+{
+  if (store_inst == nullptr)
+    return false;
+  Value* stored_val = store_inst->getValueOperand();
+  Value* stored_addr = store_inst->getPointerOperand();
+  if (LoadInst *li = dyn_cast<LoadInst>(stored_val))
+  {
+    // check if the load is loaded from another pointer type
+    Value* load_addr = li->getPointerOperand();
+    if (load_addr->getType() == stored_addr->getType())
+      return true;
+  }
+  return false;
+}
+
 std::string pdg::AccessInfoTracker::ComputeNodeAnnotationStr(tree<InstructionWrapper *>::iterator tree_node_iter)
 {
   std::set<std::string> annotations;
@@ -1677,13 +1680,6 @@ std::string pdg::AccessInfoTracker::ComputeNodeAnnotationStr(tree<InstructionWra
   }
   return annotation_str;
 }
-
-// bool pdg::AccessInfoTracker::IsTreeNodeFuncOps(tree<InstructionWrapper*>::iterator tree_node_iter)
-// {
-//   DIType* dt = (*tree_node_iter)->getDIType();
-//   if 
-
-// }
 
 void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>::iterator tree_node_iter, std::set<std::string> &annotations, std::set<Function *> &visited_funcs)
 {

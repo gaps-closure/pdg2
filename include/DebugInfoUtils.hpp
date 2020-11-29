@@ -46,6 +46,7 @@ class DIUtils
     // static std::set<std::string> computeSharedDataType(llvm::Module &M, std::set<llvm::Function *> crossDomainFunctions);
     static std::string computeFieldID(llvm::DIType *rootType, llvm::DIType *fieldType);
     static std::string getInvalidTypeStr(llvm::DIType *dt);
+    static std::string ComputePointerLevelStr(llvm::DIType *dt);
     static bool isUnionTy(llvm::DIType *dt);
     static bool isArrayType(llvm::DIType *dt);
     static bool actualArgHasAllocator(llvm::Function& F, unsigned argIdx);

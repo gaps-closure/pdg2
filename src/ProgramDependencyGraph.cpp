@@ -4,6 +4,13 @@ using namespace llvm;
 
 char pdg::ProgramDependencyGraph::ID = 0;
 
+int pdg::EXPAND_LEVEL;
+int pdg::USEDEBUGINFO;
+int pdg::SHARED_DATA_FLAG;
+llvm::cl::opt<int> expandLevel("l", llvm::cl::desc("Parameter tree expand level"), llvm::cl::value_desc("level"));
+llvm::cl::opt<int> useDebugInfo("d", llvm::cl::desc("use debug information"), llvm::cl::value_desc("debugInfo"));
+llvm::cl::opt<int> SharedDataFlag("sd", llvm::cl::desc("turn on shared data optimization"), llvm::cl::value_desc("shared_data"));
+
 void pdg::ProgramDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const
 {
   AU.addRequired<sea_dsa::DsaAnalysis>();
@@ -12,21 +19,20 @@ void pdg::ProgramDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const
   AU.setPreservesAll();
 }
 
-int pdg::EXPAND_LEVEL;
-int pdg::USEDEBUGINFO;
-llvm::cl::opt<int> expandLevel("l", llvm::cl::desc("Parameter tree expand level"), llvm::cl::value_desc("level"));
-llvm::cl::opt<int> useDebugInfo("d", llvm::cl::desc("use debug information"), llvm::cl::value_desc("debugInfo"));
-
 bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
 {
   if (!expandLevel)
     expandLevel = 4;
   if (!useDebugInfo)
     useDebugInfo = 0;
+  if (!SharedDataFlag)
+    SharedDataFlag = 0;
   EXPAND_LEVEL = expandLevel;
   USEDEBUGINFO = useDebugInfo;
+  SHARED_DATA_FLAG = SharedDataFlag;
   errs() << "Expand level " << EXPAND_LEVEL << "\n";
   errs() << "Using Debug Info " << USEDEBUGINFO << "\n";
+  errs() << "Shared Data Optimization On: " << SharedDataFlag << "\n";
 
   module = &M;
   auto &pdgUtils = PDGUtils::getInstance();
@@ -60,12 +66,15 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   // errs() << "shared global var size: " << sharedGlobalVars.size() << "\n";
   // buildObjectTreeForGlobalVars();
   // connectGlobalObjectTreeWithAddressVars(funcsNeedPDGConstruction);
-  errs() << "finish connecting global trees with users\n";
-  buildGlobalTypeTrees(sharedTypes);
-  errs() << "finish building global type trees\n";
-  CollectInstsWithDIType(funcsNeedPDGConstruction);
-  connectGlobalTypeTreeWithAddressVars(funcsNeedPDGConstruction);
-  errs() << "finish connecting global type trees with addr variables\n";
+  if (SharedDataFlag)
+  {
+    errs() << "finish connecting global trees with users\n";
+    buildGlobalTypeTrees(sharedTypes);
+    errs() << "finish building global type trees\n";
+    CollectInstsWithDIType(funcsNeedPDGConstruction);
+    connectGlobalTypeTreeWithAddressVars(funcsNeedPDGConstruction);
+    errs() << "finish connecting global type trees with addr variables\n";
+  }
   return false;
 }
 
@@ -615,8 +624,8 @@ DIType *pdg::ProgramDependencyGraph::FindCastFromDIType(Argument& arg)
 DIType *pdg::ProgramDependencyGraph::FindCastToDIType(Argument &arg)
 {
   auto &pdgUtils = PDGUtils::getInstance();
-  auto funcMap = pdgUtils.getFuncMap();
-  auto funcW = funcMap[arg.getParent()];
+  auto func_map = pdgUtils.getFuncMap();
+  auto caller_func_w = func_map[arg.getParent()];
   std::set<Value*> load_insts_on_arg_alloc;
   auto arg_alloc_inst = getArgAllocaInst(arg);
   if (!arg_alloc_inst)
@@ -644,6 +653,34 @@ DIType *pdg::ProgramDependencyGraph::FindCastToDIType(Argument &arg)
           cast_inst = cast_i;
         }
       }
+      if (CallInst *ci = dyn_cast<CallInst>(user))
+      {
+        CallSite CS(ci);
+        if (!CS.isCall() || CS.isIndirectCall())
+          continue;
+        if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
+        {
+          if (called_func->isDeclaration())
+            continue;
+          unsigned arg_idx = 0;
+          auto callee_func_w = func_map[called_func];
+          for (auto arg_iter = CS.arg_begin(); arg_iter != CS.arg_end(); ++arg_iter)
+          {
+            if (*arg_iter == load_inst_on_arg_inst)
+              break;
+            arg_idx++;
+          }
+          
+          if (arg_idx >= CS.arg_size())
+            continue;
+          auto callee_arg_w = callee_func_w->getArgWByIdx(arg_idx);
+          if (callee_arg_w == nullptr)
+            continue;
+          Argument& arg_in_callee = *(callee_arg_w->getArg());
+          DIType* casted_type = FindCastToDIType(arg_in_callee);
+          return casted_type;
+        }
+      }
     }
   }
   
@@ -656,7 +693,7 @@ DIType *pdg::ProgramDependencyGraph::FindCastToDIType(Argument &arg)
     {
       auto casted_val = si->getPointerOperand();
       if (AllocaInst *ci = dyn_cast<AllocaInst>(casted_val))
-        return DIUtils::getInstDIType(ci, funcW->getDbgInstList());
+        return DIUtils::getInstDIType(ci, caller_func_w->getDbgInstList());
     }
   }
 
@@ -1399,17 +1436,24 @@ void pdg::ProgramDependencyGraph::connectFunctionAndFormalTrees(Function *callee
   auto retTreeBegin = retW->tree_begin(TreeType::FORMAL_IN_TREE);
   for (auto retInst : retInstList)
   {
-    if (retTreeBegin != retW->tree_end(TreeType::FORMAL_IN_TREE)) // due ot the miss of alloc for return value 
+    if (retTreeBegin != retW->tree_end(TreeType::FORMAL_IN_TREE)) // due to the miss of alloc for return value 
     {
       retTreeBegin++;
-      if (!retInst->getReturnValue())
+      Value* ret_val = retInst->getReturnValue();
+      if (!ret_val)
       {
         errs() << "find return null: " << *retInst << " - " << retInst->getFunction()->getName() << "\n";
         continue;
       }
-
-      if (Instruction *i = dyn_cast<Instruction>(retInst->getReturnValue()))
-        PDG->addDependency(*retTreeBegin, instMap[i], DependencyType::VAL_DEP);
+      if (Instruction *ret_val_i = dyn_cast<Instruction>(ret_val))
+      {
+        std::set<InstructionWrapper *> ret_val_alias_set;
+        getAllAlias(ret_val_i, ret_val_alias_set);
+        for (auto alias_w : ret_val_alias_set)
+        {
+          PDG->addDependency(*retTreeBegin, alias_w, DependencyType::VAL_DEP);
+        }
+      }
     }
   }
   connectTreeNodeWithAddrVars(retW);

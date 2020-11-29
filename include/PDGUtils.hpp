@@ -76,6 +76,7 @@ class PDGUtils final
     bool isRootNode(tree<InstructionWrapper*>::iterator treeI);
     bool IsBlackListFunc(std::string func_name);
     std::string StripFuncnameVersionNumber(std::string func_name);
+    void StripPointerSuffix(std::string &func_name);
 
   private:
     std::unordered_map<const llvm::Instruction *, InstructionWrapper *> G_instMap;

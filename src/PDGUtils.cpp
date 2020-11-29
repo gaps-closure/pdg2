@@ -603,3 +603,11 @@ std::string pdg::PDGUtils::StripFuncnameVersionNumber(std::string func_name)
     return func_name;
   return func_name.substr(0, deliPos);
 }
+
+void pdg::PDGUtils::StripPointerSuffix(std::string &str)
+{
+  while (str.back() == '*')
+  {
+    str.pop_back();
+  }
+}

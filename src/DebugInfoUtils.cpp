@@ -80,28 +80,24 @@ DIType *pdg::DIUtils::stripAttributes(DIType *Ty)
 
 DIType *pdg::DIUtils::getLowestDIType(DIType *Ty) 
 {
-  if (Ty->getTag() == dwarf::DW_TAG_pointer_type ||
-      Ty->getTag() == dwarf::DW_TAG_member ||
-      Ty->getTag() == dwarf::DW_TAG_typedef ||
-      Ty->getTag() == dwarf::DW_TAG_const_type)
+  DIType* tmp_di_ty = Ty;
+  while (tmp_di_ty->getTag() == dwarf::DW_TAG_pointer_type ||
+      tmp_di_ty->getTag() == dwarf::DW_TAG_member ||
+      tmp_di_ty->getTag() == dwarf::DW_TAG_typedef ||
+      tmp_di_ty->getTag() == dwarf::DW_TAG_const_type)
   {
-    DIType *baseTy = dyn_cast<DIDerivedType>(Ty)->getBaseType().resolve();
-    if (!baseTy)
-      return nullptr;
-
-    //Skip all the DINodes with DW_TAG_typedef tag
-    while ((baseTy->getTag() == dwarf::DW_TAG_typedef ||
-            baseTy->getTag() == dwarf::DW_TAG_const_type ||
-            baseTy->getTag() == dwarf::DW_TAG_pointer_type ||
-            baseTy->getTag() == dwarf::DW_TAG_member))
+    if (auto *di_derived_type = dyn_cast<DIDerivedType>(tmp_di_ty))
     {
-      auto tempTy = dyn_cast<DIDerivedType>(baseTy)->getBaseType().resolve();
-      if (!tempTy)
-        break;
-      baseTy = tempTy;
+      DIType *baseTy = di_derived_type->getBaseType().resolve();
+      if (baseTy == nullptr)
+        return nullptr;
+      tmp_di_ty = baseTy;
     }
-    return baseTy;
+    else
+      break;
   }
+  if (tmp_di_ty != nullptr)
+    return tmp_di_ty;
   return Ty;
 }
 
@@ -198,22 +194,23 @@ DIType *pdg::DIUtils::getGlobalVarDIType(GlobalVariable &globalVar)
   return nullptr;
 }
 
-DIType *pdg::DIUtils::getBaseDIType(DIType *Ty) {
-  if (Ty == nullptr)
+DIType *pdg::DIUtils::getBaseDIType(DIType *dt) {
+  if (dt == nullptr)
     throw DITypeIsNullPtr("DIType is nullptr, cannot get base type");
 
-  if (Ty->getTag() == dwarf::DW_TAG_pointer_type ||
-      Ty->getTag() == dwarf::DW_TAG_member ||
-      Ty->getTag() == dwarf::DW_TAG_typedef)
+  auto type_tag = dt->getTag();
+  if (type_tag == dwarf::DW_TAG_pointer_type ||
+      type_tag == dwarf::DW_TAG_member ||
+      type_tag == dwarf::DW_TAG_typedef ||
+      type_tag == dwarf::DW_TAG_const_type ||
+      type_tag == dwarf::DW_TAG_volatile_type)
   {
-    DIType *baseTy = dyn_cast<DIDerivedType>(Ty)->getBaseType().resolve();
+    DIType *baseTy = dyn_cast<DIDerivedType>(dt)->getBaseType().resolve();
     if (!baseTy)
-    {
       return nullptr;
-    }
     return baseTy;
   }
-  return Ty;
+  return dt;
 }
 
 std::string pdg::DIUtils::getDIFieldName(DIType *ty)
@@ -762,6 +759,26 @@ std::string pdg::DIUtils::getInvalidTypeStr(DIType* dt)
   return "";
 }
 
+std::string pdg::DIUtils::ComputePointerLevelStr(DIType* dt)
+{
+  std::string pointer_level_str = "";
+  std::string type_name = getDITypeName(dt);
+  auto tmp_ty = dt;
+  while (tmp_ty != nullptr)
+  {
+    if (tmp_ty->getTag() == dwarf::DW_TAG_pointer_type)
+    {
+      pointer_level_str += "*";
+      type_name.pop_back();
+    }
+    auto di = getBaseDIType(tmp_ty);
+    if (di == nullptr || di == tmp_ty)
+      break;
+    tmp_ty = di;
+  }
+  return pointer_level_str;
+}
+
 bool pdg::DIUtils::isUnionTy(DIType *dt)
 {
   if (dt == nullptr)
@@ -935,8 +952,8 @@ bool pdg::DIUtils::isSentinelType(DIType* parent_struct_di_type)
     DIType *field_lowest_di_type = DIUtils::getLowestDIType(field_di_type);
     if (field_lowest_di_type == parent_struct_lowest_di_type)
       return true;
-    if (DIUtils::isStructTy(field_lowest_di_type))
-      return isSentinelType(field_lowest_di_type);
+    // if (DIUtils::isStructTy(field_lowest_di_type))
+    //   return isSentinelType(field_lowest_di_type);
   }
   return false;
 }
