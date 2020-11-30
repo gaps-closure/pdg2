@@ -543,7 +543,10 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
       if (pdgUtils.isReturnValue(arg))
         void_ptr_cast_type = FindCastFromDIType(arg);
       else
-        void_ptr_cast_type = FindCastToDIType(arg);
+      {
+        std::set<Function*> seen_funcs;
+        void_ptr_cast_type = FindCastToDIType(arg,seen_funcs);
+      }
       
       if (void_ptr_cast_type)
       {
@@ -622,10 +625,14 @@ DIType *pdg::ProgramDependencyGraph::FindCastFromDIType(Argument& arg)
   return nullptr;
 }
 
-DIType *pdg::ProgramDependencyGraph::FindCastToDIType(Argument &arg)
+DIType *pdg::ProgramDependencyGraph::FindCastToDIType(Argument &arg, std::set<Function *> &seen_funcs)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   auto func_map = pdgUtils.getFuncMap();
+  Function* called_func = arg.getParent();
+  if (seen_funcs.find(called_func) != seen_funcs.end())
+    return nullptr;
+  seen_funcs.insert(called_func);
   auto caller_func_w = func_map[arg.getParent()];
   std::set<Value*> load_insts_on_arg_alloc;
   auto arg_alloc_inst = getArgAllocaInst(arg);
@@ -678,7 +685,7 @@ DIType *pdg::ProgramDependencyGraph::FindCastToDIType(Argument &arg)
           if (callee_arg_w == nullptr)
             continue;
           Argument& arg_in_callee = *(callee_arg_w->getArg());
-          DIType* casted_type = FindCastToDIType(arg_in_callee);
+          DIType* casted_type = FindCastToDIType(arg_in_callee, seen_funcs);
           return casted_type;
         }
       }

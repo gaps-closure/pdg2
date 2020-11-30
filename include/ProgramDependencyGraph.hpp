@@ -38,7 +38,7 @@ public:
   void buildFormalTreeForFunc(llvm::Function *Func);
   void buildFormalTreeForArg(llvm::Argument &arg, TreeType treeTy);
   llvm::DIType *FindCastFromDIType(llvm::Argument &arg);
-  llvm::DIType *FindCastToDIType(llvm::Argument &arg);
+  llvm::DIType *FindCastToDIType(llvm::Argument &arg, std::set<llvm::Function *> &seen_funcs);
   InstructionWrapper *buildPointerTreeNodeWithDI(llvm::Value &val, InstructionWrapper &parentTreeNodeW, tree<InstructionWrapper *> &objectTree, llvm::DIType &curDIType);
   void collectSharedGlobalVars(std::set<llvm::Function *> &driverDomainFuncs, std::set<llvm::Function *> &kernelDomainFuncs);
   void buildObjectTreeForGlobalVars();
