@@ -1518,7 +1518,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       }
     }
     // collect union number stats
-    if (DIUtils::isCharPointer(struct_di_type))
+    if (DIUtils::isCharPointer(struct_field_di_type))
       ksplit_stats_collector.IncreaseNumberOfCharPointer();
 
     if (DIUtils::isUnionTy(struct_field_lowest_di_type))

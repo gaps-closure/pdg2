@@ -57,6 +57,7 @@ void pdg::KSplitStatsCollector::PrintKernelIdiomStats()
   kernel_idiom_stats_file << "num of unsafe type cast: " << num_of_unsafe_casted_struct_pointer_ << "\n";
   kernel_idiom_stats_file << "num of sential array: " << num_of_sentinel_array_ << "\n";
   kernel_idiom_stats_file << "num of array: " << num_of_array_ << "\n";
+  kernel_idiom_stats_file << "num of char pointer: " << num_of_char_pointer_ << "\n";
   kernel_idiom_stats_file << "num of string: " << num_of_string_ << "\n";
   kernel_idiom_stats_file << "Driver to Kernel Invocation: " << num_of_driver_to_kernel_calls_ << "\n";
   kernel_idiom_stats_file << "Kernel to Driver Invocation: " << num_of_kernel_to_driver_calls_ << "\n";
