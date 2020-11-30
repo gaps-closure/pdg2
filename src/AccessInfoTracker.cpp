@@ -992,6 +992,8 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     std::string arg_name = DIUtils::getArgName(arg);
     std::string arg_type_name = DIUtils::getRawDITypeName(arg_di_type);
     std::string annotation_str = ComputeNodeAnnotationStr(arg_tree_begin);
+    if (annotation_str.find("string") != std::string::npos)
+      ksplit_stats_collector.IncreaseNumberOfString();
     // infer annotation, such as alloc/dealloc if possible.
     if (DIUtils::isFuncPointerTy(arg_di_type))
     {
@@ -1028,9 +1030,8 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
         // find a char array. We should treat this as a string
         if (arg_type_name.compare("char") == 0)
         {
-          annotation_str += "[string]";
+          // char string is handled differently
           arg_str = arg_type_name + " " + annotation_str + " " + pointerLevelStr + arg_name;
-          ksplit_stats_collector.IncreaseNumberOfString();
         }
         else
         {
@@ -1055,6 +1056,8 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       ksplit_stats_collector.IncreaseNumberOfSentinelArray();
     if (DIUtils::isVoidPointer(arg_di_type))
       ksplit_stats_collector.IncreaseNumberOfVoidPointer();
+    if (DIUtils::isCharPointer(arg_di_type))
+      ksplit_stats_collector.IncreaseNumberOfCharPointer();
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !arg_name.empty())
       idl_file << ", ";
   }
@@ -1182,7 +1185,7 @@ std::string pdg::AccessInfoTracker::getReturnValAnnotationStr(Function &F)
       CallSite CS(aliasInst);
       if (CS.isCall() && !CS.isIndirectCall())
       {
-        if (Function *called_func = dyn_cast<Function>(CS.getCalledFunction()->stripPointerCasts()))
+        if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
         {
           if (called_func->isDeclaration() || called_func->empty())
             continue;
@@ -1509,15 +1512,17 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       {
         if (typeName.find("array") != std::string::npos)
           ksplit_stats_collector.IncreaseNumberOfArray();
+        if (field_annotation.find("string") != std::string::npos)
+          ksplit_stats_collector.IncreaseNumberOfString();
         OS << field_indent_level << DIUtils::getDITypeName(struct_field_di_type) << " " << field_annotation << " " << DIUtils::getDIFieldName(struct_field_di_type) << ";\n";
       }
     }
     // collect union number stats
-    if (DIUtils::isProjectableTy(struct_field_lowest_di_type))
-    {
-      if (DIUtils::isUnionTy(struct_field_lowest_di_type))
-        ksplit_stats_collector.IncreaseNumberOfUnion();
-    }
+    if (DIUtils::isCharPointer(struct_di_type))
+      ksplit_stats_collector.IncreaseNumberOfCharPointer();
+
+    if (DIUtils::isUnionTy(struct_field_lowest_di_type))
+      ksplit_stats_collector.IncreaseNumberOfUnion();
   }
 }
 
@@ -1745,7 +1750,6 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
           }
         }
         // case 2: if address variable is passed to other function, need to infer the node annotation in the callee, and return an annotation if there is any.
-        errs() << "check point 2\n";
         if (annotations.find("string") == annotations.end()) // if the string annotation is already inffered in current function, there is no need to infer string annotation in the callee
         {
           std::set<Instruction *> call_insts_on_li;
@@ -1782,7 +1786,6 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
         }
       }
 
-      errs() << "check point 3\n";
       if (StoreInst *si = dyn_cast<StoreInst>(user_inst))
       {
         auto stored_val = si->getValueOperand();

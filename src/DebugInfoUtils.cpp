@@ -593,6 +593,30 @@ bool pdg::DIUtils::isStructTy(DIType *dt)
   return false;
 }
 
+bool pdg::DIUtils::isCharPointer(DIType* dt)
+{
+  if (isPointerType(dt))
+  {
+    DIType* lowest_di_type = getLowestDIType(dt);
+    if (lowest_di_type != nullptr)
+      return hasCharTag(lowest_di_type);
+  }
+  return false;
+}
+
+bool pdg::DIUtils::hasCharTag(DIType* dt)
+{
+  if (dt == nullptr)
+    return false;
+  auto di_type_tag = dt->getTag();
+  if (di_type_tag == dwarf::DW_ATE_unsigned_char)
+    return true;
+  if (di_type_tag == dwarf::DW_ATE_signed_char)
+    return true;
+
+  return false;
+}
+
 bool pdg::DIUtils::isFuncPointerTy(DIType *dt)
 {
   if (dt == nullptr)

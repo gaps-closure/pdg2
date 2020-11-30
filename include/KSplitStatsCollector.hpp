@@ -26,6 +26,7 @@ private:
   unsigned num_of_array_;
   unsigned num_of_unhandled_array_;
   unsigned num_of_string_;
+  unsigned num_of_char_pointer_;
   unsigned num_of_kernel_to_driver_calls_;
   unsigned num_of_driver_to_kernel_calls_;
   unsigned num_of_critical_section_;
@@ -67,7 +68,9 @@ public:
   void IncreaseNumberOfArray() { num_of_array_++; }
   void IncreaseNumberOfUnhandledArray() { num_of_unhandled_array_++; }
   void IncreaseNumberOfString() { num_of_string_++; }
+  void IncreaseNumberOfCharPointer() { num_of_char_pointer_++; }
   void IncreaseNumberOfAtomicOperation() { num_of_atomic_operation_++; }
+  void IncreaseNumberOfCriticalSection() { num_of_critical_section_++; }
   void IncreaseSavedDataSizeUseProjection(unsigned saved_data_size_use_projection) { saved_data_size_use_projection_ += saved_data_size_use_projection; }
   void IncreaseSavedDataSizeUseSharedData(unsigned saved_data_size_use_shared_data) { saved_data_size_use_shared_data_ += saved_data_size_use_shared_data; }
   void SetNumberOfDriverToKernelCalls(unsigned call_times) {num_of_driver_to_kernel_calls_ = call_times; }

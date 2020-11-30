@@ -80,7 +80,6 @@ namespace pdg
         CS.insert(csInFunc.begin(), csInFunc.end());
       }
       errs() << "number of CS: " << CS.size() << "\n";
-      ksplit_stats_collector.SetNumberOfCriticalSection(CS.size());
     }
 
     std::set<std::pair<Instruction *, Instruction *>> collectCSInFunc(Function &F)
@@ -212,10 +211,12 @@ namespace pdg
     void printWarningForCS()
     {
       auto &pdgUtils = PDGUtils::getInstance();
+      auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
       auto instDITypeMap = pdgUtils.getInstDITypeMap();
       // collect store insts for each cs
       for (auto lockPair : CS)
       {
+        bool is_cs_shared = false;
         Function *CSFunc = lockPair.first->getFunction();
         CSWarningFile << "Critical Section found in func: " << CSFunc->getName().str() << "\n";
         auto instsInCS = collectInstsInCS(lockPair, *CSFunc);
@@ -230,6 +231,7 @@ namespace pdg
           if (Instruction *i = dyn_cast<Instruction>(readVal))
           {
             CSWarningFile << "\t" << getAccessedDataName(*readVal) << "\n";
+            is_cs_shared = true;
           }
         }
         CSWarningFile << " ----------------------------------------------- \n";
@@ -251,9 +253,12 @@ namespace pdg
             // rs << *i << "\n";
             // CSWarningFile << "\tmodified val: " << rs.str() << "\n";
             // printCallChain(CSFunc, CSWarningFile);
+            is_cs_shared = true;
           }
         }
         CSWarningFile << " ----------------------------------------------- \n";
+        if (is_cs_shared)
+          ksplit_stats_collector.IncreaseNumberOfCriticalSection();
       }
     }
 
