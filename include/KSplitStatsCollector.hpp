@@ -53,7 +53,6 @@ public:
   void PrintKernelIdiomStats();
   void PrintProjectionStats();
   void PrintAtomicRegionStats();
-  void IncreaseStringNum() { num_of_string_++; }
   void IncreaseTotalNumberOfField() { total_num_of_fields_++; }
   void IncreaseNumberOfProjectedField() {num_of_projected_fields_++;}
   void IncreaseNumberOfNoAccessedFields() { num_of_no_accessed_fields_++; }

@@ -595,6 +595,7 @@ bool pdg::DIUtils::isStructTy(DIType *dt)
 
 bool pdg::DIUtils::isCharPointer(DIType* dt)
 {
+  dt = stripMemberTag(dt);
   if (isPointerType(dt))
   {
     DIType* lowest_di_type = getLowestDIType(dt);

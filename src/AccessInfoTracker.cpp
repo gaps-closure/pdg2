@@ -993,7 +993,10 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     std::string arg_type_name = DIUtils::getRawDITypeName(arg_di_type);
     std::string annotation_str = ComputeNodeAnnotationStr(arg_tree_begin);
     if (annotation_str.find("string") != std::string::npos)
+    {
+      errs() << "find string: " << arg_type_name << " " << arg_name << "\n";
       ksplit_stats_collector.IncreaseNumberOfString();
+    }
     // infer annotation, such as alloc/dealloc if possible.
     if (DIUtils::isFuncPointerTy(arg_di_type))
     {
@@ -1513,14 +1516,16 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
         if (typeName.find("array") != std::string::npos)
           ksplit_stats_collector.IncreaseNumberOfArray();
         if (field_annotation.find("string") != std::string::npos)
+        {
+          errs() << "find string: " << typeName << " " << fieldName << "\n";
           ksplit_stats_collector.IncreaseNumberOfString();
+        }
         OS << field_indent_level << DIUtils::getDITypeName(struct_field_di_type) << " " << field_annotation << " " << DIUtils::getDIFieldName(struct_field_di_type) << ";\n";
       }
     }
     // collect union number stats
     if (DIUtils::isCharPointer(struct_field_di_type))
       ksplit_stats_collector.IncreaseNumberOfCharPointer();
-
     if (DIUtils::isUnionTy(struct_field_lowest_di_type))
       ksplit_stats_collector.IncreaseNumberOfUnion();
   }
@@ -1708,10 +1713,7 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
   std::string fieldID = DIUtils::computeFieldID(parent_node_di_type, tree_node_di_type);
   // infer string attributes for struct field
   if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
-  {
-    ksplit_stats_collector.IncreaseStringNum();
     annotations.insert("[string]");
-  }
 
   // obtain address variables for a tree node
   // analyze the accesses to the address variable
@@ -1743,10 +1745,7 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
           {
             std::string called_func_name = called_func->getName();
             if (IsStringOps(called_func_name))
-            {
-              ksplit_stats_collector.IncreaseStringNum();
               annotations.insert("[string]");
-            }
           }
         }
         // case 2: if address variable is passed to other function, need to infer the node annotation in the callee, and return an annotation if there is any.
