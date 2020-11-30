@@ -609,12 +609,14 @@ bool pdg::DIUtils::hasCharTag(DIType* dt)
 {
   if (dt == nullptr)
     return false;
-  auto di_type_tag = dt->getTag();
-  if (di_type_tag == dwarf::DW_ATE_unsigned_char)
+  if (DIBasicType *dbt = dyn_cast<DIBasicType>(dt))
+  {
+    auto encoding = dbt->getEncoding();
+  if (encoding == dwarf::DW_ATE_unsigned_char)
     return true;
-  if (di_type_tag == dwarf::DW_ATE_signed_char)
+  if (encoding == dwarf::DW_ATE_signed_char)
     return true;
-
+  }
   return false;
 }
 

@@ -1712,8 +1712,6 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
   DIType* parent_node_di_type = (*parent_node_iter)->getDIType();
   std::string fieldID = DIUtils::computeFieldID(parent_node_di_type, tree_node_di_type);
   // infer string attributes for struct field
-  if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
-    annotations.insert("[string]");
 
   // obtain address variables for a tree node
   // analyze the accesses to the address variable
@@ -1736,16 +1734,23 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
         // case 1: if address variable is directly accessed, check if it is used in string operations.
         std::set<Instruction *> dep_insts_on_li;
         PDG->GetDepInstsWithDepType(li, DependencyType::DATA_DEF_USE, dep_insts_on_li);
-        for (Instruction *dep_inst : dep_insts_on_li)
+        if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
+          annotations.insert("[string]");
+        else
         {
-          CallSite CS(dep_inst);
-          if (!CS.isCall() || CS.isIndirectCall())
+          if (!DIUtils::isCharPointer(tree_node_di_type))
             continue;
-          if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
+          for (Instruction *dep_inst : dep_insts_on_li)
           {
-            std::string called_func_name = called_func->getName();
-            if (IsStringOps(called_func_name))
-              annotations.insert("[string]");
+            CallSite CS(dep_inst);
+            if (!CS.isCall() || CS.isIndirectCall())
+              continue;
+            if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
+            {
+              std::string called_func_name = called_func->getName();
+              if (IsStringOps(called_func_name))
+                annotations.insert("[string]");
+            }
           }
         }
         // case 2: if address variable is passed to other function, need to infer the node annotation in the callee, and return an annotation if there is any.
