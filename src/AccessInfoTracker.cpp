@@ -19,11 +19,12 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   driverExportFuncPtrNames = pdgUtils.computeDriverExportFuncPtrName();
   ksplit_stats_collector.SetNumberOfDriverToKernelCalls(driverExportFuncPtrNames.size());
 
-  driverDomainFuncs = pdgUtils.computeDriverDomainFuncs(M);
-  kernelDomainFuncs = pdgUtils.computeKernelDomainFuncs(M);
+  driver_domain_funcs_ = pdgUtils.computeDriverDomainFuncs(M);
+  kernel_domain_funcs_ = pdgUtils.computeKernelDomainFuncs(M);
   driverExportFuncPtrNameMap = pdgUtils.computeDriverExportFuncPtrNameMap(M);
   // counter for how many field we eliminate using shared data
   setupStrOpsMap();
+  setupMemOpsMap();
   setupAllocatorWrappers();
   setupDeallocatorWrappers();
   globalOpsStr = "";
@@ -48,7 +49,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   std::set<Function*> reachableFuncInKernel;
   for (auto func : crossDomainTransFuncs)
   {
-    if (kernelDomainFuncs.find(func) != kernelDomainFuncs.end())
+    if (kernel_domain_funcs_.find(func) != kernel_domain_funcs_.end())
       reachableFuncInKernel.insert(func);
   }
   // printCopiableFuncs(reachableFuncInKernel);
@@ -79,6 +80,14 @@ void pdg::AccessInfoTracker::setupStrOpsMap()
   stringOperations.insert("strcmp");
   stringOperations.insert("strncmp");
   stringOperations.insert("kobject_set_name");
+}
+
+void pdg::AccessInfoTracker::setupMemOpsMap()
+{
+  memOperations.insert("memcpy");
+  memOperations.insert("memset");
+  memOperations.insert("memcmp");
+  memOperations.insert("memmove");
 }
 
 void pdg::AccessInfoTracker::setupAllocatorWrappers()
@@ -148,7 +157,7 @@ unsigned pdg::AccessInfoTracker::computeUsedGlobalNumInDriver()
       if (Instruction *inst = dyn_cast<Instruction>(user))
       {
         auto func = inst->getFunction();
-        if (driverDomainFuncs.find(func) != driverDomainFuncs.end())
+        if (driver_domain_funcs_.find(func) != driver_domain_funcs_.end())
         {
           globalUsedInDriver++;
           break;
@@ -230,7 +239,7 @@ void pdg::AccessInfoTracker::printCopiableFuncs(std::set<Function*> &searchDomai
     }
   }
   errs() << "Copiable func Num: " << count << "\n";
-  errs() << "kernel func Num: " << kernelDomainFuncs.size() << "\n";
+  errs() << "kernel func Num: " << kernel_domain_funcs_.size() << "\n";
   errs() << "======================= copiable funcs  ===========================\n";
 }
 
@@ -304,6 +313,38 @@ std::set<Function *> pdg::AccessInfoTracker::computeFuncsContainCS(std::set<Func
     }
   }
   return ret;
+}
+
+bool pdg::AccessInfoTracker::IsUsedInMemOps(InstructionWrapper *candidate_array_inst_w)
+{
+  std::set<Instruction*> dep_insts_on_string_inst;
+  Instruction* candidate_array_inst = candidate_array_inst_w->getInstruction();
+  if (candidate_array_inst == nullptr)
+    return false;
+  PDG->GetDepInstsWithDepType(candidate_array_inst, DependencyType::DATA_READ, dep_insts_on_string_inst);
+  for (Instruction* i : dep_insts_on_string_inst)
+  {
+    if (LoadInst *li = dyn_cast<LoadInst>(i))
+    {
+      std::set<Instruction*> intra_func_users;
+      PDG->GetDepInstsWithDepType(li, DependencyType::DATA_DEF_USE, intra_func_users);
+      for (Instruction* intra_func_user : intra_func_users)
+      {
+        CallSite CS(intra_func_user);
+        if (CS.isCall() && !CS.isIndirectCall())
+        {
+          Function* called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts());
+          if (called_func != nullptr)
+          {
+            std::string called_func_name = called_func->getName().str();
+            if (IsMemOps(called_func_name))
+              return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
 }
 
 bool pdg::AccessInfoTracker::IsUsedInStrOps(InstructionWrapper *candidate_string_inst_w)
@@ -391,9 +432,9 @@ void pdg::AccessInfoTracker::computeSharedData()
           if (inst != nullptr)
           {
             Function *f = inst->getFunction();
-            if (driverDomainFuncs.find(f) != driverDomainFuncs.end())
+            if (driver_domain_funcs_.find(f) != driver_domain_funcs_.end())
               accessInDriver = true;
-            if (kernelDomainFuncs.find(f) != kernelDomainFuncs.end())
+            if (kernel_domain_funcs_.find(f) != kernel_domain_funcs_.end())
               accessInKernel = true;
           }
           if (accType == AccessType::WRITE)
@@ -405,6 +446,9 @@ void pdg::AccessInfoTracker::computeSharedData()
         // here, we also collect string type field on the fly
         if (IsUsedInStrOps(dataW))
           global_string_struct_fields_.insert(fieldID);
+
+        if (IsUsedInMemOps(dataW))
+          global_array_fields_.insert(fieldID);
 
         // verified a field is accessed in both domains
         if (accessInDriver && accessInKernel)
@@ -494,13 +538,6 @@ void pdg::AccessInfoTracker::computeIntraprocArgAccessInfo(ArgumentWrapper *argW
       auto parentI = getParentIter(treeI);
       if ((*parentI)->getAccessType() == AccessType::NOACCESS)
         (*parentI)->setAccessType(accType);
-      // while (parentI != treeI)
-      // {
-      //   if ((*parentI)->getAccessType() == AccessType::NOACCESS)
-      //     (*parentI)->setAccessType(accType);
-      //   treeI = parentI;
-      //   parentI = getParentIter(treeI);
-      // }
     }
   }
 }
@@ -535,12 +572,16 @@ void pdg::AccessInfoTracker::computeInterprocArgAccessInfo(ArgumentWrapper *argW
           int callArgIdx = getCallOperandIdx(dataW->getInstruction(), ci);
           if (callArgIdx < 0) // invalid idx
             continue;
-          if (Function *calledFunc = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
+          if (Function *called_func = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
           {
-            if (calledFunc->isDeclaration() || calledFunc->empty())
+            if (called_func->isDeclaration() || called_func->empty())
+              continue;
+            auto caller_domain = computeFuncDomain(F);
+            auto callee_domain = computeFuncDomain(*called_func);
+            if (caller_domain != callee_domain)
               continue;
             // compute the field that are accessed in the callee. The return map's key is accessed field's id and the value is access type
-            auto accessFieldMap = computeInterprocAccessedFieldMap(*calledFunc, callArgIdx, parentNodeDIType, DIUtils::getDIFieldName((*treeI)->getDIType()));
+            auto accessFieldMap = computeInterprocAccessedFieldMap(*called_func, callArgIdx, parentNodeDIType, DIUtils::getDIFieldName((*treeI)->getDIType()));
             interprocAccessFieldMap.insert(accessFieldMap.begin(), accessFieldMap.end());
           }
         }
@@ -573,9 +614,9 @@ std::vector<Function *> pdg::AccessInfoTracker::computeBottomUpCallChain(Functio
   auto &pdgUtils = PDGUtils::getInstance();
   auto funcMap = pdgUtils.getFuncMap();
   // search domain is used to optimize the results by computing IDL made by first
-  auto searchDomain = kernelDomainFuncs;
-  if (kernelDomainFuncs.find(&F) == kernelDomainFuncs.end())
-    searchDomain = driverDomainFuncs;
+  auto searchDomain = kernel_domain_funcs_;
+  if (kernel_domain_funcs_.find(&F) == kernel_domain_funcs_.end())
+    searchDomain = driver_domain_funcs_;
   std::vector<Function *> ret;
   ret.push_back(&F);
   std::set<Function *> seen_funcs;
@@ -1664,9 +1705,23 @@ bool pdg::AccessInfoTracker::IsAllocator(std::string func_name)
 
 bool pdg::AccessInfoTracker::IsStringOps(std::string func_name)
 {
+  auto &pdgUtils = PDGUtils::getInstance();
+  func_name = pdgUtils.StripFuncnameVersionNumber(func_name);
   for (auto str_op_name : stringOperations)
   {
     if (func_name.find(str_op_name) != std::string::npos)
+      return true;
+  }
+  return false;
+}
+
+bool pdg::AccessInfoTracker::IsMemOps(std::string func_name)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  func_name = pdgUtils.StripFuncnameVersionNumber(func_name);
+  for (auto mem_op_name : memOperations)
+  {
+    if (func_name.find(mem_op_name) != std::string::npos)
       return true;
   }
   return false;
@@ -1864,8 +1919,8 @@ void pdg::AccessInfoTracker::computeSharedDataInFunc(Function &F)
 std::set<std::string> pdg::AccessInfoTracker::computeSharedDataForType(DIType *dt)
 {
   // compute accessed fields in driver/kernel domain separately.
-  std::set<std::string> accessedFieldsInDriver = computeAccessedDataInDomain(dt, driverDomainFuncs);
-  std::set<std::string> accessedFieldsInKernel = computeAccessedDataInDomain(dt, kernelDomainFuncs);
+  std::set<std::string> accessedFieldsInDriver = computeAccessedDataInDomain(dt, driver_domain_funcs_);
+  std::set<std::string> accessedFieldsInKernel = computeAccessedDataInDomain(dt, kernel_domain_funcs_);
   // then, take the union of the accessed fields in the two domains.
   std::set<std::string> sharedFields;
   for (auto str : accessedFieldsInDriver)
@@ -1994,6 +2049,13 @@ tree<InstructionWrapper *>::iterator pdg::AccessInfoTracker::getParentIter(tree<
   if (tree<InstructionWrapper *>::depth(treeI) < 1)
     return treeI;
   return tree<InstructionWrapper *>::parent(treeI);
+}
+
+FunctionDomain pdg::AccessInfoTracker::computeFuncDomain(Function& F)
+{
+  if (kernel_domain_funcs_.find(&F) == kernel_domain_funcs_.end())
+    return FunctionDomain::DRIVER_DOMAIN;
+  return FunctionDomain::KERNEL_DOMAIN;
 }
 
 bool pdg::AccessInfoTracker::IsFuncPtrExportFromDriver(std::string func_name)

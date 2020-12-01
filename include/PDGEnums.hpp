@@ -66,6 +66,12 @@ enum class ArgumentMatchType {
   EQUAL
 };
 
+enum class FunctionDomain
+{
+  DRIVER_DOMAIN,
+  KERNEL_DOMAIN
+};
+
 } // namespace pdg
 
 #endif

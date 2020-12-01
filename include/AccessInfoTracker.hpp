@@ -75,8 +75,10 @@ public:
   std::string inferFieldAnnotation(InstructionWrapper* instW, std::string fieldID);
   bool voidPointerHasMultipleCasts(InstructionWrapper *voidPtrW);
   bool IsUsedInStrOps(InstructionWrapper* candidate_string_inst_w);
+  bool IsUsedInMemOps(InstructionWrapper* candidate_string_inst_w);
   bool IsCastedToArrayType(llvm::Value& val);
   void setupStrOpsMap();
+  void setupMemOpsMap();
   void setupAllocatorWrappers();
   void setupDeallocatorWrappers();
   void initializeNumStats();
@@ -89,15 +91,17 @@ public:
   bool IsFuncPtrExportFromDriver(std::string);
   bool IsAllocator(std::string funcName);
   bool IsStringOps(std::string funcName);
+  bool IsMemOps(std::string funcName);
   bool IsStoreOfAlias(llvm::StoreInst* store_inst);
+  FunctionDomain computeFuncDomain(llvm::Function &F);
 
 private:
   ProgramDependencyGraph *PDG;
   llvm::Module *module;
   llvm::CallGraph *CG;
   std::ofstream idl_file;
-  std::set<llvm::Function *> kernelDomainFuncs;
-  std::set<llvm::Function *> driverDomainFuncs;
+  std::set<llvm::Function *> kernel_domain_funcs_;
+  std::set<llvm::Function *> driver_domain_funcs_;
   std::set<llvm::Function*> importedFuncs;
   std::set<std::string> driverExportFuncPtrNames;
   std::map<std::string, std::string> driverExportFuncPtrNameMap;
@@ -107,9 +111,11 @@ private:
   std::unordered_map<std::string, AccessType> globalFieldAccessInfo;
   std::set<std::string> seenFuncOps;
   std::set<std::string> stringOperations;
+  std::set<std::string> memOperations;
   std::set<std::string> allocatorWrappers;
   std::set<std::string> deallocatorWrappers;
   std::set<std::string> global_string_struct_fields_;
+  std::set<std::string> global_array_fields_;
   std::set<llvm::Function*> asyncCallAccessedSharedData;
   std::string globalOpsStr;
   bool crossBoundary; // indicate whether transitive closure cross two domains
