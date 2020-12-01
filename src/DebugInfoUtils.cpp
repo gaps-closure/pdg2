@@ -788,7 +788,7 @@ std::string pdg::DIUtils::getInvalidTypeStr(DIType* dt)
   return "";
 }
 
-std::string pdg::DIUtils::ComputePointerLevelStr(DIType* dt)
+std::string pdg::DIUtils::computePointerLevelStr(DIType* dt)
 {
   std::string pointer_level_str = "";
   std::string type_name = getDITypeName(dt);

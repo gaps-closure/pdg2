@@ -1035,13 +1035,11 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     std::string annotation_str = ComputeNodeAnnotationStr(arg_tree_begin);
     if (annotation_str.find("string") != std::string::npos)
     {
-      errs() << "find string: " << arg_type_name << " " << arg_name << "\n";
       ksplit_stats_collector.IncreaseNumberOfString();
     }
     // infer annotation, such as alloc/dealloc if possible.
     if (DIUtils::isFuncPointerTy(arg_di_type))
     {
-      errs() << "gen func pointer type\n";
       Function *indirect_called_func = module->getFunction(switchIndirectCalledPtrName(arg_name));
       // assert((indirect_called_func != nullptr) && "cannot generate arg sig for empty indirect called func");
       if (indirect_called_func == nullptr)
@@ -1055,7 +1053,6 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     }
     else if (DIUtils::isPointerType(arg_di_type))
     {
-      errs() << "gen pointer pointer type\n";
       // for a pointer type parameter, we don't know if the pointer could point
       // to an array of elements. So, we need to infer it.
       // if current arg is a struct, need to generate projection keyword and strip struct keyword
@@ -1067,7 +1064,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       // if the pointed element is yet another pointer, need to put * before argName
       // all pointer could point to array, need to check if the pointed buffer could be an array
       uint64_t arrSize = getArrayArgSize(arg, F);
-      std::string pointerLevelStr = DIUtils::ComputePointerLevelStr(arg_di_type);
+      std::string pointerLevelStr = DIUtils::computePointerLevelStr(arg_di_type);
       std::string arg_str = "";
       if (arrSize > 0)
       {
@@ -1485,6 +1482,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     }
     ksplit_stats_collector.IncreaseNumberOfProjectedField();
     std::string field_annotation = ComputeNodeAnnotationStr(childI);
+    // start generaeting IDL for each field
     if (DIUtils::isFuncPointerTy(struct_field_lowest_di_type))
     {
       // generate rpc for the indirect function call
@@ -1505,14 +1503,16 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       std::string funcName = "";
       if ((*treeI)->getFunction())
         funcName = (*treeI)->getFunction()->getName().str();
-      auto struct_field_type_name = DIUtils::getRawDITypeName(struct_field_di_type);
+      std::string struct_field_type_name = DIUtils::getRawDITypeName(struct_field_di_type);
+      std::string struct_field_name = DIUtils::getDIFieldName(struct_field_di_type);
       pdgUtils.stripStr(struct_field_type_name, "struct ");
-      // formatting functions
+
       OS << field_indent_level
          << "projection "
-         << struct_field_type_name << field_annotation << " "
-         << "*" << argName << "_"
-         << DIUtils::getDIFieldName(struct_field_di_type)
+         << argName << "_" << struct_field_name
+         << field_annotation
+         << " *"
+         << struct_field_name
          << ";\n";
       pointer_queue.push(childI);
     }
@@ -1522,12 +1522,10 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       std::string sub_fields_str;
       raw_string_ostream nested_fields_str(sub_fields_str);
       std::string struct_field_name = DIUtils::getDIFieldName(struct_field_di_type);
-      // formating the indent. For anonymous struct, make the indent same as the parent struct
-      if (struct_field_name.empty())
-      {
-        if (!field_indent_level.empty())
-          field_indent_level.pop_back();
-      }
+      // formating the indent. For anonymous struct, make the field indent same as the parent struct
+      if (!struct_field_name.empty() && !field_indent_level.empty())
+        field_indent_level.pop_back();
+
       generateProjectionForTreeNode(childI, nested_fields_str, argName, pointer_queue, is_func_ptr_export_from_driver, field_indent_level);
       if (nested_fields_str.str().empty())
         continue;
@@ -1541,27 +1539,44 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       {
         OS << field_indent_level
            << "projection " 
-           << struct_field_name
            << " {\n"
            << nested_fields_str.str()
            << field_indent_level
-           << "};\n";
+           << "} " 
+           << struct_field_name 
+           <<";\n";
       }
     }
     else
     {
-      std::string typeName = DIUtils::getDITypeName(struct_field_di_type);
-      std::string fieldName = DIUtils::getDIFieldName(struct_field_di_type);
-      if (!fieldName.empty())
+      std::string type_name = DIUtils::getDITypeName(struct_field_di_type);
+      std::string field_name = DIUtils::getDIFieldName(struct_field_di_type);
+      std::string fieldID = DIUtils::computeFieldID(struct_di_type, struct_field_di_type);
+      // handle case in which the current field is accessed in buffer manipulation function, such as memcpy
+      if (global_array_fields_.find(fieldID) != global_array_fields_.end())
       {
-        if (typeName.find("array") != std::string::npos)
-          ksplit_stats_collector.IncreaseNumberOfArray();
-        if (field_annotation.find("string") != std::string::npos)
+        // find a char array
+        if (DIUtils::isCharPointer(struct_field_di_type))
         {
-          errs() << "find string: " << typeName << " " << fieldName << "\n";
-          ksplit_stats_collector.IncreaseNumberOfString();
+          std::string pointer_str = DIUtils::computePointerLevelStr(struct_field_di_type);
+          std::string raw_field_name = DIUtils::getRawDITypeName(struct_field_di_type);
+          OS << field_indent_level << "array<" << raw_field_name << ", " << "var_len>" << pointer_str << " " << field_name << ";\n";
+          ksplit_stats_collector.IncreaseNumberOfArray();
         }
-        OS << field_indent_level << DIUtils::getDITypeName(struct_field_di_type) << " " << field_annotation << " " << DIUtils::getDIFieldName(struct_field_di_type) << ";\n";
+      }
+      else
+      {
+        if (!field_name.empty())
+        {
+          if (type_name.find("array") != std::string::npos)
+            ksplit_stats_collector.IncreaseNumberOfArray();
+          if (field_annotation.find("string") != std::string::npos)
+          {
+            errs() << "find string: " << type_name << " " << field_name << "\n";
+            ksplit_stats_collector.IncreaseNumberOfString();
+          }
+          OS << field_indent_level << type_name << " " << field_annotation << " " << field_name << ";\n";
+        }
       }
     }
     // collect union number stats
@@ -1790,7 +1805,9 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
         std::set<Instruction *> dep_insts_on_li;
         PDG->GetDepInstsWithDepType(li, DependencyType::DATA_DEF_USE, dep_insts_on_li);
         if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
+        {
           annotations.insert("[string]");
+        }
         else
         {
           if (!DIUtils::isCharPointer(tree_node_di_type))
