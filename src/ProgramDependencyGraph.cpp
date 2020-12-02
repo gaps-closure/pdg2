@@ -538,16 +538,16 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
     auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
     if (DIUtils::isVoidPointer(argDIType))
     {
-      DIType* void_ptr_cast_type = nullptr;
+      DIType *void_ptr_cast_type = nullptr;
       // if a void pointer is return, we need to find the type it is casted from
       if (pdgUtils.isReturnValue(arg))
         void_ptr_cast_type = FindCastFromDIType(arg);
       else
       {
-        std::set<Function*> seen_funcs;
-        void_ptr_cast_type = FindCastToDIType(arg,seen_funcs);
+        std::set<Function *> seen_funcs;
+        void_ptr_cast_type = FindCastToDIType(arg, seen_funcs);
       }
-      
+
       if (void_ptr_cast_type)
       {
         argDIType = void_ptr_cast_type;
@@ -556,9 +556,7 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
       {
         errs() << "[Warning]: void pointer has zero or multiple casts << " << arg.getParent()->getName() << "\n";
         ksplit_stats_collector.IncreaseNumberOfUnhandledVoidPointer();
-        return;
       }
-      ksplit_stats_collector.IncreaseNumberOfVoidPointer();
     }
 
     // assert(argDIType != nullptr && "cannot build formal tree due to lack of argument debugging info.");

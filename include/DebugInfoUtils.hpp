@@ -36,7 +36,7 @@ class DIUtils
     static bool isStructTy(llvm::DIType *dt);
     static bool isFuncPointerTy(llvm::DIType *dt);
     static bool isProjectableTy(llvm::DIType *dt);
-    static bool IsPointerToProjectableTy(llvm::DIType *dt);
+    static bool isPointerToProjectableTy(llvm::DIType *dt);
     static llvm::DIType *stripMemberTag(llvm::DIType *dt);
     static llvm::DIType *getFuncDIType(llvm::Function* func);
     static llvm::DIType *getInstDIType(llvm::Instruction* inst, std::vector<llvm::DbgInfoIntrinsic*> dbgInstList);
@@ -51,6 +51,7 @@ class DIUtils
     static bool isArrayType(llvm::DIType *dt);
     static bool isSentinelType(llvm::DIType* dt);
     static bool isCharPointer(llvm::DIType* dt);
+    static bool isBasicTypePointer(llvm::DIType* dt);
     static bool hasCharTag(llvm::DIType* dt);
     static bool actualArgHasAllocator(llvm::Function& F, unsigned argIdx);
     static unsigned computeTotalFieldNumberInStructType(llvm::DIType* dt);

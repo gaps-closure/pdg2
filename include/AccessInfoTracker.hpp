@@ -48,7 +48,8 @@ public:
   void generateIDLForCallInstW(CallWrapper *CW);
   // void generateIDLforArg(ArgumentWrapper *argW, TreeType ty, std::string funcName = "", bool handleFuncPtr = false);
   void generateIDLforArg(ArgumentWrapper *argW);
-  void generateProjectionForTreeNode(tree<InstructionWrapper *>::iterator treeI, llvm::raw_string_ostream &OS, std::string argName, std::queue<tree<InstructionWrapper *>::iterator> &nested_pointers, bool is_func_ptr_export_from_driver = false, std::string parent_struct_indent_level = "\t\t");
+  void generateProjectionForTreeNode(tree<InstructionWrapper *>::iterator treeI, llvm::raw_string_ostream &OS, std::string argName, std::queue<tree<InstructionWrapper *>::iterator> &nested_pointers,
+                                     bool is_func_ptr_export_from_driver = false, std::string parent_struct_indent_level = "\t\t");
   void generateProjectionForGlobalVarInFunc(tree<InstructionWrapper *>::iterator treeI, llvm::raw_string_ostream &OS, llvm::DIType *argDIType, llvm::Function& func);
   tree<InstructionWrapper *>::iterator generateIDLforStructField(ArgumentWrapper *argW, int subtreeSize, tree<InstructionWrapper *>::iterator treeI, std::stringstream &ss, TreeType ty);
   std::string getArgAccessInfo(llvm::Argument &arg);
@@ -100,6 +101,7 @@ private:
   llvm::Module *module;
   llvm::CallGraph *CG;
   std::ofstream idl_file;
+  std::ofstream log_file;
   std::set<llvm::Function *> kernel_domain_funcs_;
   std::set<llvm::Function *> driver_domain_funcs_;
   std::set<llvm::Function*> importedFuncs;

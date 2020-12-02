@@ -28,7 +28,9 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   setupAllocatorWrappers();
   setupDeallocatorWrappers();
   globalOpsStr = "";
-  
+
+  // open error log file 
+  log_file.open("analysis_log");
   // start generating IDL
   std::string file_name = "kernel";
   file_name += ".idl";
@@ -66,6 +68,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   idl_file << globalOpsStr << "\n";
   idl_file << "}";
   idl_file.close();
+  log_file.close();
   ksplit_stats_collector.PrintProjectionStats();
   ksplit_stats_collector.PrintKernelIdiomStats();
   return false;
@@ -414,6 +417,7 @@ void pdg::AccessInfoTracker::computeSharedData()
         continue;
       }
 
+      std::set<std::string> access_func_names;
       // get valdep pair, and check for intraprocedural accesses
       auto valDepPairList = PDG->GetNodesWithDepType(*treeI, DependencyType::VAL_DEP);
       bool accessInKernel = false;
@@ -424,7 +428,8 @@ void pdg::AccessInfoTracker::computeSharedData()
       {
         auto dataW = const_cast<InstructionWrapper*>(valDepPair.first->getData());
         Instruction *inst = dataW->getInstruction();
-        // errs() << "\t" << *inst << " - " << inst->getFunction()->getName() << "\n";
+        Function* access_func = inst->getFunction();
+        access_func_names.insert(access_func->getName().str());
         AccessType accType = getAccessTypeForInstW(dataW);
         if (accType != AccessType::NOACCESS)
         {
@@ -453,6 +458,12 @@ void pdg::AccessInfoTracker::computeSharedData()
         // verified a field is accessed in both domains
         if (accessInDriver && accessInKernel)
           break;
+        log_file << fieldID << " ";
+        for (auto func_name : access_func_names)
+        {
+          log_file << func_name << " ";
+        }
+        log_file << "\n";
       }
       // if a field is not shared, continue to next tree node
       if (!accessInDriver || !accessInKernel)
@@ -1056,13 +1067,9 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       // for a pointer type parameter, we don't know if the pointer could point
       // to an array of elements. So, we need to infer it.
       // if current arg is a struct, need to generate projection keyword and strip struct keyword
-      if (DIUtils::isStructPointerTy(arg_di_type))
-      {
-        pdgUtils.stripStr(arg_type_name, "struct ");
-        arg_type_name = "projection " + arg_type_name;
-      }
       // if the pointed element is yet another pointer, need to put * before argName
       // all pointer could point to array, need to check if the pointed buffer could be an array
+      arg_type_name = "projection " + arg_name;
       uint64_t arrSize = getArrayArgSize(arg, F);
       std::string pointerLevelStr = DIUtils::computePointerLevelStr(arg_di_type);
       std::string arg_str = "";
@@ -1102,7 +1109,6 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !arg_name.empty())
       idl_file << ", ";
   }
-  errs() << "finish generating rpc " << funcName << "\n";
   idl_file << " )";
 }
 
@@ -1437,7 +1443,7 @@ void pdg::AccessInfoTracker::generateProjectionForGlobalVarInFunc(tree<Instructi
 }
 
 // receive a tree iterator and start
-void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapper *>::iterator treeI, raw_string_ostream &OS, std::string argName, std::queue<tree<InstructionWrapper *>::iterator> &pointer_queue, bool is_func_ptr_export_from_driver, std::string parent_struct_indent_level)
+void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapper *>::iterator treeI, raw_string_ostream &OS, std::string arg_name, std::queue<tree<InstructionWrapper *>::iterator> &pointer_queue, bool is_func_ptr_export_from_driver, std::string parent_struct_indent_level)
 {
   auto &pdgUtils = PDGUtils::getInstance();
   auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
@@ -1482,6 +1488,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     }
     ksplit_stats_collector.IncreaseNumberOfProjectedField();
     std::string field_annotation = ComputeNodeAnnotationStr(childI);
+    bool is_field_sentinel_type = false;
     // start generaeting IDL for each field
     if (DIUtils::isFuncPointerTy(struct_field_lowest_di_type))
     {
@@ -1503,18 +1510,37 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       std::string funcName = "";
       if ((*treeI)->getFunction())
         funcName = (*treeI)->getFunction()->getName().str();
-      std::string struct_field_type_name = DIUtils::getRawDITypeName(struct_field_di_type);
+      std::string struct_field_raw_type_name = DIUtils::getRawDITypeName(struct_field_di_type);
       std::string struct_field_name = DIUtils::getDIFieldName(struct_field_di_type);
-      pdgUtils.stripStr(struct_field_type_name, "struct ");
+      pdgUtils.stripStr(struct_field_raw_type_name, "struct ");
+      
+      std::string field_name_prefix = arg_name;
+      if (struct_field_name.find("_ops") != std::string::npos)
+      {
+        field_name_prefix = "_global";
+      }
 
       OS << field_indent_level
          << "projection "
-         << argName << "_" << struct_field_name
+         << field_name_prefix << "_" << struct_field_name
          << field_annotation
          << " *"
          << struct_field_name
          << ";\n";
-      pointer_queue.push(childI);
+
+      std::string struct_raw_type_name = DIUtils::getRawDITypeName(struct_di_type);
+      // if a struct field is a linked list, we check if the parent is the same type. If not, we increase
+      // the number of found sentinel array. Otherwise, avoid repeat counting.
+      if (DIUtils::isSentinelType(struct_field_lowest_di_type))
+      {
+        if (struct_raw_type_name.compare(struct_field_raw_type_name) != 0)
+        {
+          ksplit_stats_collector.IncreaseNumberOfSentinelArray();
+          pointer_queue.push(childI);
+        }
+      }
+      else
+        pointer_queue.push(childI);
     }
     else if (DIUtils::isProjectableTy(struct_field_di_type))
     {
@@ -1526,7 +1552,8 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       if (!struct_field_name.empty() && !field_indent_level.empty())
         field_indent_level.pop_back();
 
-      generateProjectionForTreeNode(childI, nested_fields_str, argName, pointer_queue, is_func_ptr_export_from_driver, field_indent_level);
+      // need to collect pointers nested in struct type field
+      generateProjectionForTreeNode(childI, nested_fields_str, arg_name, pointer_queue, is_func_ptr_export_from_driver, field_indent_level);
       if (nested_fields_str.str().empty())
         continue;
       // for struct and union, if the field doesn't has a name, then this is an anonymous struct or union. 
@@ -1556,7 +1583,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       if (global_array_fields_.find(fieldID) != global_array_fields_.end())
       {
         // find a char array
-        if (DIUtils::isCharPointer(struct_field_di_type))
+        if (DIUtils::isBasicTypePointer(struct_field_di_type))
         {
           std::string pointer_str = DIUtils::computePointerLevelStr(struct_field_di_type);
           std::string raw_field_name = DIUtils::getRawDITypeName(struct_field_di_type);
@@ -1571,10 +1598,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
           if (type_name.find("array") != std::string::npos)
             ksplit_stats_collector.IncreaseNumberOfArray();
           if (field_annotation.find("string") != std::string::npos)
-          {
-            errs() << "find string: " << type_name << " " << field_name << "\n";
             ksplit_stats_collector.IncreaseNumberOfString();
-          }
           OS << field_indent_level << type_name << " " << field_annotation << " " << field_name << ";\n";
         }
       }
@@ -1584,6 +1608,8 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       ksplit_stats_collector.IncreaseNumberOfCharPointer();
     if (DIUtils::isUnionTy(struct_field_lowest_di_type))
       ksplit_stats_collector.IncreaseNumberOfUnion();
+    if (DIUtils::isVoidPointer(struct_field_di_type))
+      ksplit_stats_collector.IncreaseNumberOfVoidPointer();
   }
 }
 
@@ -1597,7 +1623,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
   std::string funcName = F.getName().str();
   bool is_func_ptr_export_from_driver = IsFuncPtrExportFromDriver(funcName);
   // funcName = getRegisteredFuncPtrName(funcName);
-  std::string argName = DIUtils::getArgName(*(argW->getArg()));
+  std::string arg_name = DIUtils::getArgName(*(argW->getArg()));
   auto treeBegin = argW->tree_begin(TreeType::FORMAL_IN_TREE);
   DIType *argDIType = (*treeBegin)->getDIType();
   // for return value, we use "ret_" + type name as the return value's name 
@@ -1605,15 +1631,13 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
   {
     auto argDITypeStr = DIUtils::getRawDITypeName(argDIType);
     pdgUtils.stripStr(argDITypeStr, "struct ");
-    argName = "ret_" + argDITypeStr;
+    arg_name = "ret_" + argDITypeStr;
   }
 
   std::queue<tree<InstructionWrapper *>::iterator> treeNodeQ;
   treeNodeQ.push(treeBegin);
   std::queue<tree<InstructionWrapper *>::iterator> funcPtrQ;
   // used for counting sentienl type
-  std::set<std::string> seen_sentinel_type_names;
-
   while (!treeNodeQ.empty())
   {
     auto treeI = treeNodeQ.front();
@@ -1621,16 +1645,8 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
     // generate projection for the current node.
     DIType *current_struct_di_type = (*treeI)->getDIType();
     DIType *current_struct_lowest_di_type = DIUtils::getLowestDIType(current_struct_di_type);
-    if (DIUtils::isSentinelType(current_struct_lowest_di_type))
-    {
-      std::string current_struct_type_name = DIUtils::getRawDITypeName(current_struct_lowest_di_type);
-      if (seen_sentinel_type_names.find(current_struct_type_name) != seen_sentinel_type_names.end())
-        continue;
-      seen_sentinel_type_names.insert(current_struct_type_name);
-      ksplit_stats_collector.IncreaseNumberOfSentinelArray();
-    }
 
-    if (!DIUtils::IsPointerToProjectableTy(current_struct_di_type))
+    if (!DIUtils::isPointerToProjectableTy(current_struct_di_type))
       continue;
     treeI++;
     if (treeI == argW->tree_end(TreeType::FORMAL_IN_TREE))
@@ -1647,7 +1663,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
       auto struct_field_di_type = (*childI)->getDIType();
       auto struct_field_lowest_di_type = DIUtils::getLowestDIType(struct_field_di_type);
       // The current struct should always be struct or union pointer, since we don't compute shared data for union using type, we only check if a 
-      if (!DIUtils::IsPointerToProjectableTy(current_struct_di_type))
+      if (!DIUtils::isPointerToProjectableTy(current_struct_di_type))
       {
         if (SHARED_DATA_FLAG)
         {
@@ -1677,26 +1693,29 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
     if (!pdgUtils.isRootNode(treeI))
     {
       if (DIUtils::isStructPointerTy(current_struct_di_type) || DIUtils::isStructTy(current_struct_di_type))
-        projectionReferenceName = argName + "_" + projectionReferenceName;
+      {
+        if (projectionTypeName.find("ops") == std::string::npos)
+          projectionReferenceName = arg_name + "_" + projectionReferenceName;
+      }
     }
     else
     {
       // naming for root pointer / object
-      projectionReferenceName = argName;
+      projectionReferenceName = arg_name;
     }
 
     std::string str;
     raw_string_ostream arg_projection(str);
     // nested pointers are the pointers inside the generated struct fields.
-    generateProjectionForTreeNode(treeI, arg_projection, argName, treeNodeQ, is_func_ptr_export_from_driver);
+    generateProjectionForTreeNode(treeI, arg_projection, arg_name, treeNodeQ, is_func_ptr_export_from_driver);
     // special handling for global op structs
-    if (projectionTypeName.find("ops") != std::string::npos)
+    if (projectionTypeName.find("_ops") != std::string::npos)
     {
       // find the first ops projection with fields inside
       if (seenFuncOps.find(projectionTypeName) != seenFuncOps.end())
         continue;
       seenFuncOps.insert(projectionTypeName);
-      std::string projStr = "\t\tprojection < " + projectionTypeName + " > " + projectionReferenceName + " {\n " + arg_projection.str() + "\t\t};\n";
+      std::string projStr = "\t\tprojection < " + projectionTypeName + " > " + "_global" + projectionReferenceName + " {\n " + arg_projection.str() + "\t\t};\n";
       globalOpsStr = globalOpsStr + "\n" + projStr;
     }
     else
@@ -1864,6 +1883,8 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
 
       if (StoreInst *si = dyn_cast<StoreInst>(user_inst))
       {
+        if (si->getPointerOperand() != addr_var_inst)
+          continue;
         auto stored_val = si->getValueOperand();
         if (auto stored_val_inst = dyn_cast<Instruction>(stored_val))
         {
@@ -1985,7 +2006,7 @@ std::set<std::string> pdg::AccessInfoTracker::computeAccessedFieldsForDIType(tre
     // hanlde function pointer exported by driver domain
     DIType *fieldDIType = (*treeI)->getDIType();
     std::string fieldName = DIUtils::getDIFieldName(fieldDIType);
-    if (fieldName.find("ops") != std::string::npos)
+    if (fieldName.find("_ops") != std::string::npos)
     {
       std::string fieldID = DIUtils::computeFieldID(rootDIType, fieldDIType);
       accessedFields.insert(fieldID);

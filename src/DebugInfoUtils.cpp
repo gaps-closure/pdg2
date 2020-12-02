@@ -567,7 +567,7 @@ bool pdg::DIUtils::isUnionPointerTy(DIType *dt)
   return false;
 }
 
-bool pdg::DIUtils::IsPointerToProjectableTy(DIType* dt)
+bool pdg::DIUtils::isPointerToProjectableTy(DIType* dt)
 {
   if (dt == nullptr)
     return false;
@@ -601,6 +601,18 @@ bool pdg::DIUtils::isCharPointer(DIType* dt)
     DIType* lowest_di_type = getLowestDIType(dt);
     if (lowest_di_type != nullptr)
       return hasCharTag(lowest_di_type);
+  }
+  return false;
+}
+
+bool pdg::DIUtils::isBasicTypePointer(DIType* dt)
+{
+  dt = stripMemberTag(dt);
+  if (isPointerType(dt))
+  {
+    DIType* lowest_di_type = getLowestDIType(dt);
+    if (lowest_di_type != nullptr)
+      return isa<DIBasicType>(lowest_di_type);
   }
   return false;
 }
@@ -966,23 +978,21 @@ std::set<DIType *> pdg::DIUtils::computeContainedDerivedTypes(DIType* dt, int tr
   return seenTypes;
 }
 
-bool pdg::DIUtils::isSentinelType(DIType* parent_struct_di_type)
+bool pdg::DIUtils::isSentinelType(DIType* struct_di_type)
 {
-  if (parent_struct_di_type == nullptr)
+  if (struct_di_type == nullptr)
     return false;
-  DIType* parent_struct_lowest_di_type = DIUtils::getLowestDIType(parent_struct_di_type);
-  if (!isStructTy(parent_struct_lowest_di_type))
+  DIType* struct_lowest_di_type = DIUtils::getLowestDIType(struct_di_type);
+  if (!isStructTy(struct_lowest_di_type))
     return false;
 
-  auto struct_field_di_arr = dyn_cast<DICompositeType>(parent_struct_lowest_di_type)->getElements();
+  auto struct_field_di_arr = dyn_cast<DICompositeType>(struct_lowest_di_type)->getElements();
   for (int i = 0; i < struct_field_di_arr.size(); ++i)
   {
-    DIType *field_di_type = dyn_cast<DIType>(struct_field_di_arr[i]);
-    DIType *field_lowest_di_type = DIUtils::getLowestDIType(field_di_type);
-    if (field_lowest_di_type == parent_struct_lowest_di_type)
+    DIType *struct_field_di_type = dyn_cast<DIType>(struct_field_di_arr[i]);
+    DIType *struct_field_lowest_di_type = DIUtils::getLowestDIType(struct_field_di_type);
+    if (struct_field_lowest_di_type == struct_lowest_di_type)
       return true;
-    // if (DIUtils::isStructTy(field_lowest_di_type))
-    //   return isSentinelType(field_lowest_di_type);
   }
   return false;
 }
