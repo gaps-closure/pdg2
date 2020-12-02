@@ -106,6 +106,7 @@ private:
   std::map<llvm::DIType*, tree<InstructionWrapper*>> globalTypeTrees;
   std::map<std::string, std::set<InstructionWrapper*>> shared_data_name_and_instw_map_;
   std::set<llvm::GlobalVariable *> sharedGlobalVars;
+  std::set<llvm::Function*> cross_domain_funcs_;
   unsigned unsafeTypeCastNum;
 };
 } // namespace pdg

@@ -394,8 +394,7 @@ std::set<Function *> pdg::PDGUtils::computeTransitiveClosure(Function &F)
 
 void pdg::PDGUtils::computeCrossDomainTransFuncs(Module &M, std::set<Function *> &crossDomainTransFuncs)
 {
-  auto &pdgUtils = PDGUtils::getInstance();
-  auto crossDomainFuncs = pdgUtils.computeCrossDomainFuncs(M);
+  auto crossDomainFuncs = computeCrossDomainFuncs(M);
   assert(crossDomainFuncs.size() != 0 && "no boundary functions are found...");
 
   // compute transitive closure
@@ -403,7 +402,7 @@ void pdg::PDGUtils::computeCrossDomainTransFuncs(Module &M, std::set<Function *>
   {
     if (f->isDeclaration() || f->empty())
       continue;
-    auto transFuncs = pdgUtils.computeTransitiveClosure(*f);
+    auto transFuncs = computeTransitiveClosure(*f);
     crossDomainTransFuncs.insert(transFuncs.begin(), transFuncs.end());
   }
 }

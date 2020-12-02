@@ -47,6 +47,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   errs() << "number of found shared struct type: " << sharedTypes.size() << "\n";
   // compute a set of functions that need PDG construction
   std::set<Function*> funcsNeedPDGConstruction;
+  cross_domain_funcs_ = pdgUtils.computeCrossDomainFuncs(M);
   pdgUtils.computeCrossDomainTransFuncs(M, funcsNeedPDGConstruction);
   errs() << "Num of functions need PDG construction: " << funcsNeedPDGConstruction.size() << "\n";
   unsigned totalFuncInModule = 0;
@@ -528,16 +529,17 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForFunc(Function *Func)
 void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType treeTy)
 {
   auto &pdgUtils = PDGUtils::getInstance();
-  Function *Func = arg.getParent();
+  Function *func = arg.getParent();
   try
   {
     DIType *argDIType = DIUtils::getArgDIType(arg);
     if (!argDIType)
       return;
-
     auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
     if (DIUtils::isVoidPointer(argDIType))
     {
+      if (cross_domain_funcs_.find(func) != cross_domain_funcs_.end())
+        ksplit_stats_collector.IncreaseNumberOfVoidPointer();
       DIType *void_ptr_cast_type = nullptr;
       // if a void pointer is return, we need to find the type it is casted from
       if (pdgUtils.isReturnValue(arg))
@@ -547,7 +549,6 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
         std::set<Function *> seen_funcs;
         void_ptr_cast_type = FindCastToDIType(arg, seen_funcs);
       }
-
       if (void_ptr_cast_type)
       {
         argDIType = void_ptr_cast_type;
@@ -555,15 +556,16 @@ void pdg::ProgramDependencyGraph::buildFormalTreeForArg(Argument &arg, TreeType 
       else
       {
         errs() << "[Warning]: void pointer has zero or multiple casts << " << arg.getParent()->getName() << "\n";
-        ksplit_stats_collector.IncreaseNumberOfUnhandledVoidPointer();
+        if (cross_domain_funcs_.find(func) != cross_domain_funcs_.end())
+          ksplit_stats_collector.IncreaseNumberOfUnhandledVoidPointer();
       }
     }
 
     // assert(argDIType != nullptr && "cannot build formal tree due to lack of argument debugging info.");
     InstructionWrapper *treeTyW = new TreeTypeWrapper(arg.getParent(), GraphNodeType::FORMAL_IN, &arg, arg.getType(), nullptr, 0, argDIType);
-    pdgUtils.getFuncInstWMap()[Func].insert(treeTyW);
+    pdgUtils.getFuncInstWMap()[func].insert(treeTyW);
     //find the right arg, and set tree root
-    ArgumentWrapper *argW = pdgUtils.getFuncMap()[Func]->getArgWByArg(arg);
+    ArgumentWrapper *argW = pdgUtils.getFuncMap()[func]->getArgWByArg(arg);
     auto treeRoot = argW->getTree(treeTy).set_head(treeTyW);
     assert(argW->getTree(treeTy).size() != 0 && "parameter tree has size 0 after root build!");
 

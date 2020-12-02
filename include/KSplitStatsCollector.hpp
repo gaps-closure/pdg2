@@ -24,9 +24,11 @@ private:
   unsigned num_of_unsafe_casted_struct_pointer_;
   unsigned num_of_sentinel_array_;
   unsigned num_of_array_;
+  unsigned num_of_char_array_;
   unsigned num_of_unhandled_array_;
   unsigned num_of_string_;
   unsigned num_of_char_pointer_;
+  unsigned num_of_pointer_;
   unsigned num_of_kernel_to_driver_calls_;
   unsigned num_of_driver_to_kernel_calls_;
   unsigned num_of_critical_section_;
@@ -65,9 +67,11 @@ public:
   void IncreaseNumberOfUnsafeCastedStructPointer() { num_of_unsafe_casted_struct_pointer_++; }
   void IncreaseNumberOfSentinelArray() { num_of_sentinel_array_++; }
   void IncreaseNumberOfArray() { num_of_array_++; }
+  void IncreaseNumberOfCharArray() { num_of_char_array_++; }
   void IncreaseNumberOfUnhandledArray() { num_of_unhandled_array_++; }
   void IncreaseNumberOfString() { num_of_string_++; }
   void IncreaseNumberOfCharPointer() { num_of_char_pointer_++; }
+  void IncreaseNumberOfPointer() { num_of_pointer_++; }
   void IncreaseNumberOfAtomicOperation() { num_of_atomic_operation_++; }
   void IncreaseNumberOfCriticalSection() { num_of_critical_section_++; }
   void IncreaseSavedDataSizeUseProjection(unsigned saved_data_size_use_projection) { saved_data_size_use_projection_ += saved_data_size_use_projection; }

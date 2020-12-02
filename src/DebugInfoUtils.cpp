@@ -593,6 +593,18 @@ bool pdg::DIUtils::isStructTy(DIType *dt)
   return false;
 }
 
+bool pdg::DIUtils::isCharArray(DIType* dt)
+{
+  dt = stripMemberTag(dt);
+  if (dt->getTag() == dwarf::DW_TAG_array_type)
+  {
+    auto base_type = getBaseDIType(dt);
+    if (base_type)
+      return hasCharTag(base_type);
+  }
+  return false;
+}
+
 bool pdg::DIUtils::isCharPointer(DIType* dt)
 {
   dt = stripMemberTag(dt);
@@ -835,6 +847,7 @@ bool pdg::DIUtils::isUnionTy(DIType *dt)
 bool pdg::DIUtils::isArrayType(DIType *dt)
 {
   dt = stripMemberTag(dt);
+  dt = stripAttributes(dt);
   if (dt)
     return (dt->getTag() == dwarf::DW_TAG_array_type);
   return false;

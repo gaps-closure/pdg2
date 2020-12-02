@@ -51,6 +51,7 @@ class DIUtils
     static bool isArrayType(llvm::DIType *dt);
     static bool isSentinelType(llvm::DIType* dt);
     static bool isCharPointer(llvm::DIType* dt);
+    static bool isCharArray(llvm::DIType *dt);
     static bool isBasicTypePointer(llvm::DIType* dt);
     static bool hasCharTag(llvm::DIType* dt);
     static bool actualArgHasAllocator(llvm::Function& F, unsigned argIdx);

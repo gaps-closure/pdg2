@@ -95,6 +95,7 @@ public:
   bool IsMemOps(std::string funcName);
   bool IsStoreOfAlias(llvm::StoreInst* store_inst);
   FunctionDomain computeFuncDomain(llvm::Function &F);
+  void collectKSplitStats(llvm::DIType* dt, std::string annotation_str);
 
 private:
   ProgramDependencyGraph *PDG;

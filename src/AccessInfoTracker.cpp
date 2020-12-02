@@ -1008,6 +1008,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     ret_type_name = "projection ret_" + ret_type_name;
     std::string ret_annotation = getReturnValAnnotationStr(F);
     ret_type_name += ret_annotation;
+    collectKSplitStats(func_ret_di_type, ret_annotation);
   }
   // swap the function name with its registered function pointer to align with the IDL syntax
   std::string func_name = F.getName().str();
@@ -1021,6 +1022,8 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
   if (func_name.find("ioremap") != std::string::npos)
     idl_file << " [ioremap(caller)] ";
   idl_file << "( ";
+
+  // collect stats for return value
   // handle parameters
   for (auto argW : pdgUtils.getFuncMap()[&F]->getArgWList())
   {
@@ -1036,10 +1039,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     std::string arg_type_name = DIUtils::getRawDITypeName(arg_di_type);
     pdgUtils.stripStr(arg_type_name, "struct ");
     std::string annotation_str = ComputeNodeAnnotationStr(arg_tree_begin);
-    if (annotation_str.find("string") != std::string::npos)
-    {
-      ksplit_stats_collector.IncreaseNumberOfString();
-    }
+    bool is_ptr_has_unknown_annotation = (annotation_str.find("string") == std::string::npos && !DIUtils::isArrayType(arg_di_type));
     // infer annotation, such as alloc/dealloc if possible.
     if (DIUtils::isFuncPointerTy(arg_di_type))
     {
@@ -1075,16 +1075,19 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       std::string arg_str = "";
       if (arrSize > 0)
       {
+        if (is_ptr_has_unknown_annotation)
+          ksplit_stats_collector.IncreaseNumberOfArray();
         // find a char array. We should treat this as a string
         if (arg_type_name.compare("char") == 0)
         {
           // char string is handled differently
           arg_str = arg_type_name + " " + annotation_str + " " + pointerLevelStr + arg_name;
+          if (is_ptr_has_unknown_annotation)
+            ksplit_stats_collector.IncreaseNumberOfCharArray();
         }
         else
         {
           arg_str = "array<" + arg_type_name + ", " + std::to_string(arrSize) + ">" + pointerLevelStr + " " + arg_name;
-          ksplit_stats_collector.IncreaseNumberOfArray();
         }
       }
       else
@@ -1098,14 +1101,17 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       idl_file << DIUtils::getArgTypeName(arg) << " " << arg_name;
 
     // collecting stats
-    if (DIUtils::isUnionTy(arg_lowest_di_type))
-      ksplit_stats_collector.IncreaseNumberOfUnion();
-    if (DIUtils::isSentinelType(arg_lowest_di_type))
-      ksplit_stats_collector.IncreaseNumberOfSentinelArray();
-    if (DIUtils::isVoidPointer(arg_di_type))
-      ksplit_stats_collector.IncreaseNumberOfVoidPointer();
-    if (DIUtils::isCharPointer(arg_di_type))
-      ksplit_stats_collector.IncreaseNumberOfCharPointer();
+    collectKSplitStats(arg_di_type, annotation_str);
+    // if (DIUtils::isPointerType(arg_di_type))
+    //   ksplit_stats_collector.IncreaseNumberOfPointer();
+    // if (DIUtils::isCharPointer(arg_di_type))
+    //   ksplit_stats_collector.IncreaseNumberOfCharPointer();
+    // if (annotation_str.find("string") != std::string::npos)
+    //   ksplit_stats_collector.IncreaseNumberOfString();
+    // if (DIUtils::isUnionTy(arg_lowest_di_type))
+    //   ksplit_stats_collector.IncreaseNumberOfUnion();
+    // if (DIUtils::isSentinelType(arg_lowest_di_type))
+    //   ksplit_stats_collector.IncreaseNumberOfSentinelArray();
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !arg_name.empty())
       idl_file << ", ";
   }
@@ -1580,34 +1586,31 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       // handle case in which the current field is accessed in buffer manipulation function, such as memcpy
       if (global_array_fields_.find(fieldID) != global_array_fields_.end())
       {
+        ksplit_stats_collector.IncreaseNumberOfArray();
         // find a char array
         if (DIUtils::isBasicTypePointer(struct_field_di_type))
         {
           std::string pointer_str = DIUtils::computePointerLevelStr(struct_field_di_type);
           std::string raw_field_name = DIUtils::getRawDITypeName(struct_field_di_type);
           OS << field_indent_level << "array<" << raw_field_name << ", " << "var_len>" << pointer_str << " " << field_name << ";\n";
-          ksplit_stats_collector.IncreaseNumberOfArray();
+          if (DIUtils::isCharPointer(struct_field_di_type))
+            ksplit_stats_collector.IncreaseNumberOfCharArray();
         }
       }
       else
       {
         if (!field_name.empty())
         {
-          if (type_name.find("array") != std::string::npos)
-            ksplit_stats_collector.IncreaseNumberOfArray();
-          if (field_annotation.find("string") != std::string::npos)
-            ksplit_stats_collector.IncreaseNumberOfString();
           OS << field_indent_level << type_name << " " << field_annotation << " " << field_name << ";\n";
         }
       }
     }
     // collect union number stats
-    if (DIUtils::isCharPointer(struct_field_di_type))
-      ksplit_stats_collector.IncreaseNumberOfCharPointer();
-    if (DIUtils::isUnionTy(struct_field_lowest_di_type))
-      ksplit_stats_collector.IncreaseNumberOfUnion();
+    collectKSplitStats(struct_field_di_type, field_annotation);
     if (DIUtils::isVoidPointer(struct_field_di_type))
-      ksplit_stats_collector.IncreaseNumberOfVoidPointer();
+    {
+      ksplit_stats_collector.IncreaseNumberOfUnhandledVoidPointer();
+    }
   }
 }
 
@@ -2097,6 +2100,32 @@ FunctionDomain pdg::AccessInfoTracker::computeFuncDomain(Function& F)
 bool pdg::AccessInfoTracker::IsFuncPtrExportFromDriver(std::string func_name)
 {
   return driverExportFuncPtrNameMap.find(func_name) != driverExportFuncPtrNameMap.end();
+}
+
+void pdg::AccessInfoTracker::collectKSplitStats(DIType* dt, std::string annotation_str)
+{
+  if (dt == nullptr)
+    return;
+  auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
+  DIType* lowest_dt = DIUtils::getLowestDIType(dt);
+  if (DIUtils::isPointerType(dt))
+    ksplit_stats_collector.IncreaseNumberOfPointer();
+  if (DIUtils::isCharPointer(dt))
+    ksplit_stats_collector.IncreaseNumberOfCharPointer();
+  if (DIUtils::isVoidPointer(dt))
+    ksplit_stats_collector.IncreaseNumberOfVoidPointer();
+  if (DIUtils::isArrayType(dt))
+  {
+    ksplit_stats_collector.IncreaseNumberOfArray();
+    if (DIUtils::isCharArray(dt))
+      ksplit_stats_collector.IncreaseNumberOfCharArray();
+  }
+  if (annotation_str.find("string") != std::string::npos)
+    ksplit_stats_collector.IncreaseNumberOfString();
+  if (DIUtils::isUnionTy(lowest_dt))
+    ksplit_stats_collector.IncreaseNumberOfUnion();
+  if (DIUtils::isSentinelType(lowest_dt))
+    ksplit_stats_collector.IncreaseNumberOfSentinelArray();
 }
 
 static RegisterPass<pdg::AccessInfoTracker>
