@@ -1550,10 +1550,6 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       std::string sub_fields_str;
       raw_string_ostream nested_fields_str(sub_fields_str);
       std::string struct_field_name = DIUtils::getDIFieldName(struct_field_di_type);
-      // formating the indent. For anonymous struct, make the field indent same as the parent struct
-      if (!struct_field_name.empty() && !field_indent_level.empty())
-        field_indent_level.pop_back();
-
       // need to collect pointers nested in struct type field
       generateProjectionForTreeNode(childI, nested_fields_str, arg_name, pointer_queue, is_func_ptr_export_from_driver, field_indent_level);
       if (nested_fields_str.str().empty())

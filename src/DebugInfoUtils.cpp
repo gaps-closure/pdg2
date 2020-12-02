@@ -402,8 +402,8 @@ std::string pdg::DIUtils::getDITypeName(DIType *ty)
     case dwarf::DW_TAG_enumeration_type:
     {
       if (!ty->getName().str().empty())
-        return "enum " + ty->getName().str();
-      return "enum";
+        return "int " + ty->getName().str(); // enum is translated to int
+      return "int";
     }
     case dwarf::DW_TAG_volatile_type:
       return "volatile " + getDITypeName(dyn_cast<DIDerivedType>(ty)->getBaseType().resolve());
@@ -888,33 +888,34 @@ unsigned pdg::DIUtils::computeTotalFieldNumberInStructType(DIType* dt)
 std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Function *> crossDomainFuncs, int tree_max_height)
 {
   std::set<DIType*> sharedDITypes;
-  std::set<std::string> seenDITypeName;
+  std::set<std::string> seen_di_type_names;
   // collect shared type from global variables
-  for (Module::global_iterator globalIt = M.global_begin(); globalIt != M.global_end(); ++globalIt)
-  {
-    if (GlobalVariable *globalVar = dyn_cast<GlobalVariable>(&*globalIt))
-    {
-      // 2. check if a global var is of struct pointer type
-      DIType* globalVarDIType = getGlobalVarDIType(*globalVar);
-      if (!globalVarDIType) 
-        continue;
-      auto containedSharedTypes = computeContainedDerivedTypes(globalVarDIType, tree_max_height);
-      for (auto dt : containedSharedTypes)
-      {
-        auto DITypeName = DIUtils::getDITypeName(dt);
-        if (seenDITypeName.find(DITypeName) != seenDITypeName.end())
-          continue;
-        seenDITypeName.insert(DITypeName);
-        if (isStructPointerTy(dt) || isStructTy(dt))
-        {
-          auto lowestType = DIUtils::getLowestDIType(dt);
-          if (lowestType)
-            sharedDITypes.insert(lowestType);
-        }
-      }
-      // build object tree for shared struct type
-    }
-  }
+  // for (Module::global_iterator globalIt = M.global_begin(); globalIt != M.global_end(); ++globalIt)
+  // {
+  //   if (GlobalVariable *globalVar = dyn_cast<GlobalVariable>(&*globalIt))
+  //   {
+  //     // 2. check if a global var is of struct pointer type
+  //     DIType* globalvar_di_type = getGlobalVarDIType(*globalVar);
+  //     if (!isStructPointerTy(globalvar_di_type) && isStructTy(globalvar_di_type))
+  //       continue;
+  //     if (!globalvar_di_type) 
+  //       continue;
+  //     auto contained_shared_types = computeContainedDerivedTypes(globalvar_di_type, tree_max_height);
+  //     for (auto dt : contained_shared_types)
+  //     {
+  //       auto di_type_name = DIUtils::getDITypeName(dt);
+  //       if (seen_di_type_names.find(di_type_name) != seen_di_type_names.end())
+  //         continue;
+  //       seen_di_type_names.insert(di_type_name);
+  //       if (isStructPointerTy(dt) || isStructTy(dt))
+  //       {
+  //         auto lowest_di_type = DIUtils::getLowestDIType(dt);
+  //         if (lowest_di_type)
+  //           sharedDITypes.insert(lowest_di_type);
+  //       }
+  //     }
+  //   }
+  // }
  // collect shared type from interface functions
   for (auto func : crossDomainFuncs)
   {
@@ -922,21 +923,21 @@ std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Functi
       continue;
     for (Argument &arg : func->args())
     {
-      auto argDIType = getArgDIType(arg);
-      auto containedSharedTypes = computeContainedDerivedTypes(argDIType, tree_max_height);
+      auto arg_di_type = getArgDIType(arg);
+      auto containedSharedTypes = computeContainedDerivedTypes(arg_di_type, tree_max_height);
       for (auto dt : containedSharedTypes)
       {
         //TODO: add function pointer handle
-        auto DITypeName = DIUtils::getDITypeName(dt);
-        if (seenDITypeName.find(DITypeName) != seenDITypeName.end())
+        auto di_type_name = DIUtils::getDITypeName(dt);
+        if (seen_di_type_names.find(di_type_name) != seen_di_type_names.end())
           continue;
-        seenDITypeName.insert(DITypeName);
+        seen_di_type_names.insert(di_type_name);
 
         if (isStructPointerTy(dt) || isStructTy(dt))
         {
-          auto lowestType = DIUtils::getLowestDIType(dt);
-          if (lowestType)
-            sharedDITypes.insert(lowestType);
+          auto lowest_di_type = DIUtils::getLowestDIType(dt);
+          if (lowest_di_type)
+            sharedDITypes.insert(lowest_di_type);
         }
       }
     }
