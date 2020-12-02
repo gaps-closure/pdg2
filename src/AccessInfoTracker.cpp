@@ -1017,7 +1017,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
   if (func_ptr_name != func_name)
     rpc_prefix = "\trpc_ptr ";
 
-  idl_file << rpc_prefix << ret_type_name << " " << func_name;
+  idl_file << rpc_prefix << ret_type_name << " " << func_ptr_name;
   if (func_name.find("ioremap") != std::string::npos)
     idl_file << " [ioremap(caller)] ";
   idl_file << "( ";
@@ -1034,6 +1034,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     DIType *arg_lowest_di_type = DIUtils::getLowestDIType(arg_di_type);
     std::string arg_name = DIUtils::getArgName(arg);
     std::string arg_type_name = DIUtils::getRawDITypeName(arg_di_type);
+    pdgUtils.stripStr(arg_type_name, "struct ");
     std::string annotation_str = ComputeNodeAnnotationStr(arg_tree_begin);
     if (annotation_str.find("string") != std::string::npos)
     {
@@ -1061,7 +1062,14 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       // if current arg is a struct, need to generate projection keyword and strip struct keyword
       // if the pointed element is yet another pointer, need to put * before argName
       // all pointer could point to array, need to check if the pointed buffer could be an array
-      arg_type_name = "projection " + arg_name;
+      if (arg_type_name.find("_ops") != std::string::npos)
+      {
+        arg_name = "_global_" + arg_type_name;
+      }
+
+      if (DIUtils::isStructPointerTy(arg_di_type))
+        arg_type_name = "projection " + arg_name;
+
       uint64_t arrSize = getArrayArgSize(arg, F);
       std::string pointerLevelStr = DIUtils::computePointerLevelStr(arg_di_type);
       std::string arg_str = "";
@@ -1467,10 +1475,10 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       // if the current function is a function pointer called from kernel, we can safely assume that the kernel passes all the data that is needed in the callee side. 
       // reason: The kernel code may not be complete. Shared data computation, thus, may missing some fields. If a function is called from kernel domain, we assume 
       // the kernel also accesses the fields accessed in the call back function.
-      if (is_func_ptr_export_from_driver)
-        is_shared_field = true;
-      else
-        is_shared_field = isChildFieldShared(struct_di_type, struct_field_di_type);
+      // if (is_func_ptr_export_from_driver)
+      //   is_shared_field = true;
+      // else
+      is_shared_field = isChildFieldShared(struct_di_type, struct_field_di_type);
     }
 
     if (!is_shared_field)
