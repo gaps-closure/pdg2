@@ -101,7 +101,7 @@ private:
   llvm::Module *module;
   llvm::CallGraph *CG;
   std::ofstream idl_file;
-  std::ofstream log_file;
+  // std::ofstream log_file;
   std::set<llvm::Function *> kernel_domain_funcs_;
   std::set<llvm::Function *> driver_domain_funcs_;
   std::set<llvm::Function*> importedFuncs;

@@ -28,9 +28,6 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   setupAllocatorWrappers();
   setupDeallocatorWrappers();
   globalOpsStr = "";
-
-  // open error log file 
-  log_file.open("analysis_log");
   // start generating IDL
   std::string file_name = "kernel";
   file_name += ".idl";
@@ -68,7 +65,6 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   idl_file << globalOpsStr << "\n";
   idl_file << "}";
   idl_file.close();
-  log_file.close();
   ksplit_stats_collector.PrintProjectionStats();
   ksplit_stats_collector.PrintKernelIdiomStats();
   return false;
@@ -429,14 +425,6 @@ void pdg::AccessInfoTracker::computeSharedData()
       {
         auto dataW = const_cast<InstructionWrapper*>(valDepPair.first->getData());
         Instruction *inst = dataW->getInstruction();
-        Function* access_func = inst->getFunction();
-        std::string func_name = access_func->getName().str();
-        auto func_domain = computeFuncDomain(*access_func);
-        if (func_domain == FunctionDomain::KERNEL_DOMAIN)
-          kernel_access_func_names.insert(func_name);
-        else
-          driver_access_func_names.insert(func_name);
-        
         AccessType accType = getAccessTypeForInstW(dataW);
         if (accType != AccessType::NOACCESS)
         {
@@ -469,17 +457,6 @@ void pdg::AccessInfoTracker::computeSharedData()
       // if a field is not shared, continue to next tree node
       if (!accessInDriver || !accessInKernel)
         continue;
-      log_file << fieldID << " \n\t";
-      for (auto name : kernel_access_func_names)
-      {
-        log_file << name << " ";
-      }
-      log_file << "\n\t";
-      for (auto name : driver_access_func_names)
-      {
-        log_file << name << " ";
-      }
-      log_file << "\n";
 
       TreeTypeWrapper *treeW = static_cast<TreeTypeWrapper *>(const_cast<InstructionWrapper *>(*treeI));
       treeW->setShared(true);
@@ -599,10 +576,6 @@ void pdg::AccessInfoTracker::computeInterprocArgAccessInfo(ArgumentWrapper *argW
           if (Function *called_func = dyn_cast<Function>(ci->getCalledValue()->stripPointerCasts()))
           {
             if (called_func->isDeclaration() || called_func->empty())
-              continue;
-            auto caller_domain = computeFuncDomain(F);
-            auto callee_domain = computeFuncDomain(*called_func);
-            if (caller_domain != callee_domain)
               continue;
             // compute the field that are accessed in the callee. The return map's key is accessed field's id and the value is access type
             auto accessFieldMap = computeInterprocAccessedFieldMap(*called_func, callArgIdx, parentNodeDIType, DIUtils::getDIFieldName((*treeI)->getDIType()));
@@ -1037,10 +1010,15 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     ret_type_name += ret_annotation;
   }
   // swap the function name with its registered function pointer to align with the IDL syntax
-  auto funcName = F.getName().str();
-  funcName = getRegisteredFuncPtrName(funcName);
-  idl_file << "\trpc " << ret_type_name << " " << funcName;
-  if (funcName.find("ioremap") != std::string::npos)
+  std::string func_name = F.getName().str();
+  std::string func_ptr_name = getRegisteredFuncPtrName(func_name);
+
+  std::string rpc_prefix = "\trpc ";
+  if (func_ptr_name != func_name)
+    rpc_prefix = "\trpc_ptr ";
+
+  idl_file << rpc_prefix << ret_type_name << " " << func_name;
+  if (func_name.find("ioremap") != std::string::npos)
     idl_file << " [ioremap(caller)] ";
   idl_file << "( ";
   // handle parameters
@@ -1068,12 +1046,13 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       // assert((indirect_called_func != nullptr) && "cannot generate arg sig for empty indirect called func");
       if (indirect_called_func == nullptr)
       {
-        errs() << "cannot generate arg sig for empty indirect called func " << funcName << "\n" ;
+        errs() << "cannot generate arg sig for empty indirect called func " << func_name << "\n" ;
         continue;
       }
       // assumption 1: only driver domain exports function pointer to kernel.
       // assumption 2: the pointed function by this function pointer parameter is known.
-      idl_file << "rpc " << DIUtils::getFuncSigName(DIUtils::getLowestDIType(arg_di_type), indirect_called_func, arg_name, "");
+      idl_file << "rpc_ptr " << arg_name << " " << arg_name;
+      // DIUtils::getFuncSigName(DIUtils::getLowestDIType(arg_di_type), indirect_called_func, arg_name, "");
     }
     else if (DIUtils::isPointerType(arg_di_type))
     {
@@ -1482,13 +1461,15 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     }
     
     // check if field is private
-    bool is_shared_field = true;
+    bool is_shared_field = false;
     if (SHARED_DATA_FLAG)
     {
       // if the current function is a function pointer called from kernel, we can safely assume that the kernel passes all the data that is needed in the callee side. 
       // reason: The kernel code may not be complete. Shared data computation, thus, may missing some fields. If a function is called from kernel domain, we assume 
       // the kernel also accesses the fields accessed in the call back function.
-      if (!is_func_ptr_export_from_driver)
+      if (is_func_ptr_export_from_driver)
+        is_shared_field = true;
+      else
         is_shared_field = isChildFieldShared(struct_di_type, struct_field_di_type);
     }
 
