@@ -417,7 +417,8 @@ void pdg::AccessInfoTracker::computeSharedData()
         continue;
       }
 
-      std::set<std::string> access_func_names;
+      std::set<std::string> kernel_access_func_names;
+      std::set<std::string> driver_access_func_names;
       // get valdep pair, and check for intraprocedural accesses
       auto valDepPairList = PDG->GetNodesWithDepType(*treeI, DependencyType::VAL_DEP);
       bool accessInKernel = false;
@@ -429,7 +430,13 @@ void pdg::AccessInfoTracker::computeSharedData()
         auto dataW = const_cast<InstructionWrapper*>(valDepPair.first->getData());
         Instruction *inst = dataW->getInstruction();
         Function* access_func = inst->getFunction();
-        access_func_names.insert(access_func->getName().str());
+        std::string func_name = access_func->getName().str();
+        auto func_domain = computeFuncDomain(*access_func);
+        if (func_domain == FunctionDomain::KERNEL_DOMAIN)
+          kernel_access_func_names.insert(func_name);
+        else
+          driver_access_func_names.insert(func_name);
+        
         AccessType accType = getAccessTypeForInstW(dataW);
         if (accType != AccessType::NOACCESS)
         {
@@ -458,16 +465,22 @@ void pdg::AccessInfoTracker::computeSharedData()
         // verified a field is accessed in both domains
         if (accessInDriver && accessInKernel)
           break;
-        log_file << fieldID << " ";
-        for (auto func_name : access_func_names)
-        {
-          log_file << func_name << " ";
-        }
-        log_file << "\n";
       }
       // if a field is not shared, continue to next tree node
       if (!accessInDriver || !accessInKernel)
         continue;
+      log_file << fieldID << " \n\t";
+      for (auto name : kernel_access_func_names)
+      {
+        log_file << name << " ";
+      }
+      log_file << "\n\t";
+      for (auto name : driver_access_func_names)
+      {
+        log_file << name << " ";
+      }
+      log_file << "\n";
+
       TreeTypeWrapper *treeW = static_cast<TreeTypeWrapper *>(const_cast<InstructionWrapper *>(*treeI));
       treeW->setShared(true);
       accessedFields.insert(fieldID);
@@ -1715,7 +1728,7 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
       if (seenFuncOps.find(projectionTypeName) != seenFuncOps.end())
         continue;
       seenFuncOps.insert(projectionTypeName);
-      std::string projStr = "\t\tprojection < " + projectionTypeName + " > " + "_global" + projectionReferenceName + " {\n " + arg_projection.str() + "\t\t};\n";
+      std::string projStr = "\t\tprojection < " + projectionTypeName + " > " + "_global_" + projectionReferenceName + " {\n " + arg_projection.str() + "\t\t};\n";
       globalOpsStr = globalOpsStr + "\n" + projStr;
     }
     else
