@@ -1481,35 +1481,33 @@ void pdg::ProgramDependencyGraph::connectTreeNodeWithAddrVars(ArgumentWrapper* a
     for (auto pair : parentValDepNodes)
     {
       auto parentDepInstW = const_cast<InstructionWrapper *>(pair.first->getData());
-      std::set<InstructionWrapper *> readInsts;
-      getReadInstsOnInst(parentDepInstW->getInstruction(), readInsts);
-      for (auto readInstW : readInsts)
+      std::set<InstructionWrapper *> read_insts_w;
+      getReadInstsOnInst(parentDepInstW->getInstruction(), read_insts_w);
+      for (auto read_inst_w : read_insts_w)
       {
-        std::set<InstructionWrapper *> aliasSet;
-        Instruction *readInst = readInstW->getInstruction();
-        if (isa<LoadInst>(readInst) && (*treeI)->getNodeOffset() == 0)
+        Instruction *read_inst = read_inst_w->getInstruction();
+        std::set<InstructionWrapper *> alias_set = getDepInstWrapperWithDepType(read_inst_w, DependencyType::DATA_ALIAS);
+        if (isa<LoadInst>(read_inst) && (*treeI)->getNodeOffset() == 0)
         {
-          getAllAlias(readInstW->getInstruction(), aliasSet);
-          for (auto aliasW : aliasSet)
+          for (auto alias_inst_w : alias_set)
           {
-            PDG->addDependency(*treeI, aliasW, DependencyType::VAL_DEP);
-            PDG->addDependency(aliasW, *treeI, DependencyType::VAL_DEP);
+            PDG->addDependency(*treeI, alias_inst_w, DependencyType::VAL_DEP);
+            PDG->addDependency(alias_inst_w, *treeI, DependencyType::VAL_DEP);
           }
         }
         // for GEP, checks if the offsets match
-        else if (isa<GetElementPtrInst>(readInst))
+        else if (isa<GetElementPtrInst>(read_inst))
         {
-          Instruction *GEP = readInstW->getInstruction();
+          Instruction *GEP = read_inst;
           StructType *structTy = getStructTypeFromGEP(GEP);
           if (structTy != nullptr)
           {
             if (isTreeNodeGEPMatch(structTy, *treeI, GEP))
             {
-              getAllAlias(GEP, aliasSet);
-              for (auto aliasW : aliasSet)
+              for (auto alias_inst_w : alias_set)
               {
-                PDG->addDependency(*treeI, aliasW, DependencyType::VAL_DEP);
-                PDG->addDependency(aliasW, *treeI, DependencyType::VAL_DEP);
+                PDG->addDependency(*treeI, alias_inst_w, DependencyType::VAL_DEP);
+                PDG->addDependency(alias_inst_w, *treeI, DependencyType::VAL_DEP);
               }
             }
           }
