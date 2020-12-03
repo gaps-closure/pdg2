@@ -76,7 +76,7 @@ bool pdg::DataDependencyGraph::isMayAlias(Value &V1, Value &V2, Function &F)
   auto const &s2 = c2.getNode()->getAllocSites();
   for (auto const a1 : s1)
   {
-    if (s2.find(a1) != s2.end() && V1.getType() == V2.getType())
+    if (s2.find(a1) != s2.end())
       return true;
   }
   return false;

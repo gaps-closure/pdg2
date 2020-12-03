@@ -1271,7 +1271,7 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
     {
       Function* allocFunc = inst_w->getInstruction()->getFunction();
       std::set<InstructionWrapper*> alias_set = getDepInstWrapperWithDepType(inst_w, DependencyType::DATA_ALIAS);
-
+      alias_set.insert(inst_w);
       for (auto alias_w : alias_set)
       {
         PDG->addDependency(*treeBegin, alias_w, DependencyType::VAL_DEP);
@@ -1296,6 +1296,7 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
         for (auto read_inst_w : read_insts_w)
         {
           std::set<InstructionWrapper *> alias_set = getDepInstWrapperWithDepType(read_inst_w, DependencyType::DATA_ALIAS);
+          alias_set.insert(read_inst_w);
           Instruction *read_inst = read_inst_w->getInstruction();
           if (isa<LoadInst>(read_inst))
           {
@@ -1485,8 +1486,9 @@ void pdg::ProgramDependencyGraph::connectTreeNodeWithAddrVars(ArgumentWrapper* a
       getReadInstsOnInst(parentDepInstW->getInstruction(), read_insts_w);
       for (auto read_inst_w : read_insts_w)
       {
-        Instruction *read_inst = read_inst_w->getInstruction();
         std::set<InstructionWrapper *> alias_set = getDepInstWrapperWithDepType(read_inst_w, DependencyType::DATA_ALIAS);
+        alias_set.insert(read_inst_w);
+        Instruction *read_inst = read_inst_w->getInstruction();
         if (isa<LoadInst>(read_inst) && (*treeI)->getNodeOffset() == 0)
         {
           for (auto alias_inst_w : alias_set)
