@@ -41,7 +41,7 @@ namespace pdg
       // print warnings for critical sections
       computeCriticalSections();
       printWarningForCS();
-      // // print warnings for atomic operations
+      // print warnings for atomic operations
       printWarningsForAtomicOperation(M);
       CSWarningFile.close();
       AtomicWarningFile.close();
@@ -56,13 +56,6 @@ namespace pdg
       lockPairMap.insert(std::make_pair("_raw_spin_lock_irq", "_raw_spin_unlock_irq"));
       lockPairMap.insert(std::make_pair("global_lock", "global_unlock"));
     }
-
-
-    // void computeAsyncFuncs(Module &M)
-    // {
-    //   auto &pdgUtils = PDGUtils::getInstance();
-    //   asyncFuncs = pdgUtils.computeAsyncFuncs(M);
-    // }
 
     void computeCriticalSections()
     {
@@ -273,7 +266,7 @@ namespace pdg
         // get corresponding tree node for a instruction
         InstructionWrapper *instW = instMap[i];
         errs() << "inst: " << *i << " - " << i->getFunction()->getName() << "\n";
-        auto depTreeNodes = PDG->GetNodesWithDepType(instW, DependencyType::VAL_DEP);
+        auto depTreeNodes = PDG->getNodesWithDepType(instW, DependencyType::VAL_DEP);
         errs() << "dep node size: " << depTreeNodes.size() << "\n";
         if (depTreeNodes.size() != 1)
         {
@@ -510,7 +503,7 @@ namespace pdg
         InstructionWrapper *instW = instQ.front();
         instQ.pop();
         // add alias to ptrSet
-        auto aliasDepPairList = PDG->GetNodesWithDepType(instW, DependencyType::DATA_ALIAS);
+        auto aliasDepPairList = PDG->getNodesWithDepType(instW, DependencyType::DATA_ALIAS);
         for (auto depPair : aliasDepPairList)
         {
           auto dataW = const_cast<InstructionWrapper *>(depPair.first->getData());
@@ -526,7 +519,7 @@ namespace pdg
         }
 
         // add derived pointers through def-use relation
-        auto defUseDepPairList = PDG->GetNodesWithDepType(instW, DependencyType::DATA_DEF_USE);
+        auto defUseDepPairList = PDG->getNodesWithDepType(instW, DependencyType::DATA_DEF_USE);
         for (auto depPair : defUseDepPairList)
         {
           auto dataW = const_cast<InstructionWrapper *>(depPair.first->getData());
@@ -596,7 +589,7 @@ namespace pdg
       auto instMap = pdgUtils.getInstMap();
       auto instDITypeMap = pdgUtils.getInstDITypeMap();
       // find alais for the inst
-      auto aliasDep = PDG->GetNodesWithDepType(instMap[inst], DependencyType::DATA_ALIAS);
+      auto aliasDep = PDG->getNodesWithDepType(instMap[inst], DependencyType::DATA_ALIAS);
       for (auto depPair : aliasDep)
       {
         auto depInstW = const_cast<InstructionWrapper *>(depPair.first->getData());
@@ -695,7 +688,7 @@ namespace pdg
       auto &pdgUtils = PDGUtils::getInstance();
       auto instMap = pdgUtils.getInstMap();
       auto instW = instMap[inst];
-      auto dataRawReverseDepPairs = PDG->GetNodesWithDepType(instW, DependencyType::DATA_RAW_REVERSE);
+      auto dataRawReverseDepPairs = PDG->getNodesWithDepType(instW, DependencyType::DATA_RAW_REVERSE);
       if (dataRawReverseDepPairs.size() == 0)
         return inst;
       auto depPair = dataRawReverseDepPairs[0]; // a load can only has one RAW reverse edge to a store instruction

@@ -114,25 +114,6 @@ std::set<DbgInfoIntrinsic *> pdg::DIUtils::collectDbgInstInFunc(Function &F)
   return ret;
 }
 
-// DIType *pdg::DIUtils::getArgDIType(Argument &arg)
-// {
-//   Function &F = *arg.getParent();
-//   std::set<DbgInfoIntrinsic*> dbgInsts = collectDbgInstInFunc(F);
-//   for (auto dbgInst : dbgInsts)
-//   {
-//     DILocalVariable *DLV = nullptr;
-//     if (auto declareInst = dyn_cast<DbgDeclareInst>(dbgInst))
-//       DLV = declareInst->getVariable();
-//     if (auto valueInst = dyn_cast<DbgValueInst>(dbgInst))
-//       DLV = valueInst->getVariable();
-//     if (!DLV)
-//       continue;
-//     if (DLV->getArg() == arg.getArgNo() + 1 && !DLV->getName().empty() && DLV->getScope()->getSubprogram() == F.getSubprogram())
-//       return DLV->getType().resolve();
-//   }
-//   return nullptr;
-// }
-
 DIType *pdg::DIUtils::getArgDIType(Argument &arg)
 {
   Function &F = *arg.getParent();
@@ -531,7 +512,7 @@ bool pdg::DIUtils::isVoidPointer(DIType *dt)
     return false;
   dt = stripMemberTag(dt);
   if (dt->getTag() == dwarf::DW_TAG_pointer_type) {
-    auto baseTy = getLowestDIType(dt);
+    auto baseTy = getBaseDIType(dt);
     if (baseTy == nullptr) 
       return true;
   }

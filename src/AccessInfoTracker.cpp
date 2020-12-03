@@ -120,13 +120,13 @@ bool pdg::AccessInfoTracker::voidPointerHasMultipleCasts(InstructionWrapper* voi
 {
   // get dep list
   unsigned castTimes = 0;
-  auto valDepList = PDG->GetNodesWithDepType(voidPtrW, DependencyType::VAL_DEP);
+  auto valDepList = PDG->getNodesWithDepType(voidPtrW, DependencyType::VAL_DEP);
   for (auto depPair : valDepList)
   {
     auto dataW = const_cast<InstructionWrapper *>(depPair.first->getData());
     if (dataW->getInstruction() != nullptr)
     {
-      auto depInsts = PDG->GetNodesWithDepType(dataW, DependencyType::VAL_DEP);
+      auto depInsts = PDG->getNodesWithDepType(dataW, DependencyType::VAL_DEP);
       for (auto depInstPair : depInsts)
       {
         auto instW = const_cast<InstructionWrapper *>(depInstPair.first->getData());
@@ -258,7 +258,7 @@ std::set<Function*> pdg::AccessInfoTracker::computeFuncsAccessPrivateData(std::s
     for (auto instI = inst_begin(func); instI != inst_end(func); ++instI)
     {
       auto instW = instMap[&*instI];
-      auto valDepPairs = PDG->GetNodesWithDepType(instW, DependencyType::VAL_DEP);
+      auto valDepPairs = PDG->getNodesWithDepType(instW, DependencyType::VAL_DEP);
       if (valDepPairs.size() == 0)
         continue;
       for (auto valDepPair : valDepPairs)
@@ -320,13 +320,13 @@ bool pdg::AccessInfoTracker::IsUsedInMemOps(InstructionWrapper *candidate_array_
   Instruction* candidate_array_inst = candidate_array_inst_w->getInstruction();
   if (candidate_array_inst == nullptr)
     return false;
-  PDG->GetDepInstsWithDepType(candidate_array_inst, DependencyType::DATA_READ, dep_insts_on_string_inst);
+  PDG->getDepInstsWithDepType(candidate_array_inst, DependencyType::DATA_READ, dep_insts_on_string_inst);
   for (Instruction* i : dep_insts_on_string_inst)
   {
     if (LoadInst *li = dyn_cast<LoadInst>(i))
     {
       std::set<Instruction*> intra_func_users;
-      PDG->GetDepInstsWithDepType(li, DependencyType::DATA_DEF_USE, intra_func_users);
+      PDG->getDepInstsWithDepType(li, DependencyType::DATA_DEF_USE, intra_func_users);
       for (Instruction* intra_func_user : intra_func_users)
       {
         CallSite CS(intra_func_user);
@@ -353,13 +353,13 @@ bool pdg::AccessInfoTracker::IsUsedInStrOps(InstructionWrapper *candidate_string
   Instruction* candidate_string_inst = candidate_string_inst_w->getInstruction();
   if (candidate_string_inst == nullptr)
     return false;
-  PDG->GetDepInstsWithDepType(candidate_string_inst, DependencyType::DATA_READ, dep_insts_on_string_inst);
+  PDG->getDepInstsWithDepType(candidate_string_inst, DependencyType::DATA_READ, dep_insts_on_string_inst);
   for (Instruction* i : dep_insts_on_string_inst)
   {
     if (LoadInst *li = dyn_cast<LoadInst>(i))
     {
       std::set<Instruction*> intra_func_users;
-      PDG->GetDepInstsWithDepType(li, DependencyType::DATA_DEF_USE, intra_func_users);
+      PDG->getDepInstsWithDepType(li, DependencyType::DATA_DEF_USE, intra_func_users);
       for (Instruction* intra_func_user : intra_func_users)
       {
         CallSite CS(intra_func_user);
@@ -416,7 +416,7 @@ void pdg::AccessInfoTracker::computeSharedData()
       std::set<std::string> kernel_access_func_names;
       std::set<std::string> driver_access_func_names;
       // get valdep pair, and check for intraprocedural accesses
-      auto valDepPairList = PDG->GetNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+      auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
       bool accessInKernel = false;
       bool accessInDriver = false;
       AccessType nodeAccessTy = AccessType::NOACCESS;
@@ -529,7 +529,7 @@ void pdg::AccessInfoTracker::computeIntraprocArgAccessInfo(ArgumentWrapper *argW
     }
 
     // get valdep pair, and check for intraprocedural accesses
-    auto valDepPairList = PDG->GetNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+    auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
     for (auto valDepPair : valDepPairList)
     {
       auto dataW = valDepPair.first->getData();
@@ -558,12 +558,12 @@ void pdg::AccessInfoTracker::computeInterprocArgAccessInfo(ArgumentWrapper *argW
       auto parentI = tree<InstructionWrapper *>::parent(treeI);
       parentNodeDIType = (*parentI)->getDIType();
     }
-    auto valDepPairList = PDG->GetNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+    auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
     for (auto valDepPair : valDepPairList)
     {
       auto dataW = valDepPair.first->getData();
       // compute interprocedural access info in the receiver domain
-      auto depNodePairs = PDG->GetNodesWithDepType(dataW, DependencyType::DATA_CALL_PARA);
+      auto depNodePairs = PDG->getNodesWithDepType(dataW, DependencyType::DATA_CALL_PARA);
       for (auto depNodePair : depNodePairs)
       {
         // check if the struct or some of its fields are passed through function calls
@@ -830,7 +830,7 @@ void pdg::AccessInfoTracker::computeGlobalVarsAccessInfo()
       }
 
       // get valdep pair, and check for intraprocedural accesses
-      auto valDepPairList = PDG->GetNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+      auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
       for (auto valDepPair : valDepPairList)
       {
         auto dataW = valDepPair.first->getData();
@@ -1102,16 +1102,6 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
 
     // collecting stats
     collectKSplitStats(arg_di_type, annotation_str);
-    // if (DIUtils::isPointerType(arg_di_type))
-    //   ksplit_stats_collector.IncreaseNumberOfPointer();
-    // if (DIUtils::isCharPointer(arg_di_type))
-    //   ksplit_stats_collector.IncreaseNumberOfCharPointer();
-    // if (annotation_str.find("string") != std::string::npos)
-    //   ksplit_stats_collector.IncreaseNumberOfString();
-    // if (DIUtils::isUnionTy(arg_lowest_di_type))
-    //   ksplit_stats_collector.IncreaseNumberOfUnion();
-    // if (DIUtils::isSentinelType(arg_lowest_di_type))
-    //   ksplit_stats_collector.IncreaseNumberOfSentinelArray();
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !arg_name.empty())
       idl_file << ", ";
   }
@@ -1375,7 +1365,7 @@ void pdg::AccessInfoTracker::generateProjectionForGlobalVarInFunc(tree<Instructi
     if (!isFieldAccess || isPrivateField)
       continue;
     // also check if this field is accessed in the target function
-    auto treeNodeDepPairs = PDG->GetNodesWithDepType(*childI, DependencyType::VAL_DEP);
+    auto treeNodeDepPairs = PDG->getNodesWithDepType(*childI, DependencyType::VAL_DEP);
     bool accessedInTargetFunc = false;
     for (auto depPair : treeNodeDepPairs)
     {
@@ -1600,9 +1590,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       else
       {
         if (!field_name.empty())
-        {
           OS << field_indent_level << type_name << " " << field_annotation << " " << field_name << ";\n";
-        }
       }
     }
     // collect union number stats
@@ -1805,7 +1793,7 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
 
   // obtain address variables for a tree node
   // analyze the accesses to the address variable
-  auto addr_var_wrappers = PDG->GetDepInstWrapperWithDepType(*tree_node_iter, DependencyType::VAL_DEP);
+  auto addr_var_wrappers = PDG->getDepInstWrapperWithDepType(*tree_node_iter, DependencyType::VAL_DEP);
   for (auto addr_var_w : addr_var_wrappers)
   {
     // first infer the access type for the tree node
@@ -1816,14 +1804,14 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
     assert(addr_var_inst != nullptr && "cannot analyze nullptr address var");
     std::set<Instruction *> user_insts_on_addr_var;
     // start infering string / alloc(caller) annotation
-    PDG->GetDepInstsWithDepType(addr_var_inst, DependencyType::DATA_DEF_USE, user_insts_on_addr_var);
+    PDG->getDepInstsWithDepType(addr_var_inst, DependencyType::DATA_DEF_USE, user_insts_on_addr_var);
     for (auto user_inst : user_insts_on_addr_var)
     {
       if (LoadInst *li = dyn_cast<LoadInst>(user_inst))
       {
         // case 1: if address variable is directly accessed, check if it is used in string operations.
         std::set<Instruction *> dep_insts_on_li;
-        PDG->GetDepInstsWithDepType(li, DependencyType::DATA_DEF_USE, dep_insts_on_li);
+        PDG->getDepInstsWithDepType(li, DependencyType::DATA_DEF_USE, dep_insts_on_li);
         if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
         {
           annotations.insert("[string]");
@@ -1849,7 +1837,7 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
         if (annotations.find("string") == annotations.end()) // if the string annotation is already inffered in current function, there is no need to infer string annotation in the callee
         {
           std::set<Instruction *> call_insts_on_li;
-          PDG->GetDepInstsWithDepType(li, DependencyType::DATA_CALL_PARA, call_insts_on_li);
+          PDG->getDepInstsWithDepType(li, DependencyType::DATA_CALL_PARA, call_insts_on_li);
           for (auto call_inst_on_li : call_insts_on_li)
           {
             CallSite CS(call_inst_on_li);
@@ -2027,7 +2015,7 @@ std::set<std::string> pdg::AccessInfoTracker::computeAccessedFieldsForDIType(tre
     }
 
     // get valdep pair, and check for intraprocedural accesses
-    auto valDepPairList = PDG->GetNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+    auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
     for (auto valDepPair : valDepPairList)
     {
       auto dataW = valDepPair.first->getData();
@@ -2123,7 +2111,9 @@ void pdg::AccessInfoTracker::collectKSplitStats(DIType* dt, std::string annotati
   if (annotation_str.find("string") != std::string::npos)
     ksplit_stats_collector.IncreaseNumberOfString();
   if (DIUtils::isUnionTy(lowest_dt))
+  {
     ksplit_stats_collector.IncreaseNumberOfUnion();
+  }
   if (DIUtils::isSentinelType(lowest_dt))
     ksplit_stats_collector.IncreaseNumberOfSentinelArray();
 }

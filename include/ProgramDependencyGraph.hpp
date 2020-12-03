@@ -51,8 +51,8 @@ public:
   void buildTypeTreeWithDI(llvm::Argument &arg, InstructionWrapper *treeTyW, TreeType TreeType, llvm::DIType *argDIType);
   void buildGlobalTypeTrees(std::set<llvm::DIType *> sharedTypes);
   void buildGlobalTypeTreeForDIType(llvm::DIType &DI);
-  void CollectInstsWithDIType(std::set<llvm::Function *> &search_domain);
-  void connectGlobalTypeTreeWithAddressVars(std::set<llvm::Function *> &searchDomain);
+  void collectInstsWithDIType(std::set<llvm::Function *> &search_domain);
+  void connectGlobalTypeTreeWithAddressVars();
   void drawFormalParameterTree(llvm::Function *Func, TreeType treeTy);
   void connectFunctionAndFormalTrees(llvm::Function *callee);
   void connectTreeNodeWithAddrVars(ArgumentWrapper* argW);
@@ -86,9 +86,9 @@ public:
   std::vector<DependencyNode<InstructionWrapper> *> getNodeSet() { return PDG->getNodeSet(); }
   DependencyGraph<InstructionWrapper> *_getPDG() { return PDG; }
   typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodeDepList(llvm::Instruction *inst);
-  typename DependencyNode<InstructionWrapper>::DependencyLinkList GetNodesWithDepType(const InstructionWrapper* instW, DependencyType depType);
-  std::set<InstructionWrapper *> GetDepInstWrapperWithDepType(const InstructionWrapper *instW, DependencyType depType);
-  void GetDepInstsWithDepType(llvm::Instruction *source_inst, DependencyType target_dep_type, std::set<llvm::Instruction *> &dep_insts);
+  typename DependencyNode<InstructionWrapper>::DependencyLinkList getNodesWithDepType(const InstructionWrapper* instW, DependencyType depType);
+  std::set<InstructionWrapper *> getDepInstWrapperWithDepType(const InstructionWrapper *instW, DependencyType depType);
+  void getDepInstsWithDepType(llvm::Instruction *source_inst, DependencyType target_dep_type, std::set<llvm::Instruction *> &dep_insts);
   llvm::Function *getCalledFunction(llvm::CallInst *CI);
   bool isFuncPointer(llvm::Type *ty);
   bool isStructPointer(llvm::Type *ty);

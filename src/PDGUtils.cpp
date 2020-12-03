@@ -339,7 +339,6 @@ std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
   // driver side functions
   // cross-domain function from kernel to driver
   std::ifstream static_func("static_func.txt");
-  unsigned callBackFuncNum = 0;
   for (std::string line; std::getline(static_func, line);)
   {
     Function *f = M.getFunction(StringRef(line));
@@ -348,7 +347,6 @@ std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
     if (f->isDeclaration() || f->empty() || blackListFuncs.find(f->getName()) != blackListFuncs.end())
       continue;
     crossDomainFuncs.insert(f);
-    callBackFuncNum++;
   }
   static_func.close();
 
@@ -406,59 +404,6 @@ void pdg::PDGUtils::computeCrossDomainTransFuncs(Module &M, std::set<Function *>
     crossDomainTransFuncs.insert(transFuncs.begin(), transFuncs.end());
   }
 }
-
-// std::set<Function *> pdg::PDGUtils::computeAsyncFuncs(Module &M)
-// {
-//   auto crossDomainFuncs = computeCrossDomainFuncs(M);
-//   auto kernelDomainFuncs = computeKernelDomainFuncs(M);
-//   auto driverDomainFuncs = computeDriverDomainFuncs(M);
-//   auto driverExportFuncPtrNameMap = computeDriverExportFuncPtrNameMap();
-//   std::set<Function *> asynCalls;
-//   // interate through all call instructions and determine all the possible call targets.
-//   std::set<Function *> calledFuncs;
-//   for (Function &F : M)
-//   {
-//     if (F.isDeclaration() || F.empty())
-//       continue;
-//     auto funcW = G_funcMap[&F];
-//     auto callInstList = funcW->getCallInstList();
-//     for (auto callInst : callInstList)
-//     {
-//       Function *calledFunc = dyn_cast<Function>(callInst->getCalledValue()->stripPointerCasts());
-//       // direct call
-//       if (calledFunc != nullptr)
-//         calledFuncs.insert(calledFunc);
-//     }
-//   }
-
-//   // driver export functions, assume to be called from kernel to driver
-//   for (auto pair : driverExportFuncPtrNameMap)
-//   {
-//     Function *f = M.getFunction(pair.first);
-//     if (f != nullptr)
-//       calledFuncs.insert(f);
-//   }
-
-//   // determien if transitive closure of uncalled functions contains cross-domain functions
-//   std::set<Function *> searchDomain;
-//   searchDomain.insert(kernelDomainFuncs.begin(), kernelDomainFuncs.end());
-//   searchDomain.insert(driverDomainFuncs.begin(), driverDomainFuncs.end());
-//   for (auto &F : M)
-//   {
-//     if (F.isDeclaration() || F.empty())
-//       continue;
-//     if (calledFuncs.find(&F) != calledFuncs.end())
-//       continue;
-//     if (F.getName().find("init_module") != std::string::npos || F.getName().find("cleanup_module") != std::string::npos)
-//       continue;
-//     std::set<Function *> transitiveFuncs = getTransitiveClosureInDomain(F, searchDomain);
-//     for (auto f : transitiveFuncs)
-//     {
-//       asynCalls.insert(f);
-//     }
-//   }
-//   return asynCalls;
-// }
 
 std::set<CallSite> pdg::PDGUtils::computeFunctionCallSites(Function& F)
 {
