@@ -63,6 +63,7 @@ pdg::KSplitStatsCollector::KSplitStatsCollector()
 void pdg::KSplitStatsCollector::PrintAllStats()
 {
   PrintKernelIdiomStats();
+  PrintKernelIdiomSharedStats();
   PrintProjectionStats();
   PrintAtomicRegionStats();
 }

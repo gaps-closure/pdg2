@@ -69,6 +69,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   log_file.close();
   ksplit_stats_collector.PrintProjectionStats();
   ksplit_stats_collector.PrintKernelIdiomStats();
+  ksplit_stats_collector.PrintKernelIdiomSharedStats();
   return false;
 }
 
@@ -1593,10 +1594,6 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     }
     // collect union number stats
     collectKSplitSharedStats(struct_di_type, struct_field_di_type, field_annotation);
-    if (DIUtils::isVoidPointer(struct_field_di_type))
-    {
-      ksplit_stats_collector.IncreaseNumberOfUnhandledVoidPointer();
-    }
   }
 }
 
@@ -2129,7 +2126,11 @@ void pdg::AccessInfoTracker::collectKSplitSharedStats(DIType* struct_di_type, DI
   if (DIUtils::isPointerType(struct_field_di_type))
     ksplit_stats_collector.IncreaseNumberOfPointerOp();
   if (DIUtils::isVoidPointer(struct_field_di_type))
+  {
     ksplit_stats_collector.IncreaseNumberOfVoidPointerOp();
+    if (struct_di_type == nullptr)
+      ksplit_stats_collector.IncreaseNumberOfUnhandledVoidPointer();
+  }
   if (DIUtils::isArrayType(struct_field_di_type))
     ksplit_stats_collector.IncreaseNumberOfArrayOp();
   if (annotation_str.find("string") != std::string::npos)
