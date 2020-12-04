@@ -394,14 +394,14 @@ void pdg::AccessInfoTracker::computeSharedData()
     // iterate through each node, find their addr variables and then analyze the accesses to the addr variables
     for (auto treeI = typeTree.begin(); treeI != typeTree.end(); ++treeI)
     {
-      DIType *fieldDIType = (*treeI)->getDIType();
+      DIType *field_di_type = (*treeI)->getDIType();
       DIType *parentDIType = nullptr;
       if (tree<InstructionWrapper *>::depth(treeI) > 0)
       {
         auto parentI = tree<InstructionWrapper *>::parent(treeI);
         parentDIType = (*parentI)->getDIType();
       }
-      std::string fieldID = DIUtils::computeFieldID(parentDIType, fieldDIType);
+      std::string fieldID = DIUtils::computeFieldID(parentDIType, field_di_type);
       // hanlde static defined functions, assume all functions poineter that are linked with defined function in device driver module should be used by kernel.
       if (DIUtils::isFuncPointerTy((*treeI)->getDIType()))
       {
@@ -445,7 +445,10 @@ void pdg::AccessInfoTracker::computeSharedData()
         
         // here, we also collect string type field on the fly
         if (IsUsedInStrOps(dataW))
-          global_string_struct_fields_.insert(fieldID);
+        {
+          if (DIUtils::isCharPointer(field_di_type))
+            global_string_struct_fields_.insert(fieldID);
+        }
 
         if (IsUsedInMemOps(dataW))
           global_array_fields_.insert(fieldID);
@@ -1779,6 +1782,73 @@ std::string pdg::AccessInfoTracker::ComputeNodeAnnotationStr(tree<InstructionWra
   return annotation_str;
 }
 
+std::string pdg::AccessInfoTracker::inferTreeNodeStringAnnotation(tree<InstructionWrapper *>::iterator tree_node_iter, std::set<Function*> &visited_funcs)
+{
+  auto &pdgUtils = PDGUtils::getInstance();
+  auto funcMap = pdgUtils.getFuncMap();
+  auto parent_node_iter = getParentIter(tree_node_iter);
+  DIType* tree_node_di_type = (*tree_node_iter)->getDIType();
+  DIType* parent_node_di_type = (*parent_node_iter)->getDIType();
+  std::string fieldID = DIUtils::computeFieldID(parent_node_di_type, tree_node_di_type);
+  if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
+    return "[string]";
+  auto addr_var_wrappers = PDG->getDepInstWrapperWithDepType(*tree_node_iter, DependencyType::VAL_DEP);
+  for (auto addr_var_w : addr_var_wrappers)
+  {
+    if (!DIUtils::isCharPointer(tree_node_di_type))
+      continue;
+    std::set<Instruction *> dep_insts_on_addr_var;
+    PDG->getDepInstsWithDepType(addr_var_w->getInstruction(), DependencyType::DATA_CALL_PARA, dep_insts_on_addr_var);
+    for (Instruction *dep_inst : dep_insts_on_addr_var)
+    {
+      CallSite CS(dep_inst);
+      if (!CS.isCall() || CS.isIndirectCall())
+        continue;
+      if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
+      {
+        std::string called_func_name = called_func->getName();
+        if (IsStringOps(called_func_name))
+          return "[string]";
+      }
+    }
+
+    std::set<Instruction *> call_insts_w_on_addr_var;
+    PDG->getDepInstsWithDepType(addr_var_w->getInstruction(), DependencyType::DATA_CALL_PARA, call_insts_w_on_addr_var);
+    for (auto call_inst : call_insts_w_on_addr_var)
+    {
+      if (call_inst == nullptr)
+        continue;
+      CallSite CS(call_inst);
+      if (!CS.isCall() || CS.isIndirectCall())
+        continue;
+      if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
+      {
+        if (called_func->isDeclaration())
+          continue;
+        // avoid recursive calls
+        if (visited_funcs.find(called_func) != visited_funcs.end())
+          continue;
+        visited_funcs.insert(called_func);
+        Argument *arg = (*tree_node_iter)->getArgument();
+        if (arg == nullptr)
+          continue;
+        auto func_w = funcMap[called_func];
+        if (!func_w->hasTrees())
+          continue;
+        unsigned argIdx = arg->getArgNo();
+        auto callee_arg_w = func_w->getArgWByIdx(argIdx);
+        if (callee_arg_w == nullptr) // this could happen for varidic function
+          continue;
+        auto callee_arg_tree_begin = callee_arg_w->tree_begin(TreeType::FORMAL_IN_TREE);
+        if (callee_arg_tree_begin == callee_arg_w->tree_end(TreeType::FORMAL_IN_TREE))
+          continue;
+        return inferTreeNodeStringAnnotation(callee_arg_tree_begin, visited_funcs);
+      }
+    }
+  }
+  return "";
+}
+
 void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>::iterator tree_node_iter, std::set<std::string> &annotations, std::set<Function *> &visited_funcs)
 {
   auto &pdgUtils = PDGUtils::getInstance();
@@ -1787,13 +1857,12 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
   auto parent_node_iter = getParentIter(tree_node_iter);
   // compute field id
   DIType* tree_node_di_type = (*tree_node_iter)->getDIType();
-  DIType* parent_node_di_type = (*parent_node_iter)->getDIType();
-  std::string fieldID = DIUtils::computeFieldID(parent_node_di_type, tree_node_di_type);
-  // infer string attributes for struct field
-
+  std::string string_annotation = inferTreeNodeStringAnnotation(tree_node_iter, visited_funcs);
+  if (!string_annotation.empty())
+    annotations.insert(string_annotation);
   // obtain address variables for a tree node
-  // analyze the accesses to the address variable
   auto addr_var_wrappers = PDG->getDepInstWrapperWithDepType(*tree_node_iter, DependencyType::VAL_DEP);
+  // analyze the accesses to the address variable
   for (auto addr_var_w : addr_var_wrappers)
   {
     // first infer the access type for the tree node
@@ -1802,74 +1871,11 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
       annotations.insert("[out]");
     auto addr_var_inst = addr_var_w->getInstruction();
     assert(addr_var_inst != nullptr && "cannot analyze nullptr address var");
-    std::set<Instruction *> user_insts_on_addr_var;
     // start infering string / alloc(caller) annotation
+    std::set<Instruction *> user_insts_on_addr_var;
     PDG->getDepInstsWithDepType(addr_var_inst, DependencyType::DATA_DEF_USE, user_insts_on_addr_var);
     for (auto user_inst : user_insts_on_addr_var)
     {
-      if (LoadInst *li = dyn_cast<LoadInst>(user_inst))
-      {
-        // case 1: if address variable is directly accessed, check if it is used in string operations.
-        std::set<Instruction *> dep_insts_on_li;
-        PDG->getDepInstsWithDepType(li, DependencyType::DATA_DEF_USE, dep_insts_on_li);
-        if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
-        {
-          annotations.insert("[string]");
-        }
-        else
-        {
-          if (!DIUtils::isCharPointer(tree_node_di_type))
-            continue;
-          for (Instruction *dep_inst : dep_insts_on_li)
-          {
-            CallSite CS(dep_inst);
-            if (!CS.isCall() || CS.isIndirectCall())
-              continue;
-            if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
-            {
-              std::string called_func_name = called_func->getName();
-              if (IsStringOps(called_func_name))
-                annotations.insert("[string]");
-            }
-          }
-        }
-        // case 2: if address variable is passed to other function, need to infer the node annotation in the callee, and return an annotation if there is any.
-        if (annotations.find("string") == annotations.end()) // if the string annotation is already inffered in current function, there is no need to infer string annotation in the callee
-        {
-          std::set<Instruction *> call_insts_on_li;
-          PDG->getDepInstsWithDepType(li, DependencyType::DATA_CALL_PARA, call_insts_on_li);
-          for (auto call_inst_on_li : call_insts_on_li)
-          {
-            CallSite CS(call_inst_on_li);
-            if (!CS.isCall() || CS.isIndirectCall())
-              continue;
-            if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
-            {
-              if (called_func->isDeclaration())
-                continue;
-              // avoid recursive calls
-              if (visited_funcs.find(called_func) != visited_funcs.end())
-                continue;
-              visited_funcs.insert(called_func);
-              Argument *arg = (*tree_node_iter)->getArgument();
-              if (arg == nullptr)
-                continue;
-              auto func_w = funcMap[called_func];
-              if (!func_w->hasTrees())
-                continue;
-              unsigned argIdx = arg->getArgNo();
-              auto callee_arg_w = func_w->getArgWByIdx(argIdx);
-              if (callee_arg_w == nullptr) // this could happen for varidic function
-                continue;
-              auto callee_arg_tree_begin = callee_arg_w->tree_begin(TreeType::FORMAL_IN_TREE);
-              if (callee_arg_tree_begin == callee_arg_w->tree_end(TreeType::FORMAL_IN_TREE))
-                continue;
-              InferTreeNodeAnnotation(callee_arg_tree_begin, annotations, visited_funcs);
-            }
-          }
-        }
-      }
-
       if (StoreInst *si = dyn_cast<StoreInst>(user_inst))
       {
         if (si->getPointerOperand() != addr_var_inst)
