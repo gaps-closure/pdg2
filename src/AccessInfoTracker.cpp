@@ -1013,7 +1013,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     ret_type_name = "projection ret_" + ret_type_name;
     std::string ret_annotation = getReturnValAnnotationStr(F);
     ret_type_name += ret_annotation;
-    collectKSplitStats(func_ret_di_type, ret_annotation);
+    collectKSplitStats(nullptr, func_ret_di_type, ret_annotation);
   }
   // swap the function name with its registered function pointer to align with the IDL syntax
   std::string func_name = F.getName().str();
@@ -1108,7 +1108,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     // collecting stats
     if (DIUtils::isSentinelType(arg_lowest_di_type))
       log_file << "sentinel: " << arg_name << " - " << func_name << "\n";
-    collectKSplitStats(arg_di_type, annotation_str);
+    collectKSplitStats(nullptr, arg_di_type, annotation_str);
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !arg_name.empty())
       idl_file << ", ";
   }
@@ -1598,7 +1598,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       }
     }
     // collect union number stats
-    collectKSplitStats(struct_field_di_type, field_annotation);
+    collectKSplitStats(struct_di_type, struct_field_di_type, field_annotation);
     if (DIUtils::isVoidPointer(struct_field_di_type))
     {
       ksplit_stats_collector.IncreaseNumberOfUnhandledVoidPointer();
@@ -1645,26 +1645,26 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
     if (treeI == argW->tree_end(TreeType::FORMAL_IN_TREE))
       continue;
     
-    // append child node needs projection to queue
-    for (int i = 0; i < tree<InstructionWrapper *>::number_of_children(treeI); ++i)
-    {
-      auto childI = tree<InstructionWrapper *>::child(treeI, i);
-      bool isAccessed = ((*childI)->getAccessType() != AccessType::NOACCESS);
-      if (!isAccessed)
-        continue;
-      // if child field is struct or pointer to struct, we need to generate projection for it
-      auto struct_field_di_type = (*childI)->getDIType();
-      auto struct_field_lowest_di_type = DIUtils::getLowestDIType(struct_field_di_type);
-      // The current struct should always be struct or union pointer, since we don't compute shared data for union using type, we only check if a 
-      if (!DIUtils::isPointerToProjectableTy(current_struct_di_type))
-      {
-        if (SHARED_DATA_FLAG)
-        {
-          if (!isChildFieldShared(current_struct_di_type, struct_field_di_type) && !is_func_ptr_export_from_driver)
-            continue;
-        }
-      }
-    }
+    // // append child node needs projection to queue
+    // for (int i = 0; i < tree<InstructionWrapper *>::number_of_children(treeI); ++i)
+    // {
+    //   auto childI = tree<InstructionWrapper *>::child(treeI, i);
+    //   bool isAccessed = ((*childI)->getAccessType() != AccessType::NOACCESS);
+    //   if (!isAccessed)
+    //     continue;
+    //   // if child field is struct or pointer to struct, we need to generate projection for it
+    //   auto struct_field_di_type = (*childI)->getDIType();
+    //   auto struct_field_lowest_di_type = DIUtils::getLowestDIType(struct_field_di_type);
+    //   // The current struct should always be struct or union pointer, since we don't compute shared data for union using type, we only check if a 
+    //   if (!DIUtils::isPointerToProjectableTy(current_struct_di_type))
+    //   {
+    //     if (SHARED_DATA_FLAG)
+    //     {
+    //       if (!isChildFieldShared(current_struct_di_type, struct_field_di_type) && !is_func_ptr_export_from_driver)
+    //         continue;
+    //     }
+    //   }
+    // }
 
     // No projection is needed for pointer. Only for the underlying object
     // if (DIUtils::isStructPointerTy(current_struct_di_type))
@@ -1679,9 +1679,6 @@ void pdg::AccessInfoTracker::generateIDLforArg(ArgumentWrapper *argW)
       auto parentI = getParentIter(treeI);
       projectionReferenceName = DIUtils::getDIFieldName((*parentI)->getDIType());
     }
-
-    if (treeI == argW->tree_end(TreeType::FORMAL_IN_TREE))
-      continue;
     // naming for struct field
     if (!pdgUtils.isRootNode(treeI))
     {
@@ -2096,32 +2093,36 @@ bool pdg::AccessInfoTracker::IsFuncPtrExportFromDriver(std::string func_name)
   return driverExportFuncPtrNameMap.find(func_name) != driverExportFuncPtrNameMap.end();
 }
 
-void pdg::AccessInfoTracker::collectKSplitStats(DIType* dt, std::string annotation_str)
+void pdg::AccessInfoTracker::collectKSplitStats(DIType* struct_di_type, DIType* struct_field_di_type, std::string annotation_str)
 {
-  if (dt == nullptr)
+  if (struct_field_di_type == nullptr)
     return;
   auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
-  DIType* lowest_dt = DIUtils::getLowestDIType(dt);
-  if (DIUtils::isPointerType(dt))
+  DIType* struct_lowest_di_type = DIUtils::getLowestDIType(struct_di_type);
+  DIType* struct_field_lowest_di_type = DIUtils::getLowestDIType(struct_field_di_type);
+  if (DIUtils::isPointerType(struct_field_di_type))
     ksplit_stats_collector.IncreaseNumberOfPointer();
-  if (DIUtils::isCharPointer(dt))
+  if (DIUtils::isCharPointer(struct_field_di_type))
     ksplit_stats_collector.IncreaseNumberOfCharPointer();
-  if (DIUtils::isVoidPointer(dt))
+  if (DIUtils::isVoidPointer(struct_field_di_type))
     ksplit_stats_collector.IncreaseNumberOfVoidPointer();
-  if (DIUtils::isArrayType(dt))
+  if (DIUtils::isArrayType(struct_field_di_type))
   {
     ksplit_stats_collector.IncreaseNumberOfArray();
-    if (DIUtils::isCharArray(dt))
+    if (DIUtils::isCharArray(struct_field_di_type))
       ksplit_stats_collector.IncreaseNumberOfCharArray();
   }
   if (annotation_str.find("string") != std::string::npos)
     ksplit_stats_collector.IncreaseNumberOfString();
-  if (DIUtils::isUnionTy(lowest_dt))
+  if (DIUtils::isUnionTy(struct_field_lowest_di_type))
   {
     ksplit_stats_collector.IncreaseNumberOfUnion();
   }
-  if (DIUtils::isSentinelType(lowest_dt))
-    ksplit_stats_collector.IncreaseNumberOfSentinelArray();
+  if (DIUtils::isSentinelType(struct_field_lowest_di_type))
+  {
+    if (struct_lowest_di_type != struct_field_lowest_di_type)
+      ksplit_stats_collector.IncreaseNumberOfSentinelArray();
+  }
 }
 
 static RegisterPass<pdg::AccessInfoTracker>
