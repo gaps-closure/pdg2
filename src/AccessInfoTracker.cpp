@@ -1735,7 +1735,7 @@ bool pdg::AccessInfoTracker::IsStringOps(std::string func_name)
   func_name = pdgUtils.StripFuncnameVersionNumber(func_name);
   for (auto str_op_name : stringOperations)
   {
-    if (func_name.find(str_op_name) != std::string::npos)
+    if (func_name.compare(str_op_name) == 0)
       return true;
   }
   return false;
@@ -1786,17 +1786,19 @@ std::string pdg::AccessInfoTracker::inferTreeNodeStringAnnotation(tree<Instructi
 {
   auto &pdgUtils = PDGUtils::getInstance();
   auto funcMap = pdgUtils.getFuncMap();
+  auto instMap = pdgUtils.getInstMap();
   auto parent_node_iter = getParentIter(tree_node_iter);
   DIType* tree_node_di_type = (*tree_node_iter)->getDIType();
   DIType* parent_node_di_type = (*parent_node_iter)->getDIType();
   std::string fieldID = DIUtils::computeFieldID(parent_node_di_type, tree_node_di_type);
   if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
     return "[string]";
-  auto addr_var_wrappers = PDG->getDepInstWrapperWithDepType(*tree_node_iter, DependencyType::VAL_DEP);
-  for (auto addr_var_w : addr_var_wrappers)
+  auto addr_var_ws= PDG->getDepInstWrapperWithDepType(*tree_node_iter, DependencyType::VAL_DEP);
+  for (auto addr_var_w : addr_var_ws)
   {
     if (!DIUtils::isCharPointer(tree_node_di_type))
       continue;
+    Instruction* addr_var_inst = addr_var_w->getInstruction();
     std::set<Instruction *> dep_insts_on_addr_var;
     PDG->getDepInstsWithDepType(addr_var_w->getInstruction(), DependencyType::DATA_CALL_PARA, dep_insts_on_addr_var);
     for (Instruction *dep_inst : dep_insts_on_addr_var)
@@ -1825,17 +1827,14 @@ std::string pdg::AccessInfoTracker::inferTreeNodeStringAnnotation(tree<Instructi
       {
         if (called_func->isDeclaration())
           continue;
+        auto func_w = funcMap[called_func];
+        if (!func_w->hasTrees())
+          continue;
         // avoid recursive calls
         if (visited_funcs.find(called_func) != visited_funcs.end())
           continue;
         visited_funcs.insert(called_func);
-        Argument *arg = (*tree_node_iter)->getArgument();
-        if (arg == nullptr)
-          continue;
-        auto func_w = funcMap[called_func];
-        if (!func_w->hasTrees())
-          continue;
-        unsigned argIdx = arg->getArgNo();
+        unsigned argIdx = getCallParamIdx(instMap[addr_var_inst], instMap[call_inst]);
         auto callee_arg_w = func_w->getArgWByIdx(argIdx);
         if (callee_arg_w == nullptr) // this could happen for varidic function
           continue;
