@@ -436,9 +436,15 @@ void pdg::AccessInfoTracker::computeSharedData()
           {
             Function *f = inst->getFunction();
             if (driver_domain_funcs_.find(f) != driver_domain_funcs_.end())
+            {
+              driver_access_func_names.insert(f->getName().str());
               accessInDriver = true;
+            }
             if (kernel_domain_funcs_.find(f) != kernel_domain_funcs_.end())
+            {
+              kernel_access_func_names.insert(f->getName().str());
               accessInKernel = true;
+            }
           }
           if (accType == AccessType::WRITE)
             nodeAccessTy = AccessType::WRITE;
@@ -463,6 +469,21 @@ void pdg::AccessInfoTracker::computeSharedData()
       // if a field is not shared, continue to next tree node
       if (!accessInDriver || !accessInKernel)
         continue;
+
+      log_file << "field ID: " << fieldID << "\n";
+      log_file << "\t driver funcs: ";
+      for (auto func_name : driver_access_func_names)
+      {
+        log_file << func_name << ",  ";
+      }
+      log_file << "\n";
+      log_file << "\t kernel funcs: ";
+      for (auto func_name : kernel_access_func_names)
+      {
+        log_file << func_name << ",  ";
+      }
+      log_file << "\n";
+
 
       TreeTypeWrapper *treeW = static_cast<TreeTypeWrapper *>(const_cast<InstructionWrapper *>(*treeI));
       treeW->setShared(true);
@@ -1107,8 +1128,8 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       idl_file << DIUtils::getArgTypeName(arg) << " " << arg_name;
 
     // collecting stats
-    if (DIUtils::isSentinelType(arg_lowest_di_type))
-      log_file << "sentinel: " << arg_name << " - " << func_name << "\n";
+    // if (DIUtils::isSentinelType(arg_lowest_di_type))
+    //   log_file << "sentinel: " << arg_name << " - " << func_name << "\n";
     collectKSplitStats(nullptr, arg_di_type, annotation_str);
     collectKSplitSharedStats(nullptr, arg_di_type, annotation_str);
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !arg_name.empty())
@@ -1530,8 +1551,8 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       std::string struct_raw_type_name = DIUtils::getRawDITypeName(struct_di_type);
       // if a struct field is a linked list, we check if the parent is the same type. If not, we increase
       // the number of found sentinel array. Otherwise, avoid repeat counting.
-      if (DIUtils::isSentinelType(struct_field_lowest_di_type))
-        log_file << "sentinel: " << " - " << arg_name << " - " << struct_field_name << " - " << func_name << "\n";
+      // if (DIUtils::isSentinelType(struct_field_lowest_di_type))
+      //   log_file << "sentinel: " << " - " << arg_name << " - " << struct_field_name << " - " << func_name << "\n";
       pointer_queue.push(childI);
     }
     else if (DIUtils::isProjectableTy(struct_field_di_type))
@@ -1564,8 +1585,8 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
            << struct_field_name 
            <<";\n";
       }
-      if (DIUtils::isSentinelType(struct_field_lowest_di_type))
-        log_file << "sentinel: " << " - " << arg_name << " - " << struct_field_name << " - " << func_name << "\n";
+      // if (DIUtils::isSentinelType(struct_field_lowest_di_type))
+      //   log_file << "sentinel: " << " - " << arg_name << " - " << struct_field_name << " - " << func_name << "\n";
     }
     else
     {
@@ -2128,7 +2149,7 @@ void pdg::AccessInfoTracker::collectKSplitSharedStats(DIType* struct_di_type, DI
   if (DIUtils::isVoidPointer(struct_field_di_type))
   {
     ksplit_stats_collector.IncreaseNumberOfVoidPointerOp();
-    if (struct_di_type == nullptr)
+    if (struct_di_type != nullptr)
       ksplit_stats_collector.IncreaseNumberOfUnhandledVoidPointer();
   }
   if (DIUtils::isArrayType(struct_field_di_type))
