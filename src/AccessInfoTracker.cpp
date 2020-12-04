@@ -28,6 +28,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   setupAllocatorWrappers();
   setupDeallocatorWrappers();
   globalOpsStr = "";
+  log_file.open("analysis_log");
   // start generating IDL
   std::string file_name = "kernel";
   file_name += ".idl";
@@ -65,6 +66,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   idl_file << globalOpsStr << "\n";
   idl_file << "}";
   idl_file.close();
+  log_file.close();
   ksplit_stats_collector.PrintProjectionStats();
   ksplit_stats_collector.PrintKernelIdiomStats();
   return false;
@@ -1104,6 +1106,8 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       idl_file << DIUtils::getArgTypeName(arg) << " " << arg_name;
 
     // collecting stats
+    if (DIUtils::isSentinelType(arg_lowest_di_type))
+      log_file << "sentinel: " << arg_name << "-" << func_name << "\n";
     collectKSplitStats(arg_di_type, annotation_str);
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !arg_name.empty())
       idl_file << ", ";
@@ -1489,7 +1493,6 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     }
     ksplit_stats_collector.IncreaseNumberOfProjectedField();
     std::string field_annotation = ComputeNodeAnnotationStr(childI);
-    bool is_field_sentinel_type = false;
     // start generaeting IDL for each field
     if (DIUtils::isFuncPointerTy(struct_field_lowest_di_type))
     {
@@ -1508,9 +1511,9 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     else if (DIUtils::isStructPointerTy(struct_field_di_type))
     {
       // for sturct pointer, we genereate a seperate projection, and insert a reference to that projection. Here, we insert the reference.
-      std::string funcName = "";
+      std::string func_name = "";
       if ((*treeI)->getFunction())
-        funcName = (*treeI)->getFunction()->getName().str();
+        func_name = (*treeI)->getFunction()->getName().str();
       std::string struct_field_raw_type_name = DIUtils::getRawDITypeName(struct_field_di_type);
       std::string struct_field_name = DIUtils::getDIFieldName(struct_field_di_type);
       pdgUtils.stripStr(struct_field_raw_type_name, "struct ");
@@ -1535,7 +1538,10 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       if (DIUtils::isSentinelType(struct_field_lowest_di_type))
       {
         if (struct_raw_type_name.compare(struct_field_raw_type_name) != 0)
-          ksplit_stats_collector.IncreaseNumberOfSentinelArray();
+        {
+          // ksplit_stats_collector.IncreaseNumberOfSentinelArray();
+          log_file << "sentinel: " << " - " << arg_name << "-" << struct_field_name << " - " << func_name << "\n";
+        }
       }
       pointer_queue.push(childI);
     }
