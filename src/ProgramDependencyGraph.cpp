@@ -2014,6 +2014,8 @@ bool pdg::ProgramDependencyGraph::isUnsafeTypeCast(Instruction *inst)
     ss << *ci;
     if (ss.str().find("union.anon") != std::string::npos)
       return false;
+    if (ss.str().find("struct.anon") != std::string::npos)
+      return false;
 
     Type* casted_type = ci->getType();
     Type* original_type = ci->getOperand(0)->getType();

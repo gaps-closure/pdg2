@@ -1535,13 +1535,9 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       if (DIUtils::isSentinelType(struct_field_lowest_di_type))
       {
         if (struct_raw_type_name.compare(struct_field_raw_type_name) != 0)
-        {
           ksplit_stats_collector.IncreaseNumberOfSentinelArray();
-          pointer_queue.push(childI);
-        }
       }
-      else
-        pointer_queue.push(childI);
+      pointer_queue.push(childI);
     }
     else if (DIUtils::isProjectableTy(struct_field_di_type))
     {
@@ -1791,13 +1787,13 @@ std::string pdg::AccessInfoTracker::inferTreeNodeStringAnnotation(tree<Instructi
   DIType* tree_node_di_type = (*tree_node_iter)->getDIType();
   DIType* parent_node_di_type = (*parent_node_iter)->getDIType();
   std::string fieldID = DIUtils::computeFieldID(parent_node_di_type, tree_node_di_type);
-  if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
-    return "[string]";
   auto addr_var_ws= PDG->getDepInstWrapperWithDepType(*tree_node_iter, DependencyType::VAL_DEP);
   for (auto addr_var_w : addr_var_ws)
   {
     if (!DIUtils::isCharPointer(tree_node_di_type))
       continue;
+    if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
+      return "[string]";
     Instruction* addr_var_inst = addr_var_w->getInstruction();
     std::set<Instruction *> dep_insts_on_addr_var;
     PDG->getDepInstsWithDepType(addr_var_w->getInstruction(), DependencyType::DATA_CALL_PARA, dep_insts_on_addr_var);

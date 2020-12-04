@@ -617,10 +617,11 @@ bool pdg::DIUtils::hasCharTag(DIType* dt)
   if (DIBasicType *dbt = dyn_cast<DIBasicType>(dt))
   {
     auto encoding = dbt->getEncoding();
-  if (encoding == dwarf::DW_ATE_unsigned_char)
-    return true;
-  if (encoding == dwarf::DW_ATE_signed_char)
-    return true;
+    if (dbt->getName().str().compare("char") != 0)
+    if (encoding == dwarf::DW_ATE_unsigned_char)
+      return true;
+    if (encoding == dwarf::DW_ATE_signed_char)
+      return true;
   }
   return false;
 }
