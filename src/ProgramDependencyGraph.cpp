@@ -116,10 +116,11 @@ void pdg::ProgramDependencyGraph::buildPDGForFunc(Function *Func)
   for (InstructionWrapper *instW : pdgUtils.getFuncInstWMap()[Func])
   {
     addNodeDependencies(instW, ddg);
-    if (isUnsafeTypeCast(instW->getInstruction()))
-    {
+    Instruction* i = instW->getInstruction();
+    if (isUnsafeTypeCast(i))
       ksplit_stats_collector.IncreaseNumberOfUnsafeCastedStructPointer();
-    }
+    if (isContainerOfGEP(i))
+      ksplit_stats_collector.IncreaseNumberOfContainerOfMacro();
   }
 
   if (!pdgUtils.getFuncMap()[Func]->hasTrees())
@@ -1785,7 +1786,7 @@ bool pdg::ProgramDependencyGraph::isGEPforBitField(GetElementPtrInst *gep)
 uint64_t pdg::ProgramDependencyGraph::getGEPOffsetInBits(StructType *structTy, GetElementPtrInst *gep)
 {
   // get the accessed struct member offset from the gep instruction
-  unsigned gepFieldOffset = getGEPAccessFieldOffset(gep);
+  int gepFieldOffset = getGEPAccessFieldOffset(gep);
   if (gepFieldOffset < 0 || gepFieldOffset >= structTy->getNumElements())
     return -1;
   // use the struct layout to figure out the offset in bits
@@ -1809,7 +1810,7 @@ uint64_t pdg::ProgramDependencyGraph::getGEPOffsetInBits(StructType *structTy, G
   return fieldOffsetInBits;
 }
 
-unsigned pdg::ProgramDependencyGraph::getGEPAccessFieldOffset(GetElementPtrInst *gep)
+int pdg::ProgramDependencyGraph::getGEPAccessFieldOffset(GetElementPtrInst *gep)
 {
   int operand_num = gep->getNumOperands();
   llvm::Value *last_idx = gep->getOperand(operand_num - 1);
@@ -2027,6 +2028,19 @@ bool pdg::ProgramDependencyGraph::isUnsafeTypeCast(Instruction *inst)
         return true;
       }
     }
+  }
+  return false;
+}
+
+bool pdg::ProgramDependencyGraph::isContainerOfGEP(Instruction* inst)
+{
+  if (inst == nullptr)
+    return false;
+  if (GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(inst))
+  {
+    int gep_offset = getGEPAccessFieldOffset(gep);
+    if (gep_offset < 0)
+      return true;
   }
   return false;
 }

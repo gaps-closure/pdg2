@@ -97,6 +97,7 @@ public:
   bool IsStoreOfAlias(llvm::StoreInst* store_inst);
   FunctionDomain computeFuncDomain(llvm::Function &F);
   void collectKSplitStats(llvm::DIType* struct_di_type, llvm::DIType* struct_field_di_type, std::string annotation_str);
+  void collectKSplitSharedStats(llvm::DIType* struct_di_type, llvm::DIType* struct_field_di_type, std::string annotation_str);
 
 private:
   ProgramDependencyGraph *PDG;

@@ -75,7 +75,7 @@ public:
   llvm::Value *getLShrOnGep(llvm::GetElementPtrInst *gep);
   bool isGEPforBitField(llvm::GetElementPtrInst *gep);
   uint64_t getGEPOffsetInBits(llvm::StructType *structTy, llvm::GetElementPtrInst *gep);
-  unsigned getGEPAccessFieldOffset(llvm::GetElementPtrInst *gep);
+  int getGEPAccessFieldOffset(llvm::GetElementPtrInst *gep);
   bool isTreeNodeGEPMatch(llvm::StructType* structTy, InstructionWrapper *treeNode, llvm::Instruction *GEP);
   bool isIndirectCallOrInlineAsm(llvm::CallInst *CI);
   bool nameMatch(std::string str1, std::string str2);
@@ -95,6 +95,7 @@ public:
   std::map<llvm::GlobalVariable*, tree<InstructionWrapper *>> getGlobalObjectTrees() { return globalObjectTrees; }
   std::map<llvm::DIType*, tree<InstructionWrapper *>> getGlobalTypeTrees() { return globalTypeTrees; }
   bool isUnsafeTypeCast(llvm::Instruction* inst);
+  bool isContainerOfGEP(llvm::Instruction* inst);
   unsigned getUnsafeTypeCastNum() { return unsafeTypeCastNum; }
 
 private:

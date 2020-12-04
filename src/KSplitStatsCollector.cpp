@@ -9,17 +9,24 @@ pdg::KSplitStatsCollector::KSplitStatsCollector()
   saved_data_size_use_projection_ = 0;
   saved_data_size_use_shared_data_ = 0;
   num_of_union_ = 0;
+  num_of_union_op_ = 0;
   num_of_anonymous_union_ = 0;
   num_of_void_pointer_ = 0;
+  num_of_void_pointer_op_ = 0;
   num_of_unhandled_void_pointer_ = 0;
   num_of_unsafe_casted_struct_pointer_ = 0;
   num_of_sentinel_array_ = 0;
+  num_of_sentinel_array_op_ = 0;
   num_of_array_ = 0;
+  num_of_array_op_ = 0;
   num_of_char_array_ = 0;
   num_of_unhandled_array_ = 0;
   num_of_string_ = 0;
+  num_of_string_op_ = 0;
   num_of_char_pointer_ = 0;
   num_of_pointer_ = 0;
+  num_of_pointer_op_ = 0;
+  num_of_container_of_macro_ = 0;
   num_of_critical_section_ = 0;
   num_of_atomic_operation_ = 0;
   num_of_shared_struct_type_ = 0;
@@ -33,6 +40,13 @@ pdg::KSplitStatsCollector::KSplitStatsCollector()
 
   kernel_idiom_stats_file.open("KernelIdiomStats", std::ios::trunc);
   if (!kernel_idiom_stats_file)
+  {
+    errs() << "error opening kernel idiom stats file\n";
+    abort();
+  }
+
+  kernel_idiom_shared_stats_file.open("KernelIdiomSharedStats", std::ios::trunc);
+  if (!kernel_idiom_shared_stats_file)
   {
     errs() << "error opening kernel idiom stats file\n";
     abort();
@@ -53,19 +67,33 @@ void pdg::KSplitStatsCollector::PrintAllStats()
   PrintAtomicRegionStats();
 }
 
+
 void pdg::KSplitStatsCollector::PrintKernelIdiomStats()
 {
   kernel_idiom_stats_file << "num of pointer: " << num_of_pointer_ << "\n";
   kernel_idiom_stats_file << "num of array: " << num_of_array_ << "\n";
-  kernel_idiom_stats_file << "num of char pointer: " << num_of_char_pointer_ << "\n";
   kernel_idiom_stats_file << "num of string: " << num_of_string_ << "\n";
-  kernel_idiom_stats_file << "num of char array: " << num_of_char_array_ << "\n";
   kernel_idiom_stats_file << "num of void pointer/unhandled: " << num_of_void_pointer_ << "[" << num_of_unhandled_void_pointer_ << "]" << "\n";
+  kernel_idiom_stats_file << "num of container_of operation: " << num_of_container_of_macro_ << "\n";
   kernel_idiom_stats_file << "num of union type data: " << num_of_union_ << "\n";
   kernel_idiom_stats_file << "num of unsafe type cast: " << num_of_unsafe_casted_struct_pointer_ << "\n";
   kernel_idiom_stats_file << "num of sential array: " << num_of_sentinel_array_ << "\n";
   kernel_idiom_stats_file << "Driver to Kernel Invocation: " << num_of_driver_to_kernel_calls_ << "\n";
   kernel_idiom_stats_file << "Kernel to Driver Invocation: " << num_of_kernel_to_driver_calls_ << "\n";
+}
+
+void pdg::KSplitStatsCollector::PrintKernelIdiomSharedStats()
+{
+  kernel_idiom_shared_stats_file << "num of pointer: " << num_of_pointer_op_ << "\n";
+  kernel_idiom_shared_stats_file << "num of array: " << num_of_array_op_ << "\n";
+  kernel_idiom_shared_stats_file << "num of string: " << num_of_string_op_ << "\n";
+  kernel_idiom_shared_stats_file << "num of void pointer/unhandled: " << num_of_void_pointer_op_ << "[" << num_of_unhandled_void_pointer_ << "]" << "\n";
+  kernel_idiom_shared_stats_file << "num of container_of operation: " << num_of_container_of_macro_ << "\n";
+  kernel_idiom_shared_stats_file << "num of union type data: " << num_of_union_op_ << "\n";
+  kernel_idiom_shared_stats_file << "num of unsafe type cast: " << num_of_unsafe_casted_struct_pointer_ << "\n";
+  kernel_idiom_shared_stats_file << "num of sential array: " << num_of_sentinel_array_op_ << "\n";
+  kernel_idiom_shared_stats_file << "Driver to Kernel Invocation: " << num_of_driver_to_kernel_calls_ << "\n";
+  kernel_idiom_shared_stats_file << "Kernel to Driver Invocation: " << num_of_kernel_to_driver_calls_ << "\n";
 }
 
 void pdg::KSplitStatsCollector::PrintProjectionStats()

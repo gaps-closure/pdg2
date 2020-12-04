@@ -18,17 +18,24 @@ private:
   unsigned saved_data_size_use_projection_;
   unsigned saved_data_size_use_shared_data_;
   unsigned num_of_union_;
+  unsigned num_of_union_op_;
   unsigned num_of_anonymous_union_;
   unsigned num_of_void_pointer_;
+  unsigned num_of_void_pointer_op_;
   unsigned num_of_unhandled_void_pointer_;
   unsigned num_of_unsafe_casted_struct_pointer_;
   unsigned num_of_sentinel_array_;
+  unsigned num_of_sentinel_array_op_;
   unsigned num_of_array_;
+  unsigned num_of_array_op_;
   unsigned num_of_char_array_;
   unsigned num_of_unhandled_array_;
   unsigned num_of_string_;
+  unsigned num_of_string_op_;
   unsigned num_of_char_pointer_;
   unsigned num_of_pointer_;
+  unsigned num_of_pointer_op_;
+  unsigned num_of_container_of_macro_;
   unsigned num_of_kernel_to_driver_calls_;
   unsigned num_of_driver_to_kernel_calls_;
   unsigned num_of_critical_section_;
@@ -37,6 +44,7 @@ private:
   unsigned num_of_shared_struct_fields_;
   std::ofstream projection_stats_file;
   std::ofstream kernel_idiom_stats_file;
+  std::ofstream kernel_idiom_shared_stats_file;
   std::ofstream atomic_region_stats_file;
 
 public:
@@ -53,6 +61,7 @@ public:
   }
   void PrintAllStats();
   void PrintKernelIdiomStats();
+  void PrintKernelIdiomSharedStats();
   void PrintProjectionStats();
   void PrintAtomicRegionStats();
   void IncreaseTotalNumberOfField() { total_num_of_fields_++; }
@@ -61,17 +70,24 @@ public:
   void IncreaseNumberOfEliminatedPrivateField() { num_of_eliminated_private_fields_++; }
   void IncreaseNumberOfFinalSyncField() { num_of_final_sync_fields_++; }
   void IncreaseNumberOfUnion() { num_of_union_++; }
+  void IncreaseNumberOfUnionOp() { num_of_union_op_++; }
   void IncreaseNumberOfAnonymousUnion() { num_of_anonymous_union_++; }
   void IncreaseNumberOfVoidPointer() { num_of_void_pointer_++; }
+  void IncreaseNumberOfVoidPointerOp() { num_of_void_pointer_op_++; }
   void IncreaseNumberOfUnhandledVoidPointer() {num_of_unhandled_void_pointer_++;}
   void IncreaseNumberOfUnsafeCastedStructPointer() { num_of_unsafe_casted_struct_pointer_++; }
   void IncreaseNumberOfSentinelArray() { num_of_sentinel_array_++; }
+  void IncreaseNumberOfSentinelArrayOp() { num_of_sentinel_array_op_++; }
   void IncreaseNumberOfArray() { num_of_array_++; }
+  void IncreaseNumberOfArrayOp() { num_of_array_op_++; }
   void IncreaseNumberOfCharArray() { num_of_char_array_++; }
   void IncreaseNumberOfUnhandledArray() { num_of_unhandled_array_++; }
   void IncreaseNumberOfString() { num_of_string_++; }
+  void IncreaseNumberOfStringOp() { num_of_string_op_++; }
   void IncreaseNumberOfCharPointer() { num_of_char_pointer_++; }
   void IncreaseNumberOfPointer() { num_of_pointer_++; }
+  void IncreaseNumberOfPointerOp() { num_of_pointer_op_++; }
+  void IncreaseNumberOfContainerOfMacro() { num_of_container_of_macro_++; }
   void IncreaseNumberOfAtomicOperation() { num_of_atomic_operation_++; }
   void IncreaseNumberOfCriticalSection() { num_of_critical_section_++; }
   void IncreaseSavedDataSizeUseProjection(unsigned saved_data_size_use_projection) { saved_data_size_use_projection_ += saved_data_size_use_projection; }

@@ -821,9 +821,9 @@ bool pdg::DIUtils::isUnionTy(DIType *dt)
     return false;
   if (dt->getTag() == dwarf::DW_TAG_pointer_type)
     return false;
-  auto baseTy = getLowestDIType(dt); // strip off tag member type
-  if (baseTy != nullptr)
-    return (baseTy->getTag() == dwarf::DW_TAG_union_type);
+  auto lowest_di_type = getLowestDIType(dt); // strip off tag member type
+  if (lowest_di_type != nullptr)
+    return (lowest_di_type->getTag() == dwarf::DW_TAG_union_type);
   return false;
 }
 
