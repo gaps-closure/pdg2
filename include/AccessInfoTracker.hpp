@@ -73,7 +73,7 @@ public:
   std::string switchIndirectCalledPtrName(std::string funcptr);
   void InferTreeNodeAnnotation(tree<InstructionWrapper *>::iterator tree_node_iter, std::set<std::string> &annotations, std::set<llvm::Function *> &visited_funcs);
   std::string inferTreeNodeStringAnnotation(tree<InstructionWrapper *>::iterator tree_node_iter, std::set<llvm::Function *> &visited_funcs);
-  std::string ComputeNodeAnnotationStr(tree<InstructionWrapper *>::iterator tree_node_iter);
+  std::string computeNodeAnnotationStr(tree<InstructionWrapper *>::iterator tree_node_iter);
   std::string inferFieldAnnotation(InstructionWrapper* instW, std::string fieldID);
   bool voidPointerHasMultipleCasts(InstructionWrapper *voidPtrW);
   bool IsUsedInStrOps(InstructionWrapper* candidate_string_inst_w);

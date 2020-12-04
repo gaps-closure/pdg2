@@ -1466,10 +1466,10 @@ void pdg::ProgramDependencyGraph::connectTreeNodeWithAddrVars(ArgumentWrapper* a
     if (tree<InstructionWrapper *>::depth(treeI) == 0)
       continue;
     // for tree nodes that are not root, get parent node's dependent instructions and then find loadInst or GEP Inst from parent's loads instructions
-    auto ParentI = tree<InstructionWrapper *>::parent(treeI);
-    auto parentValDepNodes = getNodesWithDepType(*ParentI, DependencyType::VAL_DEP);
+    auto parent_iter = tree<InstructionWrapper *>::parent(treeI);
+    auto parentValDepNodes = getNodesWithDepType(*parent_iter, DependencyType::VAL_DEP);
     // for union, copy parent's addr var to child node. As they have the same address.
-    if (DIUtils::isUnionTy((*ParentI)->getDIType()))
+    if (DIUtils::isUnionTy((*parent_iter)->getDIType()))
     {
       for (auto pair : parentValDepNodes)
       {
@@ -1487,8 +1487,8 @@ void pdg::ProgramDependencyGraph::connectTreeNodeWithAddrVars(ArgumentWrapper* a
       for (auto read_inst_w : read_insts_w)
       {
         std::set<InstructionWrapper *> alias_set = getDepInstWrapperWithDepType(read_inst_w, DependencyType::DATA_ALIAS);
+        Instruction* read_inst = read_inst_w->getInstruction();
         alias_set.insert(read_inst_w);
-        Instruction *read_inst = read_inst_w->getInstruction();
         if (isa<LoadInst>(read_inst) && (*treeI)->getNodeOffset() == 0)
         {
           for (auto alias_inst_w : alias_set)
@@ -2012,7 +2012,7 @@ bool pdg::ProgramDependencyGraph::isUnsafeTypeCast(Instruction *inst)
     std::string inst_str;
     llvm::raw_string_ostream ss(inst_str);
     ss << *ci;
-    if (ss.str().find("union.anon") != std::string::npos)
+    if (ss.str().find("union") != std::string::npos)
       return false;
     if (ss.str().find("struct.anon") != std::string::npos)
       return false;

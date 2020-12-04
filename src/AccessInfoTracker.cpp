@@ -1043,7 +1043,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     std::string arg_name = DIUtils::getArgName(arg);
     std::string arg_type_name = DIUtils::getRawDITypeName(arg_di_type);
     pdgUtils.stripStr(arg_type_name, "struct ");
-    std::string annotation_str = ComputeNodeAnnotationStr(arg_tree_begin);
+    std::string annotation_str = computeNodeAnnotationStr(arg_tree_begin);
     bool is_ptr_has_unknown_annotation = (annotation_str.find("string") == std::string::npos && !DIUtils::isArrayType(arg_di_type));
     // infer annotation, such as alloc/dealloc if possible.
     if (DIUtils::isFuncPointerTy(arg_di_type))
@@ -1107,7 +1107,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
 
     // collecting stats
     if (DIUtils::isSentinelType(arg_lowest_di_type))
-      log_file << "sentinel: " << arg_name << "-" << func_name << "\n";
+      log_file << "sentinel: " << arg_name << " - " << func_name << "\n";
     collectKSplitStats(arg_di_type, annotation_str);
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !arg_name.empty())
       idl_file << ", ";
@@ -1492,7 +1492,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       continue;
     }
     ksplit_stats_collector.IncreaseNumberOfProjectedField();
-    std::string field_annotation = ComputeNodeAnnotationStr(childI);
+    std::string field_annotation = computeNodeAnnotationStr(childI);
     // start generaeting IDL for each field
     if (DIUtils::isFuncPointerTy(struct_field_lowest_di_type))
     {
@@ -1536,17 +1536,14 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       // if a struct field is a linked list, we check if the parent is the same type. If not, we increase
       // the number of found sentinel array. Otherwise, avoid repeat counting.
       if (DIUtils::isSentinelType(struct_field_lowest_di_type))
-      {
-        if (struct_raw_type_name.compare(struct_field_raw_type_name) != 0)
-        {
-          // ksplit_stats_collector.IncreaseNumberOfSentinelArray();
-          log_file << "sentinel: " << " - " << arg_name << "-" << struct_field_name << " - " << func_name << "\n";
-        }
-      }
+        log_file << "sentinel: " << " - " << arg_name << " - " << struct_field_name << " - " << func_name << "\n";
       pointer_queue.push(childI);
     }
     else if (DIUtils::isProjectableTy(struct_field_di_type))
     {
+      std::string func_name = "";
+      if ((*treeI)->getFunction())
+        func_name = (*treeI)->getFunction()->getName().str();
       // assumption: if a child field is an struct or union, we consider them as anonymous. So, we directly put these fields in the projection.
       std::string sub_fields_str;
       raw_string_ostream nested_fields_str(sub_fields_str);
@@ -1572,6 +1569,8 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
            << struct_field_name 
            <<";\n";
       }
+      if (DIUtils::isSentinelType(struct_field_lowest_di_type))
+        log_file << "sentinel: " << " - " << arg_name << " - " << struct_field_name << " - " << func_name << "\n";
     }
     else
     {
@@ -1771,7 +1770,7 @@ bool pdg::AccessInfoTracker::IsStoreOfAlias(StoreInst* store_inst)
   return false;
 }
 
-std::string pdg::AccessInfoTracker::ComputeNodeAnnotationStr(tree<InstructionWrapper *>::iterator tree_node_iter)
+std::string pdg::AccessInfoTracker::computeNodeAnnotationStr(tree<InstructionWrapper *>::iterator tree_node_iter)
 {
   std::set<std::string> annotations;
   std::set<Function*> visited_funcs;
