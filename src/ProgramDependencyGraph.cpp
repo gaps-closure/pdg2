@@ -1295,9 +1295,11 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
       // for tree nodes that are not root, get parent node's dependent instructions and then find loadInst or GEP Inst from parent's address
       auto parent_iter = tree<InstructionWrapper *>::parent(treeI);
       auto parent_val_dep_nodes = getNodesWithDepType(*parent_iter, DependencyType::VAL_DEP);
+      shared_data_log_file << "shared data name: " << DIUtils::getRawDITypeName((*treeI)->getDIType()) << "\n";
       for (auto pair : parent_val_dep_nodes)
       {
         auto parent_dep_inst_w = const_cast<InstructionWrapper *>(pair.first->getData());
+        Function* allocFunc = parent_dep_inst_w->getInstruction()->getFunction();
         std::set<InstructionWrapper *> read_insts_w;
         getReadInstsOnInst(parent_dep_inst_w->getInstruction(), read_insts_w);
         // collect all alias instructions for each parent' dependent instruction
@@ -1312,6 +1314,10 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
             {
               PDG->addDependency(*treeI, alias_inst_w, DependencyType::VAL_DEP);
               PDG->addDependency(alias_inst_w, *treeI, DependencyType::VAL_DEP);
+              std::string str;
+              raw_string_ostream ss(str);
+              ss << *alias_inst_w->getInstruction();
+              shared_data_log_file << "\t\t" << ss.str() << " - " << allocFunc << "\n";
             }
           }
           // for GEP, checks the offset acutally match
@@ -1326,6 +1332,10 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
                 {
                   PDG->addDependency(*treeI, alias_inst_w, DependencyType::VAL_DEP);
                   PDG->addDependency(alias_inst_w, *treeI, DependencyType::VAL_DEP);
+                  std::string str;
+                  raw_string_ostream ss(str);
+                  ss << *alias_inst_w->getInstruction();
+                  shared_data_log_file << "\t\t" << ss.str() << " - " << allocFunc->getName().str() << "\n";
                 }
               }
             }

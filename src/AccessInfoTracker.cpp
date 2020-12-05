@@ -398,13 +398,13 @@ void pdg::AccessInfoTracker::computeSharedData()
     for (auto treeI = typeTree.begin(); treeI != typeTree.end(); ++treeI)
     {
       DIType *field_di_type = (*treeI)->getDIType();
-      DIType *parentDIType = nullptr;
+      DIType *parent_node_di_type = nullptr;
       if (tree<InstructionWrapper *>::depth(treeI) > 0)
       {
         auto parentI = tree<InstructionWrapper *>::parent(treeI);
-        parentDIType = (*parentI)->getDIType();
+        parent_node_di_type = (*parentI)->getDIType();
       }
-      std::string fieldID = DIUtils::computeFieldID(parentDIType, field_di_type);
+      std::string fieldID = DIUtils::computeFieldID(parent_node_di_type, field_di_type);
       // hanlde static defined functions, assume all functions poineter that are linked with defined function in device driver module should be used by kernel.
       if (DIUtils::isFuncPointerTy((*treeI)->getDIType()))
       {
@@ -423,7 +423,6 @@ void pdg::AccessInfoTracker::computeSharedData()
       bool accessInKernel = false;
       bool accessInDriver = false;
       AccessType nodeAccessTy = AccessType::NOACCESS;
-      // errs() << "val dep for " << DIUtils::getDIFieldName((*treeI)->getDIType()) << "\n";
       for (auto valDepPair : valDepPairList)
       {
         auto dataW = const_cast<InstructionWrapper*>(valDepPair.first->getData());
