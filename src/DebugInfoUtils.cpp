@@ -933,7 +933,11 @@ std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Functi
         {
           auto lowest_di_type = DIUtils::getLowestDIType(dt);
           if (lowest_di_type)
-            sharedDITypes.insert(lowest_di_type);
+          {
+            std::string di_type_name = DIUtils::getRawDITypeName(lowest_di_type);
+            if (di_type_name.compare("struct") != 0) // don't count anonymous struct
+              sharedDITypes.insert(lowest_di_type);
+          }
         }
       }
     }

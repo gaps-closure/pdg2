@@ -1267,7 +1267,7 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
     DIType* shared_di_type = pair.first;
     auto typeTree = pair.second;
     // link with all local variable of the struct type that is not handeled by global var or cross-domain parameter
-    std::string inst_di_type_name = DIUtils::getRawDITypeName(shared_di_type);
+    std::string inst_di_type_name = DIUtils::getDITypeName(shared_di_type);
     auto insts_w_with_shared_data_type = shared_data_name_and_instw_map_[inst_di_type_name];
     auto treeBegin = typeTree.begin();
     shared_data_log_file << "shared data name: " << inst_di_type_name << "\n";
