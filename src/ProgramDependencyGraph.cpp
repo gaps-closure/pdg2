@@ -1270,7 +1270,7 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
     std::string inst_di_type_name = DIUtils::getDITypeName(shared_di_type);
     auto insts_w_with_shared_data_type = shared_data_name_and_instw_map_[inst_di_type_name];
     auto treeBegin = typeTree.begin();
-    shared_data_log_file << "shared data name: " << inst_di_type_name << "\n";
+    shared_data_log_file << "[root] shared data name: " << inst_di_type_name << "\n";
     for (auto inst_w : insts_w_with_shared_data_type)
     {
       std::string str;
@@ -1314,10 +1314,6 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
             {
               PDG->addDependency(*treeI, alias_inst_w, DependencyType::VAL_DEP);
               PDG->addDependency(alias_inst_w, *treeI, DependencyType::VAL_DEP);
-              std::string str;
-              raw_string_ostream ss(str);
-              ss << *alias_inst_w->getInstruction();
-              shared_data_log_file << "\t\t" << ss.str() << " - " << allocFunc << "\n";
             }
           }
           // for GEP, checks the offset acutally match
@@ -1332,10 +1328,6 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
                 {
                   PDG->addDependency(*treeI, alias_inst_w, DependencyType::VAL_DEP);
                   PDG->addDependency(alias_inst_w, *treeI, DependencyType::VAL_DEP);
-                  std::string str;
-                  raw_string_ostream ss(str);
-                  ss << *alias_inst_w->getInstruction();
-                  shared_data_log_file << "\t\t" << ss.str() << " - " << allocFunc->getName().str() << "\n";
                 }
               }
             }

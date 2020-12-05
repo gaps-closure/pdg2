@@ -924,20 +924,17 @@ std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Functi
       for (auto dt : containedSharedTypes)
       {
         //TODO: add function pointer handle
-        auto di_type_name = DIUtils::getDITypeName(dt);
+        auto di_type_name = DIUtils::getRawDITypeName(dt);
+        if (di_type_name.compare("struct") == 0) // don't count anonymous struct
+          continue;
         if (seen_di_type_names.find(di_type_name) != seen_di_type_names.end())
           continue;
         seen_di_type_names.insert(di_type_name);
-
-        if (isStructPointerTy(dt) || isStructTy(dt))
+        auto lowest_di_type = DIUtils::getLowestDIType(dt);
+        if (isStructTy(lowest_di_type))
         {
-          auto lowest_di_type = DIUtils::getLowestDIType(dt);
-          if (lowest_di_type)
-          {
-            std::string di_type_name = DIUtils::getRawDITypeName(lowest_di_type);
-            if (di_type_name.compare("struct") != 0) // don't count anonymous struct
-              sharedDITypes.insert(lowest_di_type);
-          }
+          errs() << "inserting shared type: " << DIUtils::getRawDITypeName(lowest_di_type) << "\n";
+          sharedDITypes.insert(lowest_di_type);
         }
       }
     }
