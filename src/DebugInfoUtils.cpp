@@ -742,21 +742,24 @@ DbgDeclareInst* pdg::DIUtils::getDbgInstForInst(Instruction* inst, std::set<DbgD
 //   return sharedDataTypes;
 // }
 
-std::string pdg::DIUtils::computeFieldID(DIType *structDIType, DIType *fieldDIType)
+std::string pdg::DIUtils::computeFieldID(DIType *struct_di_type, DIType *field_di_type)
 {
-  std::string structTypeName = "";
-  std::string childName = "";
-  if (structDIType != nullptr)
+  std::string struct_type_name = "";
+  std::string child_name = "";
+  if (struct_di_type != nullptr)
   {
-    structDIType = DIUtils::stripAttributes(structDIType);
-    structTypeName = DIUtils::getDITypeName(structDIType);
+    struct_di_type = DIUtils::stripAttributes(struct_di_type);
+    struct_type_name = DIUtils::getDITypeName(struct_di_type);
   }
-  if (fieldDIType != nullptr)
+  if (field_di_type != nullptr)
   {
-    fieldDIType = DIUtils::stripAttributes(fieldDIType);
-    childName = DIUtils::getDIFieldName(fieldDIType);
+    field_di_type = DIUtils::stripAttributes(field_di_type);
+    if (struct_di_type == nullptr)
+      child_name = DIUtils::getDITypeName(field_di_type);
+    else
+      child_name = DIUtils::getDIFieldName(field_di_type);
   }
-  std::string id =  structTypeName + childName;
+  std::string id =  struct_type_name + child_name;
   return id;
 }
 
@@ -932,10 +935,7 @@ std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Functi
         seen_di_type_names.insert(di_type_name);
         auto lowest_di_type = DIUtils::getLowestDIType(dt);
         if (isStructTy(lowest_di_type))
-        {
-          errs() << "inserting shared type: " << DIUtils::getRawDITypeName(lowest_di_type) << "\n";
           sharedDITypes.insert(lowest_di_type);
-        }
       }
     }
   }
