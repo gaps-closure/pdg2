@@ -2057,7 +2057,7 @@ bool pdg::AccessInfoTracker::isChildFieldShared(DIType *parentNodeDIType, DIType
   }
   // compute field id and check if it is presents in the set of shared data computed for the arg Type
   // std::string rootDITypeName = DIUtils::getLowestDIType(DIUtils::getDITypeName(rootDIType));
-  std::string parentNodeDITypeName = DIUtils::getDITypeName(parentNodeDIType);
+  std::string parentNodeDITypeName = DIUtils::getRawDITypeName(parentNodeDIType);
   if (sharedDataTypeMap.find(parentNodeDITypeName) == sharedDataTypeMap.end())
   {
     errs() << "[WARNING] "

@@ -42,6 +42,8 @@ private:
   unsigned num_of_atomic_operation_;
   unsigned num_of_shared_struct_type_;
   unsigned num_of_shared_struct_fields_;
+  unsigned num_of_func_for_analyzing_shared_data_;
+  unsigned num_of_func_for_analyzing_accessed_fields_;
   std::ofstream projection_stats_file;
   std::ofstream kernel_idiom_stats_file;
   std::ofstream kernel_idiom_shared_stats_file;
@@ -98,6 +100,8 @@ public:
   void SetNumberOfAtomicOperation(unsigned num_of_atomic_operation) { num_of_atomic_operation_ = num_of_atomic_operation; }
   void SetNumberOfSharedStructType(unsigned num_of_shared_struct_type) { num_of_shared_struct_type_ = num_of_shared_struct_type; }
   void SetNumberOfSharedStructFields(unsigned num_of_shared_struct_fields) { num_of_shared_struct_fields_ = num_of_shared_struct_fields; }
+  void SetNumberOfFunctionForAnalyzingSharedData(unsigned num_of_func) { num_of_func_for_analyzing_shared_data_ = num_of_func; }
+  void SetNumberOfFunctionForAnalyzingAccessedFields(unsigned num_of_func) { num_of_func_for_analyzing_accessed_fields_ = num_of_func; }
 };
 } // namespace pdg
 

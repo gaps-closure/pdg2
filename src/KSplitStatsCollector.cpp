@@ -30,6 +30,8 @@ pdg::KSplitStatsCollector::KSplitStatsCollector()
   num_of_critical_section_ = 0;
   num_of_atomic_operation_ = 0;
   num_of_shared_struct_type_ = 0;
+  num_of_func_for_analyzing_shared_data_ = 0;
+  num_of_func_for_analyzing_accessed_fields_ = 0;
   // open stats files
   projection_stats_file.open("ProjectionStats", std::ios::trunc);
   if (!projection_stats_file)
@@ -81,6 +83,8 @@ void pdg::KSplitStatsCollector::PrintKernelIdiomStats()
   kernel_idiom_stats_file << "num of sential array: " << num_of_sentinel_array_ << "\n";
   kernel_idiom_stats_file << "Driver to Kernel Invocation: " << num_of_driver_to_kernel_calls_ << "\n";
   kernel_idiom_stats_file << "Kernel to Driver Invocation: " << num_of_kernel_to_driver_calls_ << "\n";
+  kernel_idiom_stats_file << "num of functions needed for shared data computation: " << num_of_func_for_analyzing_shared_data_ << "\n";
+  kernel_idiom_stats_file << "num of functions needed for accessed analysis computation: " << num_of_func_for_analyzing_accessed_fields_ << "\n";
 }
 
 void pdg::KSplitStatsCollector::PrintKernelIdiomSharedStats()

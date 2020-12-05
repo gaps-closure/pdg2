@@ -373,6 +373,7 @@ namespace
           }
         }
 
+        // analyze driver interface functions
         if (gv == nullptr)
           continue;
         auto gv_di_type = gv->getType().resolve();
@@ -400,8 +401,9 @@ namespace
                 {
                   if (!pdg::DIUtils::isFuncPointerTy(struct_field_di_type))
                     continue;
+                  std::string func_name = struct_element->getName().str();
                   static_funcptr << getDIFieldName(struct_field_di_type) << "\n";
-                  static_func << struct_element->getName().str() << "\n";
+                  static_func << func_name << "\n";
                 }
 
                 // if the field is a constant struct
@@ -426,8 +428,9 @@ namespace
                         errs() << *nested_field_di_type << "\n";
                         if (!pdg::DIUtils::isFuncPointerTy(nested_field_di_type))
                           continue;
+                        std::string func_name = nested_struct_element->getName().str();
                         static_funcptr << getDIFieldName(nested_field_di_type) << "\n";
-                        static_func << nested_struct_element->getName().str() << "\n";
+                        static_func << func_name << "\n";
                       }
                     }
                   }

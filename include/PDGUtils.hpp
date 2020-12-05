@@ -52,6 +52,7 @@ class PDGUtils final
     // functions used for PDG construction optimization
     std::set<llvm::Function *> computeImportedFuncs(llvm::Module &M);
     std::set<llvm::Function *> computeCrossDomainFuncs(llvm::Module &M);
+    std::set<llvm::Function *> computeSeqPointerWhiteListFuncs(std::set<llvm::Function *> cross_domain_funcs, llvm::Module &M);
     std::set<llvm::Function *> computeDriverDomainFuncs(llvm::Module &M);
     std::set<llvm::Function *> computeKernelDomainFuncs(llvm::Module &M);
     std::set<llvm::Function *> computeTransitiveClosure(llvm::Function &F);
@@ -77,6 +78,7 @@ class PDGUtils final
     bool IsBlackListFunc(std::string func_name);
     std::string StripFuncnameVersionNumber(std::string func_name);
     void StripPointerSuffix(std::string &func_name);
+    void printSeqPointerWhiteListFuncs(std::set<llvm::Function *> cross_domain_funcs_, llvm::Module &M);
 
   private:
     std::unordered_map<const llvm::Instruction *, InstructionWrapper *> G_instMap;

@@ -36,6 +36,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
 
   module = &M;
   auto &pdgUtils = PDGUtils::getInstance();
+  auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
   pdgUtils.constructFuncMap(M);
   pdgUtils.collectGlobalInsts(M);
   unsafeTypeCastNum = 0;
@@ -50,7 +51,9 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   std::set<Function*> funcsNeedPDGConstruction;
   cross_domain_funcs_ = pdgUtils.computeCrossDomainFuncs(M);
   pdgUtils.computeCrossDomainTransFuncs(M, funcsNeedPDGConstruction);
+  pdgUtils.printSeqPointerWhiteListFuncs(cross_domain_funcs_, M);
   errs() << "Num of functions need PDG construction: " << funcsNeedPDGConstruction.size() << "\n";
+  ksplit_stats_collector.SetNumberOfFunctionForAnalyzingAccessedFields(funcsNeedPDGConstruction.size());
   unsigned totalFuncInModule = 0;
   // start building pdg for each function
   for (Function *F : funcsNeedPDGConstruction)
@@ -61,6 +64,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
     buildPDGForFunc(F);
   }
   errs() << "total num of func in module: " << totalFuncInModule << "\n";
+  ksplit_stats_collector.SetNumberOfFunctionForAnalyzingSharedData(totalFuncInModule);
   errs()  << "Finish PDG Construction\n";
   auto driverDomainFuncs = pdgUtils.computeDriverDomainFuncs(M);
   auto kernelDomainFuncs = pdgUtils.computeKernelDomainFuncs(M);
@@ -101,10 +105,7 @@ void pdg::ProgramDependencyGraph::collectInstsWithDIType(std::set<Function *> &s
       std::string inst_di_type_name = DIUtils::getDITypeName(inst_di_type_map[i]);
       auto iter = shared_data_name_and_instw_map_.find(inst_di_type_name);
       if (iter != shared_data_name_and_instw_map_.end())
-      {
-        errs() << "inserting inst for " << inst_di_type_name << "\n";
         iter->second.insert(instMap[i]);
-      }
     }
   }
 }

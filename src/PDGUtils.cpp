@@ -361,6 +361,19 @@ std::set<Function *> pdg::PDGUtils::computeCrossDomainFuncs(Module &M)
   return crossDomainFuncs;
 }
 
+std::set<Function *> pdg::PDGUtils::computeSeqPointerWhiteListFuncs(std::set<Function *> cross_domain_funcs, Module& M)
+{
+  std::set<Function*> seq_pointer_white_list_funcs;
+  for (auto &F : M)
+  {
+    if (cross_domain_funcs.find(&F) == cross_domain_funcs.end())
+    {
+      seq_pointer_white_list_funcs.insert(&F);
+    }
+  }
+  return seq_pointer_white_list_funcs;
+}
+
 std::set<Function *> pdg::PDGUtils::computeTransitiveClosure(Function &F)
 {
   std::set<Function *> transClosure;
@@ -554,4 +567,16 @@ void pdg::PDGUtils::StripPointerSuffix(std::string &str)
   {
     str.pop_back();
   }
+}
+
+void pdg::PDGUtils::printSeqPointerWhiteListFuncs(std::set<Function *> cross_domain_funcs, Module &M)
+{
+  std::ofstream white_list_func_file;
+  white_list_func_file.open("whitelistfuncs.txt");
+  auto white_list_funcs = computeSeqPointerWhiteListFuncs(cross_domain_funcs, M);
+  for (Function *f : white_list_funcs)
+  {
+    white_list_func_file << f->getName().str() << "\n";
+  }
+  white_list_func_file.close();
 }
