@@ -103,6 +103,7 @@ private:
   DependencyGraph<InstructionWrapper> *PDG;
   // ControlDependencyGraph *cdg;
   // DataDependencyGraph *ddg;
+  std::ofstream shared_data_log_file;
   std::map<llvm::GlobalVariable*, tree<InstructionWrapper*>> globalObjectTrees;
   std::map<llvm::DIType*, tree<InstructionWrapper*>> globalTypeTrees;
   std::map<std::string, std::set<InstructionWrapper*>> shared_data_name_and_instw_map_;

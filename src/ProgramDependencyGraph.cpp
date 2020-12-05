@@ -42,6 +42,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   // start constructing points to graph
   sea_dsa::DsaAnalysis *m_dsa = &getAnalysis<sea_dsa::DsaAnalysis>();
   pdgUtils.setDsaAnalysis(m_dsa);
+  shared_data_log_file.open("SharedDataInstLog");
   // compute shared struct types
   auto sharedTypes = DIUtils::collectSharedDITypes(M, pdgUtils.computeCrossDomainFuncs(M), EXPAND_LEVEL);
   errs() << "number of found shared struct type: " << sharedTypes.size() << "\n";
@@ -76,6 +77,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
     connectGlobalTypeTreeWithAddressVars();
     errs() << "finish connecting global type trees with addr variables\n";
   }
+  shared_data_log_file.close();
   return false;
 }
 
@@ -1268,9 +1270,14 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
     std::string inst_di_type_name = DIUtils::getRawDITypeName(shared_di_type);
     auto insts_w_with_shared_data_type = shared_data_name_and_instw_map_[inst_di_type_name];
     auto treeBegin = typeTree.begin();
+    shared_data_log_file << "shared data name: " << inst_di_type_name << "\n";
     for (auto inst_w : insts_w_with_shared_data_type)
     {
+      std::string str;
+      raw_string_ostream ss(str);
+      ss << *inst_w->getInstruction();
       Function* allocFunc = inst_w->getInstruction()->getFunction();
+      shared_data_log_file << "\t\t" << ss.str() << " - " << allocFunc->getName().str() << "\n";
       std::set<InstructionWrapper*> alias_set = getDepInstWrapperWithDepType(inst_w, DependencyType::DATA_ALIAS);
       alias_set.insert(inst_w);
       for (auto alias_w : alias_set)
@@ -2011,7 +2018,7 @@ bool pdg::ProgramDependencyGraph::isUnsafeTypeCast(Instruction *inst)
   {
     // an adhoc way for checking if this is a union type cast
     std::string inst_str;
-    llvm::raw_string_ostream ss(inst_str);
+    raw_string_ostream ss(inst_str);
     ss << *ci;
     if (ss.str().find("union") != std::string::npos)
       return false;
