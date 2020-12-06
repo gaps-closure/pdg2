@@ -758,10 +758,10 @@ std::string pdg::DIUtils::computeFieldID(DIType *struct_di_type, DIType *field_d
       child_name = DIUtils::getDITypeName(field_di_type);
     else
       child_name = DIUtils::getDIFieldName(field_di_type);
-    if (child_name.empty())
-    {
-      child_name = std::to_string(field_di_type->getOffsetInBits());
-    }
+    // if (child_name.empty())
+    // {
+    //   child_name = std::to_string(field_di_type->getOffsetInBits());
+    // }
   }
   std::string id =  struct_type_name + child_name;
   return id;
@@ -926,8 +926,11 @@ std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Functi
       continue;
     for (Argument &arg : func->args())
     {
-      auto arg_di_type = getArgDIType(arg);
-      auto containedSharedTypes = computeContainedDerivedTypes(arg_di_type, tree_max_height);
+      DIType* arg_di_type = getArgDIType(arg);
+      DIType* arg_lowest_di_type = DIUtils::getLowestDIType(arg_di_type);
+      if (!arg_lowest_di_type || !isStructTy(arg_lowest_di_type))
+        continue;
+      auto containedSharedTypes = computeContainedDerivedTypes(arg_lowest_di_type, tree_max_height);
       for (auto dt : containedSharedTypes)
       {
         //TODO: add function pointer handle

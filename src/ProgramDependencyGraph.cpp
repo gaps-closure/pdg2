@@ -1123,74 +1123,31 @@ void pdg::ProgramDependencyGraph::buildGlobalTypeTrees(std::set<DIType*> sharedT
 {
   for (DIType *dt : sharedTypes)
   {
+    errs() << "building type for: " << DIUtils::getDITypeName(dt) << "\n";
     buildGlobalTypeTreeForDIType(*dt);
     std::set<InstructionWrapper*> s;
     shared_data_name_and_instw_map_.insert(std::make_pair(DIUtils::getRawDITypeName(dt), s));
   }
 }
 
+// we perform this for struct type. Thus, it's possible that we only build the global tree in height of 2, the struct type and its field.
 void pdg::ProgramDependencyGraph::buildGlobalTypeTreeForDIType(DIType &DI)
 {
   tree<InstructionWrapper *> typeTree;
   InstructionWrapper *treeHead = new TreeTypeWrapper(GraphNodeType::GLOBAL_VALUE, 0, &DI);
   typeTree.set_head(treeHead);
   auto &pdgUtils = PDGUtils::getInstance();
-  std::queue<InstructionWrapper *> instWQ;
-  std::queue<DIType *> DITypeQ;
-  instWQ.push(treeHead);
-  DITypeQ.push(&DI);
+  tree<InstructionWrapper *>::iterator insertLoc = getTreeNodeInsertLoc(typeTree, treeHead);
+  DIType* struct_di_type = &DI;
+  if (!DIUtils::isStructTy(struct_di_type))
+    return;
 
-  int depth = 0;
-  tree<InstructionWrapper *>::iterator insertLoc;
-  while (!instWQ.empty())
+  auto DINodeArr = dyn_cast<DICompositeType>(struct_di_type)->getElements();
+  for (unsigned i = 0; i < DINodeArr.size(); ++i)
   {
-    if (depth > EXPAND_LEVEL)
-      break;
-    depth++;
-    int qSize = instWQ.size();
-    while (qSize > 0)
-    {
-      qSize -= 1;
-      InstructionWrapper *curTyNode = instWQ.front();
-      DIType *nodeDIType = DITypeQ.front();
-      instWQ.pop();
-      DITypeQ.pop();
-
-      if (!nodeDIType)
-        continue;
-      insertLoc = getTreeNodeInsertLoc(typeTree, curTyNode);
-      // process pointer type
-      if (DIUtils::isPointerType(nodeDIType))
-      {
-        // extract the pointed value, push it to inst queue for further process.
-        InstructionWrapper *pointedTypeW = new TreeTypeWrapper(GraphNodeType::PARAMETER_FIELD, 0, DIUtils::getBaseDIType(nodeDIType));
-        typeTree.insert(insertLoc, pointedTypeW);
-        instWQ.push(pointedTypeW);
-        try
-        {
-          DITypeQ.push(DIUtils::getBaseDIType(nodeDIType));
-        }
-        catch (std::exception &e)
-        {
-          errs() << e.what() << "\n";
-          exit(0);
-        }
-        continue;
-      }
-      // stop bulding if not a struct type
-      if (!DIUtils::isStructTy(nodeDIType))
-        continue;
-      // get structure fields based on debugging information
-      auto DINodeArr = dyn_cast<DICompositeType>(nodeDIType)->getElements();
-      for (unsigned i = 0; i < DINodeArr.size(); ++i)
-      {
-        DIType *field_di_type = dyn_cast<DIType>(DINodeArr[i]);
-        InstructionWrapper *fieldNodeW = new TreeTypeWrapper(GraphNodeType::PARAMETER_FIELD, i, field_di_type);
-        typeTree.append_child(insertLoc, fieldNodeW);
-        instWQ.push(fieldNodeW);
-        DITypeQ.push(DIUtils::getBaseDIType(field_di_type));
-      }
-    }
+    DIType *struct_field_di_type = dyn_cast<DIType>(DINodeArr[i]);
+    InstructionWrapper *fieldNodeW = new TreeTypeWrapper(GraphNodeType::PARAMETER_FIELD, i, struct_field_di_type);
+    typeTree.append_child(insertLoc, fieldNodeW);
   }
   globalTypeTrees[&DI] = typeTree;
 }
