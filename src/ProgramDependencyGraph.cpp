@@ -55,12 +55,17 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   errs() << "Num of functions need PDG construction: " << funcsNeedPDGConstruction.size() << "\n";
   ksplit_stats_collector.SetNumberOfFunctionForAnalyzingAccessedFields(funcsNeedPDGConstruction.size());
   unsigned totalFuncInModule = 0;
+  for (Function &F : M)
+  {
+    if (F.isDeclaration())
+      continue;
+    totalFuncInModule++;
+  }
   // start building pdg for each function
   for (Function *F : funcsNeedPDGConstruction)
   {
     if (F->isDeclaration() || F->empty())
       continue;
-    totalFuncInModule++;
     buildPDGForFunc(F);
   }
   errs() << "total num of func in module: " << totalFuncInModule << "\n";
@@ -1272,14 +1277,13 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
     std::string inst_di_type_name = DIUtils::getDITypeName(shared_di_type);
     auto insts_w_with_shared_data_type = shared_data_name_and_instw_map_[inst_di_type_name];
     auto treeBegin = typeTree.begin();
-    shared_data_log_file << "[root] shared data name: " << inst_di_type_name << "\n";
     for (auto inst_w : insts_w_with_shared_data_type)
     {
-      std::string str;
-      raw_string_ostream ss(str);
-      ss << *inst_w->getInstruction();
-      Function* allocFunc = inst_w->getInstruction()->getFunction();
-      shared_data_log_file << "\t\t" << ss.str() << " - " << allocFunc->getName().str() << "\n";
+      // std::string str;
+      // raw_string_ostream ss(str);
+      // ss << *inst_w->getInstruction();
+      // Function* allocFunc = inst_w->getInstruction()->getFunction();
+      // shared_data_log_file << "\t\t" << ss.str() << " - " << allocFunc->getName().str() << "\n";
       std::set<InstructionWrapper*> alias_set = getDepInstWrapperWithDepType(inst_w, DependencyType::DATA_ALIAS);
       alias_set.insert(inst_w);
       for (auto alias_w : alias_set)
@@ -1297,7 +1301,7 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
       // for tree nodes that are not root, get parent node's dependent instructions and then find loadInst or GEP Inst from parent's address
       auto parent_iter = tree<InstructionWrapper *>::parent(treeI);
       auto parent_val_dep_nodes = getNodesWithDepType(*parent_iter, DependencyType::VAL_DEP);
-      shared_data_log_file << "shared data name: " << DIUtils::getRawDITypeName((*treeI)->getDIType()) << "\n";
+      // shared_data_log_file << "shared data name: " << DIUtils::getRawDITypeName((*treeI)->getDIType()) << "\n";
       for (auto pair : parent_val_dep_nodes)
       {
         auto parent_dep_inst_w = const_cast<InstructionWrapper *>(pair.first->getData());
