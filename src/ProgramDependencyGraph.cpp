@@ -1282,7 +1282,7 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
       // std::string str;
       // raw_string_ostream ss(str);
       // ss << *inst_w->getInstruction();
-      // Function* allocFunc = inst_w->getInstruction()->getFunction();
+      Function* allocFunc = inst_w->getInstruction()->getFunction();
       // shared_data_log_file << "\t\t" << ss.str() << " - " << allocFunc->getName().str() << "\n";
       std::set<InstructionWrapper*> alias_set = getDepInstWrapperWithDepType(inst_w, DependencyType::DATA_ALIAS);
       alias_set.insert(inst_w);
@@ -2060,5 +2060,4 @@ bool pdg::ProgramDependencyGraph::isContainerOfGEP(Instruction* inst)
   return false;
 }
 
-static RegisterPass<pdg::ProgramDependencyGraph>
-    PDG("pdg", "Program Dependency Graph Construction", false, true);
+static RegisterPass<pdg::ProgramDependencyGraph> PDG("pdg", "Program Dependency Graph Construction", false, true);

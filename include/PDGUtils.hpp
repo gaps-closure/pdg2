@@ -79,6 +79,7 @@ class PDGUtils final
     std::string StripFuncnameVersionNumber(std::string func_name);
     void StripPointerSuffix(std::string &func_name);
     void printSeqPointerWhiteListFuncs(std::set<llvm::Function *> cross_domain_funcs_, llvm::Module &M);
+    void printInstAddr(llvm::Instruction& i);
 
   private:
     std::unordered_map<const llvm::Instruction *, InstructionWrapper *> G_instMap;

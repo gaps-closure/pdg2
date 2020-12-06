@@ -250,6 +250,13 @@ void pdg::PDGUtils::categorizeInstInFunc(Function &F)
     if (IntrinsicInst *ii = dyn_cast<IntrinsicInst>(inst))
       G_funcMap[&F]->addIntrinsicInst(inst);
   }
+  if (F.getName().str().compare("edac_mc_add_mc_with_groups") == 0)
+  {
+    for (auto instI = inst_begin(F); instI != inst_end(F); ++instI)
+    {
+      printInstAddr(*instI);
+    }
+  }
 }
 
 std::set<Function *> pdg::PDGUtils::computeDriverDomainFuncs(Module &M)
@@ -579,4 +586,9 @@ void pdg::PDGUtils::printSeqPointerWhiteListFuncs(std::set<Function *> cross_dom
     white_list_func_file << f->getName().str() << "\n";
   }
   white_list_func_file.close();
+}
+
+void pdg::PDGUtils::printInstAddr(Instruction& inst)
+{
+  errs() << "[ " << &inst << " ] - " << inst << "\n";
 }
