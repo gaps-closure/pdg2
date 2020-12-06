@@ -469,7 +469,7 @@ void pdg::AccessInfoTracker::computeSharedData()
       if (!accessInDriver || !accessInKernel)
         continue;
 
-      log_file << "field ID: " << fieldID << "\n";
+      log_file << "field ID: " << fieldID << " - " << tree<InstructionWrapper*>::depth(treeI) << "\n";
       log_file << "\t driver funcs: ";
       for (auto func_name : driver_access_func_names)
       {

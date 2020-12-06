@@ -758,6 +758,10 @@ std::string pdg::DIUtils::computeFieldID(DIType *struct_di_type, DIType *field_d
       child_name = DIUtils::getDITypeName(field_di_type);
     else
       child_name = DIUtils::getDIFieldName(field_di_type);
+    if (child_name.empty())
+    {
+      child_name = std::to_string(field_di_type->getOffsetInBits());
+    }
   }
   std::string id =  struct_type_name + child_name;
   return id;
@@ -927,15 +931,14 @@ std::set<DIType *> pdg::DIUtils::collectSharedDITypes(Module &M, std::set<Functi
       for (auto dt : containedSharedTypes)
       {
         //TODO: add function pointer handle
-        auto di_type_name = DIUtils::getRawDITypeName(dt);
+        auto di_type_name = DIUtils::getDITypeName(dt);
         if (di_type_name.compare("struct") == 0) // don't count anonymous struct
           continue;
         if (seen_di_type_names.find(di_type_name) != seen_di_type_names.end())
           continue;
         seen_di_type_names.insert(di_type_name);
-        auto lowest_di_type = DIUtils::getLowestDIType(dt);
-        if (isStructTy(lowest_di_type))
-          sharedDITypes.insert(lowest_di_type);
+        if (isStructTy(dt))
+          sharedDITypes.insert(dt);
       }
     }
   }
@@ -956,20 +959,21 @@ std::set<DIType *> pdg::DIUtils::computeContainedDerivedTypes(DIType* dt, int tr
     int work_queue_size = workQ.size();
     while (work_queue_size > 0)
     {
-      DIType *curDIType = workQ.front();
+      DIType *cur_di_type = workQ.front();
       workQ.pop();
       work_queue_size--;
-      DIType *lowestDIType = getLowestDIType(curDIType);
-      if (seenTypes.find(lowestDIType) != seenTypes.end())
+      if (!isStructTy(cur_di_type))
         continue;
-      seenTypes.insert(lowestDIType);
-      auto DINodeArr = dyn_cast<DICompositeType>(lowestDIType)->getElements();
+      if (seenTypes.find(cur_di_type) != seenTypes.end())
+        continue;
+      seenTypes.insert(cur_di_type);
+      auto DINodeArr = dyn_cast<DICompositeType>(cur_di_type)->getElements();
       for (unsigned i = 0; i < DINodeArr.size(); ++i)
       {
-        DIType *fieldDIType = dyn_cast<DIType>(DINodeArr[i]);
-        fieldDIType = stripMemberTag(fieldDIType);
-        if (isStructTy(fieldDIType) || isStructPointerTy(fieldDIType))
-          workQ.push(fieldDIType);
+        DIType *field_di_type = dyn_cast<DIType>(DINodeArr[i]);
+        field_di_type = getLowestDIType(field_di_type);
+        if (isStructTy(field_di_type))
+          workQ.push(field_di_type);
       }
     }
   }

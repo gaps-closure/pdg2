@@ -1177,19 +1177,18 @@ void pdg::ProgramDependencyGraph::buildGlobalTypeTreeForDIType(DIType &DI)
         }
         continue;
       }
-      // stop bulding if not a struct field
+      // stop bulding if not a struct type
       if (!DIUtils::isStructTy(nodeDIType))
         continue;
       // get structure fields based on debugging information
-      nodeDIType = DIUtils::getLowestDIType(nodeDIType);
       auto DINodeArr = dyn_cast<DICompositeType>(nodeDIType)->getElements();
       for (unsigned i = 0; i < DINodeArr.size(); ++i)
       {
-        DIType *fieldDIType = dyn_cast<DIType>(DINodeArr[i]);
-        InstructionWrapper *fieldNodeW = new TreeTypeWrapper(GraphNodeType::PARAMETER_FIELD, i, fieldDIType);
+        DIType *field_di_type = dyn_cast<DIType>(DINodeArr[i]);
+        InstructionWrapper *fieldNodeW = new TreeTypeWrapper(GraphNodeType::PARAMETER_FIELD, i, field_di_type);
         typeTree.append_child(insertLoc, fieldNodeW);
         instWQ.push(fieldNodeW);
-        DITypeQ.push(DIUtils::getBaseDIType(fieldDIType));
+        DITypeQ.push(DIUtils::getBaseDIType(field_di_type));
       }
     }
   }
