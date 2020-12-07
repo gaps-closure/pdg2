@@ -29,6 +29,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   setupDeallocatorWrappers();
   globalOpsStr = "";
   log_file.open("analysis_log");
+  shared_ptr_file.open("shared_ptr.txt");
   // start generating IDL
   std::string file_name = "kernel";
   file_name += ".idl";
@@ -67,6 +68,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   idl_file << "}";
   idl_file.close();
   log_file.close();
+  shared_ptr_file.close();
   ksplit_stats_collector.PrintProjectionStats();
   ksplit_stats_collector.PrintKernelIdiomStats();
   ksplit_stats_collector.PrintKernelIdiomSharedStats();
@@ -1508,6 +1510,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       continue;
     }
     ksplit_stats_collector.IncreaseNumberOfProjectedField();
+    printSharedPointers(childI);
     // start generaeting IDL for each field
     if (DIUtils::isFuncPointerTy(struct_field_lowest_di_type))
     {
@@ -2164,6 +2167,20 @@ void pdg::AccessInfoTracker::collectKSplitSharedStats(DIType* struct_di_type, DI
   }
 }
 
+void pdg::AccessInfoTracker::printSharedPointers(tree<InstructionWrapper*>::iterator treeI)
+{
+  auto dep_inst_pairs = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+  for (auto dep_inst_pair : dep_inst_pairs)
+  {
+    auto dataW = const_cast<InstructionWrapper *>(dep_inst_pair.first->getData());
+    if (dataW->getInstruction() == nullptr)
+      continue;
+    std::string str;
+    raw_string_ostream ss(str);
+    ss << dataW->getInstruction();
+    shared_ptr_file << ss.str() << "\n";
+  }
+}
 
 static RegisterPass<pdg::AccessInfoTracker>
     AccessInfoTracker("idl-gen", "Argument access information tracking Pass", false, true);

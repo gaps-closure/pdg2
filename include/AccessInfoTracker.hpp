@@ -98,6 +98,7 @@ public:
   FunctionDomain computeFuncDomain(llvm::Function &F);
   void collectKSplitStats(llvm::DIType* struct_di_type, llvm::DIType* struct_field_di_type, std::string annotation_str);
   void collectKSplitSharedStats(llvm::DIType* struct_di_type, llvm::DIType* struct_field_di_type, std::string annotation_str);
+  void printSharedPointers(tree<InstructionWrapper *>::iterator iter);
 
 private:
   ProgramDependencyGraph *PDG;
@@ -105,6 +106,7 @@ private:
   llvm::CallGraph *CG;
   std::ofstream idl_file;
   std::ofstream log_file;
+  std::ofstream shared_ptr_file;
   // std::ofstream log_file;
   std::set<llvm::Function *> kernel_domain_funcs_;
   std::set<llvm::Function *> driver_domain_funcs_;
