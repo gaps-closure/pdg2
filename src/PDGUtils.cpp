@@ -250,13 +250,6 @@ void pdg::PDGUtils::categorizeInstInFunc(Function &F)
     if (IntrinsicInst *ii = dyn_cast<IntrinsicInst>(inst))
       G_funcMap[&F]->addIntrinsicInst(inst);
   }
-  if (F.getName().str().compare("edac_mc_add_mc_with_groups") == 0)
-  {
-    for (auto instI = inst_begin(F); instI != inst_end(F); ++instI)
-    {
-      printInstAddr(*instI);
-    }
-  }
 }
 
 std::set<Function *> pdg::PDGUtils::computeDriverDomainFuncs(Module &M)
@@ -271,7 +264,6 @@ std::set<Function *> pdg::PDGUtils::computeDriverDomainFuncs(Module &M)
     if (f != nullptr)
       driverDomainFuncs.insert(f);
   }
-
   return driverDomainFuncs;
 }
 
@@ -588,7 +580,29 @@ void pdg::PDGUtils::printSeqPointerWhiteListFuncs(std::set<Function *> cross_dom
   white_list_func_file.close();
 }
 
-void pdg::PDGUtils::printInstAddr(Instruction& inst)
+// void readCrossDomainFunctions(Module& M)
+// {
+//   std::set<Function *> interface_funcs;
+//   std::ifstream interface_funcs_file("cross_domain_funcs.txt");
+//   // construct boundary
+//   // construct driver domain functions
+//   for (std::string line; std::getline(interface_funcs_file, line);)
+//   {
+//     Function *f = M.getFunction(StringRef(line));
+//     if (f != nullptr)
+//       interface_funcs.insert(f);
+//   }
+//   return interface_funcs;
+// }
+
+void pdg::PDGUtils::printAddressOfFirstInstInInterfaceFunc(std::set<Function *> interface_funcs)
 {
-  errs() << "[ " << &inst << " ] - " << inst << "\n";
+  std::ofstream addr_file;
+  addr_file.open("func_inst_addr");
+  for (Function* f : interface_funcs)
+  {
+    Instruction *starting_inst = &*inst_begin(f);
+    addr_file << starting_inst << "\n";
+  }
+  addr_file.close();
 }

@@ -52,6 +52,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   cross_domain_funcs_ = pdgUtils.computeCrossDomainFuncs(M);
   pdgUtils.computeCrossDomainTransFuncs(M, funcsNeedPDGConstruction);
   pdgUtils.printSeqPointerWhiteListFuncs(cross_domain_funcs_, M);
+  pdgUtils.printAddressOfFirstInstInInterfaceFunc(cross_domain_funcs_);
   errs() << "Num of functions need PDG construction: " << funcsNeedPDGConstruction.size() << "\n";
   ksplit_stats_collector.SetNumberOfFunctionForAnalyzingAccessedFields(funcsNeedPDGConstruction.size());
   unsigned totalFuncInModule = 0;
@@ -1240,12 +1241,12 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
       // ss << *inst_w->getInstruction();
       Function* allocFunc = inst_w->getInstruction()->getFunction();
       // shared_data_log_file << "\t\t" << ss.str() << " - " << allocFunc->getName().str() << "\n";
-      std::set<InstructionWrapper*> alias_set = getDepInstWrapperWithDepType(inst_w, DependencyType::DATA_ALIAS);
-      alias_set.insert(inst_w);
-      for (auto alias_w : alias_set)
-      {
-        PDG->addDependency(*treeBegin, alias_w, DependencyType::VAL_DEP);
-      }
+      // std::set<InstructionWrapper*> alias_set = getDepInstWrapperWithDepType(inst_w, DependencyType::DATA_ALIAS);
+      // alias_set.insert(inst_w);
+      // for (auto alias_w : alias_set)
+      // {
+      PDG->addDependency(*treeBegin, inst_w, DependencyType::VAL_DEP);
+      // }
       if (!funcMap[allocFunc]->hasTrees())
         buildFormalTreeForFunc(allocFunc);
     }
@@ -1267,16 +1268,16 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
         // collect all alias instructions for each parent' dependent instruction
         for (auto read_inst_w : read_insts_w)
         {
-          std::set<InstructionWrapper *> alias_set = getDepInstWrapperWithDepType(read_inst_w, DependencyType::DATA_ALIAS);
-          alias_set.insert(read_inst_w);
+          // std::set<InstructionWrapper *> alias_set = getDepInstWrapperWithDepType(read_inst_w, DependencyType::DATA_ALIAS);
+          // alias_set.insert(read_inst_w);
           Instruction *read_inst = read_inst_w->getInstruction();
           if (isa<LoadInst>(read_inst))
           {
-            for (auto alias_inst_w : alias_set)
-            {
-              PDG->addDependency(*treeI, alias_inst_w, DependencyType::VAL_DEP);
-              PDG->addDependency(alias_inst_w, *treeI, DependencyType::VAL_DEP);
-            }
+            // for (auto alias_inst_w : alias_set)
+            // {
+            PDG->addDependency(*treeI, read_inst_w, DependencyType::VAL_DEP);
+            PDG->addDependency(read_inst_w, *treeI, DependencyType::VAL_DEP);
+            // }
           }
           // for GEP, checks the offset acutally match
           else if (isa<GetElementPtrInst>(read_inst))
@@ -1286,11 +1287,11 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
             {
               if (isTreeNodeGEPMatch(structTy, *treeI, read_inst))
               {
-                for (auto alias_inst_w : alias_set)
-                {
-                  PDG->addDependency(*treeI, alias_inst_w, DependencyType::VAL_DEP);
-                  PDG->addDependency(alias_inst_w, *treeI, DependencyType::VAL_DEP);
-                }
+                // for (auto alias_inst_w : alias_set)
+                // {
+                PDG->addDependency(*treeI, read_inst_w, DependencyType::VAL_DEP);
+                PDG->addDependency(read_inst_w, *treeI, DependencyType::VAL_DEP);
+                // }
               }
             }
           }
