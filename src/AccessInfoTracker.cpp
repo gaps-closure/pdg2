@@ -1060,7 +1060,12 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     auto arg_tree_begin = argW->tree_begin(TreeType::FORMAL_IN_TREE);
     if (arg_tree_begin == argW->tree_end(TreeType::FORMAL_IN_TREE))
       continue;
-    printSharedPointers(arg_tree_begin);
+    if (isSeqPointer(arg_tree_begin))
+    {
+      ksplit_stats_collector.IncreaseNumberOfSeqPointer();
+      ksplit_stats_collector.IncreaseNumberOfSeqPointerOp();
+      printSharedPointers(arg_tree_begin);
+    }
     DIType* arg_di_type = (*arg_tree_begin)->getDIType();
     assert(arg_di_type != nullptr && "cannot generate rpc due to missing arg debugging type info");
     DIType *arg_lowest_di_type = DIUtils::getLowestDIType(arg_di_type);
@@ -1487,6 +1492,8 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     auto struct_field_lowest_di_type = DIUtils::getLowestDIType(struct_field_di_type);
     std::string field_annotation = computeNodeAnnotationStr(childI);
 
+    if (isSeqPointer(childI))
+      ksplit_stats_collector.IncreaseNumberOfSeqPointer();
     collectKSplitStats(struct_di_type, struct_field_di_type, field_annotation);
     // check if current field is accessed
     bool is_field_accessed = ((*childI)->getAccessType() != AccessType::NOACCESS);
@@ -1511,7 +1518,11 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       continue;
     }
     ksplit_stats_collector.IncreaseNumberOfProjectedField();
-    printSharedPointers(childI);
+    if (isSeqPointer(childI))
+    {
+      ksplit_stats_collector.IncreaseNumberOfSeqPointerOp();
+      printSharedPointers(childI);
+    }
     // start generaeting IDL for each field
     if (DIUtils::isFuncPointerTy(struct_field_lowest_di_type))
     {
@@ -2176,11 +2187,37 @@ void pdg::AccessInfoTracker::printSharedPointers(tree<InstructionWrapper*>::iter
     auto dataW = const_cast<InstructionWrapper *>(dep_inst_pair.first->getData());
     if (dataW->getInstruction() == nullptr)
       continue;
+    Function* func = (*treeI)->getFunction();
     std::string str;
     raw_string_ostream ss(str);
-    ss << dataW->getInstruction();
-    shared_ptr_file << ss.str() << "\n";
+    ss << *dataW->getInstruction();
+    shared_ptr_file << ss.str() << " - " << func->getName().str() << "\n";
   }
+}
+
+bool pdg::AccessInfoTracker::isSeqPointer(tree<InstructionWrapper*>::iterator iter)
+{
+  auto dep_inst_pairs = PDG->getNodesWithDepType(*iter, DependencyType::VAL_DEP);
+  for (auto dep_inst_pair : dep_inst_pairs)
+  {
+    auto dataW = const_cast<InstructionWrapper *>(dep_inst_pair.first->getData());
+    Instruction* data_inst = dataW->getInstruction();
+    if (data_inst == nullptr)
+      continue;
+    for (auto user : data_inst->users())
+    {
+      if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(user))
+      {
+        if (!GEP->hasAllZeroIndices())
+        {
+          Type* ptr_operand_ty = GEP->getPointerOperandType();
+          if (!PDG->isStructPointer(ptr_operand_ty))
+            return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 static RegisterPass<pdg::AccessInfoTracker>

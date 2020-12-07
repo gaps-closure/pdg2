@@ -29,38 +29,15 @@ declare i32 @printf(i8*, ...) #2
 define void @test2(i32*, i32) #0 !dbg !28 {
   %3 = alloca i32*, align 8
   %4 = alloca i32, align 4
-  %5 = alloca i32, align 4
   store i32* %0, i32** %3, align 8
   call void @llvm.dbg.declare(metadata i32** %3, metadata !31, metadata !22), !dbg !32
   store i32 %1, i32* %4, align 4
   call void @llvm.dbg.declare(metadata i32* %4, metadata !33, metadata !22), !dbg !34
-  call void @llvm.dbg.declare(metadata i32* %5, metadata !35, metadata !22), !dbg !37
-  store i32 0, i32* %5, align 4, !dbg !37
-  br label %6, !dbg !38
-
-; <label>:6:                                      ; preds = %17, %2
-  %7 = load i32, i32* %5, align 4, !dbg !39
-  %8 = load i32, i32* %4, align 4, !dbg !41
-  %9 = icmp slt i32 %7, %8, !dbg !42
-  br i1 %9, label %10, label %20, !dbg !43
-
-; <label>:10:                                     ; preds = %6
-  %11 = load i32*, i32** %3, align 8, !dbg !44
-  %12 = load i32, i32* %5, align 4, !dbg !45
-  %13 = sext i32 %12 to i64, !dbg !44
-  %14 = getelementptr inbounds i32, i32* %11, i64 %13, !dbg !44
-  %15 = load i32, i32* %14, align 4, !dbg !44
-  %16 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %15), !dbg !46
-  br label %17, !dbg !46
-
-; <label>:17:                                     ; preds = %10
-  %18 = load i32, i32* %5, align 4, !dbg !47
-  %19 = add nsw i32 %18, 1, !dbg !47
-  store i32 %19, i32* %5, align 4, !dbg !47
-  br label %6, !dbg !48, !llvm.loop !49
-
-; <label>:20:                                     ; preds = %6
-  ret void, !dbg !51
+  %5 = load i32*, i32** %3, align 8, !dbg !35
+  %6 = getelementptr inbounds i32, i32* %5, i64 1, !dbg !35
+  %7 = load i32, i32* %6, align 4, !dbg !35
+  %8 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %7), !dbg !36
+  ret void, !dbg !37
 }
 
 attributes #0 = { noinline nounwind optnone ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+fxsr,+mmx,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
@@ -106,20 +83,6 @@ attributes #2 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-
 !32 = !DILocation(line: 12, column: 17, scope: !28)
 !33 = !DILocalVariable(name: "len", arg: 2, scope: !28, file: !1, line: 12, type: !16)
 !34 = !DILocation(line: 12, column: 24, scope: !28)
-!35 = !DILocalVariable(name: "i", scope: !36, file: !1, line: 13, type: !16)
-!36 = distinct !DILexicalBlock(scope: !28, file: !1, line: 13, column: 5)
-!37 = !DILocation(line: 13, column: 14, scope: !36)
-!38 = !DILocation(line: 13, column: 10, scope: !36)
-!39 = !DILocation(line: 13, column: 21, scope: !40)
-!40 = distinct !DILexicalBlock(scope: !36, file: !1, line: 13, column: 5)
-!41 = !DILocation(line: 13, column: 25, scope: !40)
-!42 = !DILocation(line: 13, column: 23, scope: !40)
-!43 = !DILocation(line: 13, column: 5, scope: !36)
-!44 = !DILocation(line: 14, column: 24, scope: !40)
-!45 = !DILocation(line: 14, column: 26, scope: !40)
-!46 = !DILocation(line: 14, column: 9, scope: !40)
-!47 = !DILocation(line: 13, column: 30, scope: !40)
-!48 = !DILocation(line: 13, column: 5, scope: !40)
-!49 = distinct !{!49, !43, !50}
-!50 = !DILocation(line: 14, column: 28, scope: !36)
-!51 = !DILocation(line: 15, column: 1, scope: !28)
+!35 = !DILocation(line: 13, column: 20, scope: !28)
+!36 = !DILocation(line: 13, column: 5, scope: !28)
+!37 = !DILocation(line: 16, column: 1, scope: !28)

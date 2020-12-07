@@ -26,6 +26,8 @@ pdg::KSplitStatsCollector::KSplitStatsCollector()
   num_of_char_pointer_ = 0;
   num_of_pointer_ = 0;
   num_of_pointer_op_ = 0;
+  num_of_seq_pointer_ = 0;
+  num_of_seq_pointer_op_ = 0;
   num_of_container_of_macro_ = 0;
   num_of_critical_section_ = 0;
   num_of_atomic_operation_ = 0;
@@ -81,6 +83,7 @@ void pdg::KSplitStatsCollector::PrintKernelIdiomStats()
   kernel_idiom_stats_file << "num of union type data: " << num_of_union_ << "\n";
   kernel_idiom_stats_file << "num of unsafe type cast: " << num_of_unsafe_casted_struct_pointer_ << "\n";
   kernel_idiom_stats_file << "num of sential array: " << num_of_sentinel_array_ << "\n";
+  kernel_idiom_stats_file << "num of seq pointer: " << num_of_seq_pointer_ << "\n";
   kernel_idiom_stats_file << "Driver to Kernel Invocation: " << num_of_driver_to_kernel_calls_ << "\n";
   kernel_idiom_stats_file << "Kernel to Driver Invocation: " << num_of_kernel_to_driver_calls_ << "\n";
   kernel_idiom_stats_file << "num of functions needed for shared data computation: " << num_of_func_for_analyzing_shared_data_ << "\n";
@@ -97,6 +100,7 @@ void pdg::KSplitStatsCollector::PrintKernelIdiomSharedStats()
   kernel_idiom_shared_stats_file << "num of union type data: " << num_of_union_op_ << "\n";
   kernel_idiom_shared_stats_file << "num of unsafe type cast: " << num_of_unsafe_casted_struct_pointer_ << "\n";
   kernel_idiom_shared_stats_file << "num of sential array: " << num_of_sentinel_array_op_ << "\n";
+  kernel_idiom_stats_file << "num of seq pointer: " << num_of_seq_pointer_op_ << "\n";
   kernel_idiom_shared_stats_file << "Driver to Kernel Invocation: " << num_of_driver_to_kernel_calls_ << "\n";
   kernel_idiom_shared_stats_file << "Kernel to Driver Invocation: " << num_of_kernel_to_driver_calls_ << "\n";
 }

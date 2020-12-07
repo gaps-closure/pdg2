@@ -10,8 +10,9 @@ void test1(struct st* ss) {
 
 // array<type, var_len> a; 
 void test2(int* s, int len) {
-    for (int i = 0; i < len; ++i) 
-        printf("%d\n", s[i]);
+    printf("%d\n", s[1]);
+    /* for (int i = 0; i < len; ++i) */ 
+    /*     printf("%d\n", s[i]); */
 }
 
 //driver
