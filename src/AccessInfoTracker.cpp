@@ -1060,6 +1060,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     auto arg_tree_begin = argW->tree_begin(TreeType::FORMAL_IN_TREE);
     if (arg_tree_begin == argW->tree_end(TreeType::FORMAL_IN_TREE))
       continue;
+    printSharedPointers(arg_tree_begin);
     DIType* arg_di_type = (*arg_tree_begin)->getDIType();
     assert(arg_di_type != nullptr && "cannot generate rpc due to missing arg debugging type info");
     DIType *arg_lowest_di_type = DIUtils::getLowestDIType(arg_di_type);
