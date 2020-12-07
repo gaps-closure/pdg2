@@ -1122,6 +1122,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
         else
         {
           arg_str = "array<" + arg_type_name + ", " + std::to_string(arrSize) + ">" + pointerLevelStr + " " + arg_name;
+          ksplit_stats_collector.IncreaseNumberOfHandledArray();
         }
       }
       else
@@ -1617,6 +1618,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
           std::string pointer_str = DIUtils::computePointerLevelStr(struct_field_di_type);
           std::string raw_field_name = DIUtils::getRawDITypeName(struct_field_di_type);
           OS << field_indent_level << "array<" << raw_field_name << ", " << "var_len>" << pointer_str << " " << field_name << ";\n";
+          ksplit_stats_collector.IncreaseNumberOfUnhandledArray();
           if (DIUtils::isCharPointer(struct_field_di_type))
             ksplit_stats_collector.IncreaseNumberOfCharArray();
         }
@@ -2167,7 +2169,7 @@ void pdg::AccessInfoTracker::collectKSplitSharedStats(DIType* struct_di_type, DI
       ksplit_stats_collector.IncreaseNumberOfUnhandledVoidPointer();
   }
   if (DIUtils::isArrayType(struct_field_di_type))
-    ksplit_stats_collector.IncreaseNumberOfArrayOp();
+    ksplit_stats_collector.IncreaseNumberOfHandledArray();
   if (annotation_str.find("string") != std::string::npos)
     ksplit_stats_collector.IncreaseNumberOfStringOp();
   if (DIUtils::isUnionTy(struct_field_lowest_di_type))
@@ -2210,9 +2212,9 @@ bool pdg::AccessInfoTracker::isSeqPointer(tree<InstructionWrapper*>::iterator it
       {
         if (!GEP->hasAllZeroIndices())
         {
-          Type* ptr_operand_ty = GEP->getPointerOperandType();
-          if (!PDG->isStructPointer(ptr_operand_ty))
-            return true;
+          // Type* ptr_operand_ty = GEP->getPointerOperandType();
+          // if (!PDG->isStructPointer(ptr_operand_ty))
+          return true;
         }
       }
     }

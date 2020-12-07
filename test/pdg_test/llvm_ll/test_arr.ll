@@ -29,15 +29,19 @@ declare i32 @printf(i8*, ...) #2
 define void @test2(i32*, i32) #0 !dbg !28 {
   %3 = alloca i32*, align 8
   %4 = alloca i32, align 4
+  %5 = alloca i32*, align 8
   store i32* %0, i32** %3, align 8
   call void @llvm.dbg.declare(metadata i32** %3, metadata !31, metadata !22), !dbg !32
   store i32 %1, i32* %4, align 4
   call void @llvm.dbg.declare(metadata i32* %4, metadata !33, metadata !22), !dbg !34
-  %5 = load i32*, i32** %3, align 8, !dbg !35
-  %6 = getelementptr inbounds i32, i32* %5, i64 1, !dbg !35
-  %7 = load i32, i32* %6, align 4, !dbg !35
-  %8 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %7), !dbg !36
-  ret void, !dbg !37
+  call void @llvm.dbg.declare(metadata i32** %5, metadata !35, metadata !22), !dbg !36
+  %6 = load i32*, i32** %3, align 8, !dbg !37
+  %7 = getelementptr inbounds i32, i32* %6, i64 2, !dbg !37
+  store i32* %7, i32** %5, align 8, !dbg !36
+  %8 = load i32*, i32** %5, align 8, !dbg !38
+  %9 = load i32, i32* %8, align 4, !dbg !39
+  %10 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %9), !dbg !40
+  ret void, !dbg !41
 }
 
 attributes #0 = { noinline nounwind optnone ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+fxsr,+mmx,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
@@ -83,6 +87,10 @@ attributes #2 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-
 !32 = !DILocation(line: 12, column: 17, scope: !28)
 !33 = !DILocalVariable(name: "len", arg: 2, scope: !28, file: !1, line: 12, type: !16)
 !34 = !DILocation(line: 12, column: 24, scope: !28)
-!35 = !DILocation(line: 13, column: 20, scope: !28)
-!36 = !DILocation(line: 13, column: 5, scope: !28)
-!37 = !DILocation(line: 16, column: 1, scope: !28)
+!35 = !DILocalVariable(name: "c", scope: !28, file: !1, line: 13, type: !20)
+!36 = !DILocation(line: 13, column: 10, scope: !28)
+!37 = !DILocation(line: 13, column: 15, scope: !28)
+!38 = !DILocation(line: 14, column: 21, scope: !28)
+!39 = !DILocation(line: 14, column: 20, scope: !28)
+!40 = !DILocation(line: 14, column: 5, scope: !28)
+!41 = !DILocation(line: 17, column: 1, scope: !28)

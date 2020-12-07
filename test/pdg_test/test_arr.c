@@ -10,7 +10,8 @@ void test1(struct st* ss) {
 
 // array<type, var_len> a; 
 void test2(int* s, int len) {
-    printf("%d\n", s[1]);
+    int *c = &s[2];
+    printf("%d\n", *c);
     /* for (int i = 0; i < len; ++i) */ 
     /*     printf("%d\n", s[i]); */
 }

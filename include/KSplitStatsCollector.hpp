@@ -27,7 +27,7 @@ private:
   unsigned num_of_sentinel_array_;
   unsigned num_of_sentinel_array_op_;
   unsigned num_of_array_;
-  unsigned num_of_array_op_;
+  unsigned num_of_handled_array_;
   unsigned num_of_char_array_;
   unsigned num_of_unhandled_array_;
   unsigned num_of_string_;
@@ -83,8 +83,8 @@ public:
   void IncreaseNumberOfSentinelArray() { num_of_sentinel_array_++; }
   void IncreaseNumberOfSentinelArrayOp() { num_of_sentinel_array_op_++; }
   void IncreaseNumberOfArray() { num_of_array_++; }
-  void IncreaseNumberOfArrayOp() { num_of_array_op_++; }
   void IncreaseNumberOfCharArray() { num_of_char_array_++; }
+  void IncreaseNumberOfHandledArray() { num_of_handled_array_++; }
   void IncreaseNumberOfUnhandledArray() { num_of_unhandled_array_++; }
   void IncreaseNumberOfString() { num_of_string_++; }
   void IncreaseNumberOfStringOp() { num_of_string_op_++; }
