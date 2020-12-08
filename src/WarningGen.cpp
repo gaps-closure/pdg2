@@ -35,7 +35,7 @@ namespace pdg
       setupLockPairMap();
       pdgUtils.computeCrossDomainTransFuncs(M, crossDomainTransFuncs);
       // computeAsyncFuncs(M);
-      computePtrToSharedData(pdgUtils.computeCrossDomainFuncs(M), M);
+      computePtrToSharedData(crossDomainTransFuncs, M);
       CSWarningFile.open("CSWarning.txt");
       AtomicWarningFile.open("AtomicWarning.txt");
       // print warnings for critical sections
@@ -276,9 +276,7 @@ namespace pdg
       {
         // get corresponding tree node for a instruction
         InstructionWrapper *instW = instMap[i];
-        errs() << "inst: " << *i << " - " << i->getFunction()->getName() << "\n";
         auto depTreeNodes = PDG->getNodesWithDepType(instW, DependencyType::VAL_DEP);
-        errs() << "dep node size: " << depTreeNodes.size() << "\n";
         if (depTreeNodes.size() != 1)
         {
           // if the modified data is a strcut field, we need to print the format: struct->field
@@ -432,7 +430,7 @@ namespace pdg
       return (ptrToSharedData.find(val) != ptrToSharedData.end());
     }
 
-    void computePtrToSharedData(std::set<Function *> crossDomainFuncs, Module &M)
+    void computePtrToSharedData(std::set<Function *> crossDomainTranFuncs, Module &M)
     {
       // auto sharedGlobalVars = PDG->getSharedGlobalVars();
       // for (auto sharedGlobalVar : sharedGlobalVars)
@@ -441,11 +439,9 @@ namespace pdg
       //   ptrToSharedData.insert(valAccessSharedGlobalVar.begin(), valAccessSharedGlobalVar.end());
       // }
 
-      auto transFuncFromInit = computeReachableFuncsFromInit(M);
-      crossDomainFuncs.insert(transFuncFromInit.begin(), transFuncFromInit.end());
-      for (Function &func : M)
+      for (Function *func : crossDomainTransFuncs)
       {
-        for (auto argI = func.arg_begin(); argI != func.arg_end(); ++argI)
+        for (auto argI = func->arg_begin(); argI != func->arg_end(); ++argI)
         {
           // start finding all pointers that are derived from the arg
           // get alloca instruction first. Then start deriving
