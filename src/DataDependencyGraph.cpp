@@ -141,8 +141,8 @@ void pdg::DataDependencyGraph::collectAliasDependencies()
       if (I1 == I2)
         continue;
       // TODO: potential causes of underapproximation.
-      if (auto gep = dyn_cast<GetElementPtrInst>(&*I2))
-        continue;
+      // if (auto gep = dyn_cast<GetElementPtrInst>(&*I2))
+      //   continue;
       if (isMayAlias(*I1, *I2, *Func))
       {
         DDG->addDependency(instMap[&*I1], instMap[&*I2], DependencyType::DATA_ALIAS);

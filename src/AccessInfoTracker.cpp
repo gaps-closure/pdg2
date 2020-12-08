@@ -1293,11 +1293,13 @@ std::string pdg::AccessInfoTracker::getReturnValAnnotationStr(Function &F)
         CallSite CS(tempV);
         if (!CS.isCall() || CS.isIndirectCall())
           continue;
-        
-        auto calledFunc = CS.getCalledFunction();
-        std::string funcName = calledFunc->getName().str();
-        if (IsAllocator(funcName))
-          return "[alloc(caller)]";
+
+        if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
+        {
+          std::string called_func_name = called_func->getName().str();
+          if (IsAllocator(called_func_name))
+            return "[alloc(caller)]";
+        }
       }
     }
   }

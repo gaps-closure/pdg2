@@ -234,7 +234,7 @@ namespace pdg
             continue;
           if (Instruction *i = dyn_cast<Instruction>(readVal))
           {
-            CSWarningFile << "\t" << getAccessedDataName(*readVal) << "\n";
+            // CSWarningFile << "\t" << getAccessedDataName(*readVal) << "\n";
             is_cs_shared = true;
           }
         }
@@ -251,7 +251,7 @@ namespace pdg
           if (Instruction *i = dyn_cast<Instruction>(modifiedVal))
           {
             // CSWarningFile << "\tmodified data: " << DIUtils::getDIFieldName(instDIType) << "\n";
-            CSWarningFile << "\t" << getAccessedDataName(*modifiedVal) << "\n";
+            // CSWarningFile << "\t" << getAccessedDataName(*modifiedVal) << "\n";
             // std::string instStr;
             // llvm::raw_string_ostream rs(instStr);
             // rs << *i << "\n";
@@ -681,7 +681,7 @@ namespace pdg
       llvm::raw_string_ostream rs1(varStr);
       rs1 << *modifiedVar;
       AtomicWarningFile << "substituded var: " << rs1.str() << "\n";
-      AtomicWarningFile << getAccessedDataName(*modifiedVar);
+      // AtomicWarningFile << getAccessedDataName(*modifiedVar);
       AtomicWarningFile << "Line Number: " << atomicOp.getDebugLoc()->getLine() << "\n";
       // errs() << "Modify instruction: " << atomicOp << "\n";
       std::string instStr;
