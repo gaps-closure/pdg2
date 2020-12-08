@@ -120,6 +120,8 @@ void pdg::KSplitStatsCollector::PrintProjectionStats()
 void pdg::KSplitStatsCollector::PrintAtomicRegionStats()
 {
   atomic_region_stats_file << "total number of CS: " << num_of_critical_section_ << "\n";
-  atomic_region_stats_file << "total number of atomic operation access shared data: " << num_of_atomic_operation_ << "\n";
+  atomic_region_stats_file << "total number of CS access shared data: " << num_of_critical_section_shared_data_ << "\n";
+  atomic_region_stats_file << "total number of atomic operations: " << num_of_atomic_operation_ << "\n";
+  atomic_region_stats_file << "total number of atomic operations access shared data: " << num_of_atomic_operation_shared_data_ << "\n";
   atomic_region_stats_file << "total number of shared struct types: " << num_of_shared_struct_type_ << "\n";
 }

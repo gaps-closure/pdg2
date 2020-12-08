@@ -42,7 +42,9 @@ private:
   unsigned num_of_kernel_to_driver_calls_;
   unsigned num_of_driver_to_kernel_calls_;
   unsigned num_of_critical_section_;
+  unsigned num_of_critical_section_shared_data_;
   unsigned num_of_atomic_operation_;
+  unsigned num_of_atomic_operation_shared_data_;
   unsigned num_of_shared_struct_type_;
   unsigned num_of_func_for_analyzing_shared_data_;
   unsigned num_of_func_for_analyzing_accessed_fields_;
@@ -96,7 +98,9 @@ public:
   void IncreaseNumberOfSeqPointerOp() { num_of_seq_pointer_op_++; }
   void IncreaseNumberOfContainerOfMacro() { num_of_container_of_macro_++; }
   void IncreaseNumberOfAtomicOperation() { num_of_atomic_operation_++; }
+  void IncreaseNumberOfAtomicOperationSharedData() { num_of_atomic_operation_shared_data_++; }
   void IncreaseNumberOfCriticalSection() { num_of_critical_section_++; }
+  void IncreaseNumberOfCriticalSectionSharedData() { num_of_critical_section_shared_data_++; }
   void IncreaseSavedDataSizeUseProjection(unsigned saved_data_size_use_projection) { saved_data_size_use_projection_ += saved_data_size_use_projection; }
   void IncreaseSavedDataSizeUseSharedData(unsigned saved_data_size_use_shared_data) { saved_data_size_use_shared_data_ += saved_data_size_use_shared_data; }
   void SetNumberOfDriverToKernelCalls(unsigned call_times) {num_of_driver_to_kernel_calls_ = call_times; }

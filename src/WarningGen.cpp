@@ -72,6 +72,8 @@ namespace pdg
         auto csInFunc = collectCSInFunc(*F); // find cs in each defined functions
         CS.insert(csInFunc.begin(), csInFunc.end());
       }
+      auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
+      ksplit_stats_collector.SetNumberOfCriticalSection(CS.size());
       errs() << "number of CS: " << CS.size() << "\n";
     }
 
@@ -260,7 +262,7 @@ namespace pdg
         }
         CSWarningFile << " ----------------------------------------------- \n";
         if (is_cs_shared)
-          ksplit_stats_collector.IncreaseNumberOfCriticalSection();
+          ksplit_stats_collector.IncreaseNumberOfCriticalSectionSharedData();
       }
     }
 
@@ -652,11 +654,12 @@ namespace pdg
         {
           if (isAtomicOperation(&*instI))
           {
+            ksplit_stats_collector.IncreaseNumberOfAtomicOperation();
             auto modifiedAddrVar = instI->getOperand(0);
             if (ptrToSharedData.find(modifiedAddrVar) != ptrToSharedData.end())
             {
               printWarningForSharedVarInAtomicOperation(*modifiedAddrVar, *instI, *func);
-              ksplit_stats_collector.IncreaseNumberOfAtomicOperation();
+              ksplit_stats_collector.IncreaseNumberOfAtomicOperationSharedData();
             }
           }
         }
