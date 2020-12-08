@@ -122,5 +122,4 @@ void pdg::KSplitStatsCollector::PrintAtomicRegionStats()
   atomic_region_stats_file << "total number of CS: " << num_of_critical_section_ << "\n";
   atomic_region_stats_file << "total number of atomic operation access shared data: " << num_of_atomic_operation_ << "\n";
   atomic_region_stats_file << "total number of shared struct types: " << num_of_shared_struct_type_ << "\n";
-  atomic_region_stats_file << "total number of shared fields: " << num_of_shared_struct_fields_ << "\n";
 }

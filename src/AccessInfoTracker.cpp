@@ -38,12 +38,12 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
            << " {\n";
   computeSharedData();
   ksplit_stats_collector.SetNumberOfSharedStructType(sharedDataTypeMap.size());
-  unsigned num_of_shared_fields = 0;
-  for (auto pair : sharedDataTypeMap)
-  {
-    num_of_shared_fields += pair.second.size();
-  }
-  ksplit_stats_collector.SetNumberOfSharedStructFields(num_of_shared_fields);
+  // unsigned num_of_shared_fields = 0;
+  // for (auto pair : sharedDataTypeMap)
+  // {
+  //   num_of_shared_fields += pair.second.size();
+  // }
+  // ksplit_stats_collector.SetNumberOfSharedStructFields(num_of_shared_fields);
 
   std::set<Function*> crossDomainTransFuncs;
   pdgUtils.computeCrossDomainTransFuncs(M, crossDomainTransFuncs);
@@ -1828,7 +1828,7 @@ std::string pdg::AccessInfoTracker::inferTreeNodeStringAnnotation(tree<Instructi
     Instruction* addr_var_inst = addr_var_w->getInstruction();
     for (auto addr_var_inst_user : addr_var_inst->users())
     {
-      if (LoadInst *li = dyn_cast<LoadInst>(li))
+      if (LoadInst *li = dyn_cast<LoadInst>(addr_var_inst))
       {
         for (auto li_user : li->users())
         {

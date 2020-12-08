@@ -26,8 +26,8 @@ namespace pdg
     bool runOnModule(Module &M)
     {
       PDG = &getAnalysis<ProgramDependencyGraph>();
+      di_type_object_tree_map_ = PDG->getGlobalTypeTrees();
       auto &pdgUtils = PDGUtils::getInstance();
-      auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
       pdgUtils.constructFuncMap(M);
       warningNum = 0;
       atomicOpWarningNum = 0;
@@ -45,6 +45,7 @@ namespace pdg
       printWarningsForAtomicOperation(M);
       CSWarningFile.close();
       AtomicWarningFile.close();
+      auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
       ksplit_stats_collector.PrintAtomicRegionStats();
       return false;
     }
@@ -59,7 +60,6 @@ namespace pdg
 
     void computeCriticalSections()
     {
-      auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
       // a list of locking functions we are looking for
       std::set<Function *> reachableFuncs;
       reachableFuncs.insert(crossDomainTransFuncs.begin(), crossDomainTransFuncs.end());
@@ -205,7 +205,7 @@ namespace pdg
     {
       auto &pdgUtils = PDGUtils::getInstance();
       auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
-      auto instDITypeMap = pdgUtils.getInstDITypeMap();
+      auto inst_di_type_map = pdgUtils.getInstDITypeMap();
       // collect store insts for each cs
       for (auto lockPair : CS)
       {
@@ -213,6 +213,15 @@ namespace pdg
         Function *CSFunc = lockPair.first->getFunction();
         CSWarningFile << "Critical Section found in func: " << CSFunc->getName().str() << "\n";
         auto instsInCS = collectInstsInCS(lockPair, *CSFunc);
+        for (auto inst : instsInCS)
+        {
+          if (!is_cs_shared && inst_di_type_map.find(inst) != inst_di_type_map.end())
+          {
+            DIType *inst_di_type = inst_di_type_map[inst];
+            if (di_type_object_tree_map_.find(inst_di_type) != di_type_object_tree_map_.end())
+              is_cs_shared = true;
+          }
+        }
         // find data read in the CS, synchronize these data at the beginning of critical sections
         auto loadInstsInCS = collectLoadInstsInCS(lockPair, *CSFunc, instsInCS);
         CSWarningFile << "read data: \n";
@@ -716,6 +725,7 @@ namespace pdg
     std::ofstream CSWarningFile;
     std::ofstream AtomicWarningFile;
     ProgramDependencyGraph *PDG;
+    std::map<DIType*, tree<InstructionWrapper*>> di_type_object_tree_map_;
   }; // namespace pdg
 
   char WarningGen::ID = 0;
