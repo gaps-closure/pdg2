@@ -1036,6 +1036,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     ret_type_name = "projection ret_" + ret_type_name;
     std::string ret_annotation = getReturnValAnnotationStr(F);
     ret_type_name += ret_annotation;
+    collectKSplitStats(nullptr, func_ret_di_type, ret_annotation);
     collectKSplitSharedStats(nullptr, func_ret_di_type, ret_annotation);
   }
   // swap the function name with its registered function pointer to align with the IDL syntax
