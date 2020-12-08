@@ -1832,7 +1832,7 @@ std::string pdg::AccessInfoTracker::inferTreeNodeStringAnnotation(tree<Instructi
     Instruction* addr_var_inst = addr_var_w->getInstruction();
     for (auto addr_var_inst_user : addr_var_inst->users())
     {
-      if (LoadInst *li = dyn_cast<LoadInst>(addr_var_inst))
+      if (LoadInst *li = dyn_cast<LoadInst>(addr_var_inst_user))
       {
         for (auto li_user : li->users())
         {

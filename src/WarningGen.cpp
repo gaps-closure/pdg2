@@ -443,9 +443,9 @@ namespace pdg
 
       auto transFuncFromInit = computeReachableFuncsFromInit(M);
       crossDomainFuncs.insert(transFuncFromInit.begin(), transFuncFromInit.end());
-      for (Function *func : crossDomainTransFuncs)
+      for (Function &func : M)
       {
-        for (auto argI = func->arg_begin(); argI != func->arg_end(); ++argI)
+        for (auto argI = func.arg_begin(); argI != func.arg_end(); ++argI)
         {
           // start finding all pointers that are derived from the arg
           // get alloca instruction first. Then start deriving
