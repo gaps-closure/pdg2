@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <string.h>
+
 struct st {
     int f1[10];
     int *f2 ;
@@ -14,6 +16,11 @@ void test2(int* s, int len) {
     printf("%d\n", *c);
     /* for (int i = 0; i < len; ++i) */ 
     /*     printf("%d\n", s[i]); */
+}
+
+void test3(char* name) {
+   char* n = "hello";
+   strncpy(name, n, 5);
 }
 
 //driver

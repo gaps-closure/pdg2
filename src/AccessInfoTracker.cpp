@@ -1826,18 +1826,23 @@ std::string pdg::AccessInfoTracker::inferTreeNodeStringAnnotation(tree<Instructi
     if (global_string_struct_fields_.find(fieldID) != global_string_struct_fields_.end())
       return "[string]";
     Instruction* addr_var_inst = addr_var_w->getInstruction();
-    std::set<Instruction *> dep_insts_on_addr_var;
-    PDG->getDepInstsWithDepType(addr_var_w->getInstruction(), DependencyType::DATA_CALL_PARA, dep_insts_on_addr_var);
-    for (Instruction *dep_inst : dep_insts_on_addr_var)
+    for (auto addr_var_inst_user : addr_var_inst->users())
     {
-      CallSite CS(dep_inst);
-      if (!CS.isCall() || CS.isIndirectCall())
-        continue;
-      if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
+      if (LoadInst *li = dyn_cast<LoadInst>(li))
       {
-        std::string called_func_name = called_func->getName();
-        if (IsStringOps(called_func_name))
-          return "[string]";
+        for (auto li_user : li->users())
+        {
+          CallSite CS(li_user);
+          if (!CS.isCall() || CS.isIndirectCall())
+            continue;
+          if (Function *called_func = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts()))
+          {
+            std::string called_func_name = called_func->getName().str();
+            called_func_name = pdgUtils.StripFuncnameVersionNumber(called_func_name);
+            if (IsStringOps(called_func_name))
+              return "[string]";
+          }
+        }
       }
     }
 
@@ -1921,7 +1926,8 @@ void pdg::AccessInfoTracker::InferTreeNodeAnnotation(tree<InstructionWrapper *>:
             {
               if (called_func->isDeclaration())
                 continue;
-              auto called_func_name = called_func->getName().str();
+              std::string called_func_name = called_func->getName().str();
+              called_func_name = pdgUtils.StripFuncnameVersionNumber(called_func_name);
               if (IsAllocator(called_func_name))
                 annotations.insert("[alloc(caller)]");
               if (deallocatorWrappers.find(called_func_name) != deallocatorWrappers.end())
