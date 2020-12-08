@@ -39,7 +39,7 @@ namespace pdg
       CSWarningFile.open("CSWarning.txt");
       AtomicWarningFile.open("AtomicWarning.txt");
       // print warnings for critical sections
-      computeCriticalSections();
+      computeCriticalSections(M);
       printWarningForCS();
       // print warnings for atomic operations
       printWarningsForAtomicOperation(M);
@@ -58,18 +58,18 @@ namespace pdg
       lockPairMap.insert(std::make_pair("global_lock", "global_unlock"));
     }
 
-    void computeCriticalSections()
+    void computeCriticalSections(Module& M)
     {
       // a list of locking functions we are looking for
-      std::set<Function *> reachableFuncs;
-      reachableFuncs.insert(crossDomainTransFuncs.begin(), crossDomainTransFuncs.end());
+      // std::set<Function *> reachableFuncs;
+      // reachableFuncs.insert(crossDomainTransFuncs.begin(), crossDomainTransFuncs.end());
       // reachableFuncs.insert(asyncFuncs.begin(), asyncFuncs.end());
 
-      for (auto F : reachableFuncs)
+      for (auto &F : M)
       {
-        if (F->isDeclaration())
+        if (F.isDeclaration())
           continue;
-        auto csInFunc = collectCSInFunc(*F); // find cs in each defined functions
+        auto csInFunc = collectCSInFunc(F); // find cs in each defined functions
         CS.insert(csInFunc.begin(), csInFunc.end());
       }
       auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
