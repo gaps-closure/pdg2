@@ -23,6 +23,7 @@ private:
   unsigned num_of_void_pointer_;
   unsigned num_of_void_pointer_op_;
   unsigned num_of_unhandled_void_pointer_;
+  unsigned num_of_unhandled_void_pointer_op_;
   unsigned num_of_unsafe_casted_struct_pointer_;
   unsigned num_of_sentinel_array_;
   unsigned num_of_sentinel_array_op_;
@@ -79,6 +80,7 @@ public:
   void IncreaseNumberOfVoidPointer() { num_of_void_pointer_++; }
   void IncreaseNumberOfVoidPointerOp() { num_of_void_pointer_op_++; }
   void IncreaseNumberOfUnhandledVoidPointer() {num_of_unhandled_void_pointer_++;}
+  void IncreaseNumberOfUnhandledVoidPointerOp() {num_of_unhandled_void_pointer_op_++;}
   void IncreaseNumberOfUnsafeCastedStructPointer() { num_of_unsafe_casted_struct_pointer_++; }
   void IncreaseNumberOfSentinelArray() { num_of_sentinel_array_++; }
   void IncreaseNumberOfSentinelArrayOp() { num_of_sentinel_array_op_++; }

@@ -14,6 +14,7 @@ pdg::KSplitStatsCollector::KSplitStatsCollector()
   num_of_void_pointer_ = 0;
   num_of_void_pointer_op_ = 0;
   num_of_unhandled_void_pointer_ = 0;
+  num_of_unhandled_void_pointer_op_ = 0;
   num_of_unsafe_casted_struct_pointer_ = 0;
   num_of_sentinel_array_ = 0;
   num_of_sentinel_array_op_ = 0;
@@ -96,7 +97,7 @@ void pdg::KSplitStatsCollector::PrintKernelIdiomSharedStats()
   kernel_idiom_shared_stats_file << "num of handled array: " << num_of_handled_array_ << "\n";
   kernel_idiom_shared_stats_file << "num of unhandled array: " << num_of_unhandled_array_ << "\n";
   kernel_idiom_shared_stats_file << "num of string: " << num_of_string_op_ << "\n";
-  kernel_idiom_shared_stats_file << "num of void pointer/unhandled: " << num_of_void_pointer_op_ << "[" << num_of_unhandled_void_pointer_ << "]" << "\n";
+  kernel_idiom_shared_stats_file << "num of void pointer/unhandled: " << num_of_void_pointer_op_ << "[" << num_of_unhandled_void_pointer_op_ << "]" << "\n";
   kernel_idiom_shared_stats_file << "num of container_of operation: " << num_of_container_of_macro_ << "\n";
   kernel_idiom_shared_stats_file << "num of union type data: " << num_of_union_op_ << "\n";
   kernel_idiom_shared_stats_file << "num of unsafe type cast: " << num_of_unsafe_casted_struct_pointer_ << "\n";

@@ -2166,7 +2166,7 @@ void pdg::AccessInfoTracker::collectKSplitSharedStats(DIType* struct_di_type, DI
   {
     ksplit_stats_collector.IncreaseNumberOfVoidPointerOp();
     if (struct_di_type != nullptr)
-      ksplit_stats_collector.IncreaseNumberOfUnhandledVoidPointer();
+      ksplit_stats_collector.IncreaseNumberOfUnhandledVoidPointerOp();
   }
   if (DIUtils::isArrayType(struct_field_di_type))
     ksplit_stats_collector.IncreaseNumberOfHandledArray();
