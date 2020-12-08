@@ -127,6 +127,7 @@ private:
   std::set<std::string> global_array_fields_;
   std::set<llvm::Function*> asyncCallAccessedSharedData;
   std::string globalOpsStr;
+  std::set<std::string> seen_inst_ids_;
   bool crossBoundary; // indicate whether transitive closure cross two domains
 };
 

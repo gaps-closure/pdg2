@@ -2191,7 +2191,12 @@ void pdg::AccessInfoTracker::printSharedPointers(tree<InstructionWrapper*>::iter
     auto data_inst = dataW->getInstruction();
     if (data_inst == nullptr)
       continue;
-    shared_ptr_file << pdgUtils.computeInstID(*data_inst) << "\n";
+    std::string inst_id = pdgUtils.computeInstID(*data_inst);
+    if (seen_inst_ids_.find(inst_id) == seen_inst_ids_.end())
+    {
+      seen_inst_ids_.insert(inst_id);
+      shared_ptr_file << inst_id << "\n";
+    }
   }
 }
 
