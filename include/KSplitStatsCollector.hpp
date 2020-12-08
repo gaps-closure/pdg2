@@ -52,6 +52,7 @@ private:
   std::ofstream kernel_idiom_stats_file;
   std::ofstream kernel_idiom_shared_stats_file;
   std::ofstream atomic_region_stats_file;
+  std::ofstream shared_pointer_log_file;
 
 public:
   KSplitStatsCollector();
@@ -110,6 +111,7 @@ public:
   void SetNumberOfSharedStructType(unsigned num_of_shared_struct_type) { num_of_shared_struct_type_ = num_of_shared_struct_type; }
   void SetNumberOfFunctionForAnalyzingSharedData(unsigned num_of_func) { num_of_func_for_analyzing_shared_data_ = num_of_func; }
   void SetNumberOfFunctionForAnalyzingAccessedFields(unsigned num_of_func) { num_of_func_for_analyzing_accessed_fields_ = num_of_func; }
+  void PrintSharedPointer(std::string func_name, std::string arg_name, std::string fieldID);
 };
 } // namespace pdg
 

@@ -38,11 +38,14 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
            << " {\n";
   computeSharedData();
   ksplit_stats_collector.SetNumberOfSharedStructType(sharedDataTypeMap.size());
-  // unsigned num_of_shared_fields = 0;
-  // for (auto pair : sharedDataTypeMap)
-  // {
-  //   num_of_shared_fields += pair.second.size();
-  // }
+  unsigned num_of_shared_fields = 0;
+  for (auto pair : sharedDataTypeMap)
+  {
+    for (auto shared_field_id : pair.second)
+    {
+      errs() << "shared data id: " << shared_field_id << "\n";
+    }
+  }
   // ksplit_stats_collector.SetNumberOfSharedStructFields(num_of_shared_fields);
 
   std::set<Function*> crossDomainTransFuncs;
@@ -1042,6 +1045,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
   // swap the function name with its registered function pointer to align with the IDL syntax
   std::string func_name = F.getName().str();
   std::string func_ptr_name = getRegisteredFuncPtrName(func_name);
+  ksplit_stats_collector.PrintSharedPointer(func_name, ret_type_name, "ret value");
 
   std::string rpc_prefix = "\trpc ";
   if (func_ptr_name != func_name)
@@ -1143,6 +1147,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     collectKSplitSharedStats(nullptr, arg_di_type, annotation_str);
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !arg_name.empty())
       idl_file << ", ";
+    ksplit_stats_collector.PrintSharedPointer(func_name, arg_name, arg_name);
   }
   idl_file << " )";
 }
@@ -1486,6 +1491,7 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
   if (struct_di_type == nullptr)
     return;
   std::string field_indent_level = parent_struct_indent_level + "\t";
+  std::string func_name = (*treeI)->getFunction()->getName().str();
   for (int i = 0; i < tree<InstructionWrapper *>::number_of_children(treeI); ++i)
   {
     ksplit_stats_collector.IncreaseTotalNumberOfField();
@@ -1520,11 +1526,10 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
       continue;
     }
     ksplit_stats_collector.IncreaseNumberOfProjectedField();
-    if (isSeqPointer(childI))
-    {
-      ksplit_stats_collector.IncreaseNumberOfSeqPointerOp();
-      printSharedPointers(childI);
-    }
+
+    std::string fieldID = DIUtils::computeFieldID(struct_di_type, struct_field_di_type);
+    ksplit_stats_collector.PrintSharedPointer(func_name, arg_name, fieldID);
+
     // start generaeting IDL for each field
     if (DIUtils::isFuncPointerTy(struct_field_lowest_di_type))
     {
@@ -1608,7 +1613,6 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     {
       std::string type_name = DIUtils::getDITypeName(struct_field_di_type);
       std::string field_name = DIUtils::getDIFieldName(struct_field_di_type);
-      std::string fieldID = DIUtils::computeFieldID(struct_di_type, struct_field_di_type);
       // handle case in which the current field is accessed in buffer manipulation function, such as memcpy
       if (global_array_fields_.find(fieldID) != global_array_fields_.end())
       {
@@ -1839,6 +1843,7 @@ std::string pdg::AccessInfoTracker::inferTreeNodeStringAnnotation(tree<Instructi
           {
             std::string called_func_name = called_func->getName().str();
             called_func_name = pdgUtils.StripFuncnameVersionNumber(called_func_name);
+            errs() << "called function after strip version num: " << called_func_name << "\n";
             if (IsStringOps(called_func_name))
               return "[string]";
           }

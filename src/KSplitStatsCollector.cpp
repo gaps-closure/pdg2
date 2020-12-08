@@ -63,6 +63,13 @@ pdg::KSplitStatsCollector::KSplitStatsCollector()
     errs() << "error opening atomic region stats file\n";
     abort();
   }
+
+  shared_pointer_log_file.open("SharedPtrLog", std::ios::trunc);
+  if (!shared_pointer_log_file)
+  {
+    errs() << "error opening shared pointer log file\n";
+    abort();
+  }
 }
 
 void pdg::KSplitStatsCollector::PrintAllStats()
@@ -124,4 +131,9 @@ void pdg::KSplitStatsCollector::PrintAtomicRegionStats()
   atomic_region_stats_file << "total number of atomic operations: " << num_of_atomic_operation_ << "\n";
   atomic_region_stats_file << "total number of atomic operations access shared data: " << num_of_atomic_operation_shared_data_ << "\n";
   atomic_region_stats_file << "total number of shared struct types: " << num_of_shared_struct_type_ << "\n";
+}
+
+void pdg::KSplitStatsCollector::PrintSharedPointer(std::string func_name, std::string arg_name, std::string fieldID)
+{
+ shared_pointer_log_file << func_name << " - " << arg_name << " - " << fieldID << "\n";
 }

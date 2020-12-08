@@ -1124,7 +1124,6 @@ void pdg::ProgramDependencyGraph::buildGlobalTypeTrees(std::set<DIType*> sharedT
 {
   for (DIType *dt : sharedTypes)
   {
-    errs() << "building type for: " << DIUtils::getDITypeName(dt) << "\n";
     buildGlobalTypeTreeForDIType(*dt);
     std::set<InstructionWrapper*> s;
     shared_data_name_and_instw_map_.insert(std::make_pair(DIUtils::getRawDITypeName(dt), s));
