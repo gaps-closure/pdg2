@@ -1045,7 +1045,8 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
   // swap the function name with its registered function pointer to align with the IDL syntax
   std::string func_name = F.getName().str();
   std::string func_ptr_name = getRegisteredFuncPtrName(func_name);
-  ksplit_stats_collector.PrintSharedPointer(func_name, ret_type_name, "ret value");
+  if (DIUtils::isPointerType(func_ret_di_type))
+    ksplit_stats_collector.PrintSharedPointer(func_name, ret_type_name, "ret value");
 
   std::string rpc_prefix = "\trpc ";
   if (func_ptr_name != func_name)
@@ -1096,6 +1097,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     }
     else if (DIUtils::isPointerType(arg_di_type))
     {
+      ksplit_stats_collector.PrintSharedPointer(func_name, arg_name, arg_name);
       // for a pointer type parameter, we don't know if the pointer could point
       // to an array of elements. So, we need to infer it.
       // if current arg is a struct, need to generate projection keyword and strip struct keyword
@@ -1147,7 +1149,6 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     collectKSplitSharedStats(nullptr, arg_di_type, annotation_str);
     if (argW->getArg()->getArgNo() < F.arg_size() - 1 && !arg_name.empty())
       idl_file << ", ";
-    ksplit_stats_collector.PrintSharedPointer(func_name, arg_name, arg_name);
   }
   idl_file << " )";
 }
