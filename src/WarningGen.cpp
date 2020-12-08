@@ -443,7 +443,7 @@ namespace pdg
 
       auto transFuncFromInit = computeReachableFuncsFromInit(M);
       crossDomainFuncs.insert(transFuncFromInit.begin(), transFuncFromInit.end());
-      for (Function *func : crossDomainFuncs)
+      for (Function *func : crossDomainTransFuncs)
       {
         for (auto argI = func->arg_begin(); argI != func->arg_end(); ++argI)
         {
@@ -646,9 +646,9 @@ namespace pdg
     void printWarningsForAtomicOperation(Module &M)
     {
       auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
-      for (auto func : crossDomainTransFuncs)
+      for (auto &func : M)
       {
-        if (func->isDeclaration() || func->empty())
+        if (func.isDeclaration() || func.empty())
           continue;
         for (auto instI = inst_begin(func); instI != inst_end(func); instI++)
         {
@@ -658,7 +658,7 @@ namespace pdg
             auto modifiedAddrVar = instI->getOperand(0);
             if (ptrToSharedData.find(modifiedAddrVar) != ptrToSharedData.end())
             {
-              printWarningForSharedVarInAtomicOperation(*modifiedAddrVar, *instI, *func);
+              printWarningForSharedVarInAtomicOperation(*modifiedAddrVar, *instI, func);
               ksplit_stats_collector.IncreaseNumberOfAtomicOperationSharedData();
             }
           }
