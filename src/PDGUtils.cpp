@@ -594,7 +594,6 @@ void pdg::PDGUtils::printSeqPointerWhiteListFuncs(std::set<Function *> cross_dom
 //   }
 //   return interface_funcs;
 // }
-
 void pdg::PDGUtils::printAddressOfFirstInstInInterfaceFunc(std::set<Function *> interface_funcs)
 {
   std::ofstream addr_file;
@@ -605,4 +604,22 @@ void pdg::PDGUtils::printAddressOfFirstInstInInterfaceFunc(std::set<Function *> 
     addr_file << starting_inst << "\n";
   }
   addr_file.close();
+}
+
+std::string pdg::PDGUtils::computeInstID(Value& v)
+{
+  if (Instruction *i = dyn_cast<Instruction>(&v))
+  {
+    Function* f = i->getFunction();
+    std::string func_name = f->getName().str();
+    unsigned count = 0;
+    for (auto instI = inst_begin(f); instI != inst_end(f); ++instI)
+    {
+      if (&*instI == i)
+        break;
+      count++;
+    }
+    return func_name + std::to_string(count);
+  }
+  return "";
 }

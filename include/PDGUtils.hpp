@@ -80,6 +80,7 @@ class PDGUtils final
     void StripPointerSuffix(std::string &func_name);
     void printSeqPointerWhiteListFuncs(std::set<llvm::Function *> cross_domain_funcs_, llvm::Module &M);
     void printAddressOfFirstInstInInterfaceFunc(std::set<llvm::Function*> interface_funcs);
+    std::string computeInstID(llvm::Value &v);
 
   private:
     std::unordered_map<const llvm::Instruction *, InstructionWrapper *> G_instMap;

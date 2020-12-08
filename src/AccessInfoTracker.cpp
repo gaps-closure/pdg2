@@ -2183,17 +2183,15 @@ void pdg::AccessInfoTracker::collectKSplitSharedStats(DIType* struct_di_type, DI
 
 void pdg::AccessInfoTracker::printSharedPointers(tree<InstructionWrapper*>::iterator treeI)
 {
+  auto &pdgUtils = PDGUtils::getInstance();
   auto dep_inst_pairs = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
   for (auto dep_inst_pair : dep_inst_pairs)
   {
     auto dataW = const_cast<InstructionWrapper *>(dep_inst_pair.first->getData());
-    if (dataW->getInstruction() == nullptr)
+    auto data_inst = dataW->getInstruction();
+    if (data_inst == nullptr)
       continue;
-    Function* func = (*treeI)->getFunction();
-    std::string str;
-    raw_string_ostream ss(str);
-    ss << *dataW->getInstruction();
-    shared_ptr_file << ss.str() << " - " << func->getName().str() << "\n";
+    shared_ptr_file << pdgUtils.computeInstID(*data_inst) << "\n";
   }
 }
 
