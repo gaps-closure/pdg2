@@ -1531,8 +1531,9 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     ksplit_stats_collector.IncreaseNumberOfProjectedField();
 
     std::string fieldID = DIUtils::computeFieldID(struct_di_type, struct_field_di_type);
-    ksplit_stats_collector.PrintSharedPointer(func_name, arg_name, fieldID);
 
+    if (DIUtils::isPointerType(struct_field_di_type))
+      ksplit_stats_collector.PrintSharedPointer(func_name, arg_name, fieldID);
     // start generaeting IDL for each field
     if (DIUtils::isFuncPointerTy(struct_field_lowest_di_type))
     {

@@ -45,8 +45,6 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   pdgUtils.setDsaAnalysis(m_dsa);
   shared_data_log_file.open("SharedDataInstLog");
   // compute shared struct types
-  auto sharedTypes = DIUtils::collectSharedDITypes(M, pdgUtils.computeCrossDomainFuncs(M), EXPAND_LEVEL);
-  errs() << "number of found shared struct type: " << sharedTypes.size() << "\n";
   // compute a set of functions that need PDG construction
   std::set<Function*> funcsNeedPDGConstruction;
   cross_domain_funcs_ = pdgUtils.computeCrossDomainFuncs(M);
@@ -78,6 +76,8 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   // errs() << "shared global var size: " << sharedGlobalVars.size() << "\n";
   // buildObjectTreeForGlobalVars();
   // connectGlobalObjectTreeWithAddressVars(funcsNeedPDGConstruction);
+  auto sharedTypes = DIUtils::collectSharedDITypes(M, pdgUtils.computeCrossDomainFuncs(M), EXPAND_LEVEL);
+  errs() << "number of found shared struct type: " << sharedTypes.size() << "\n";
   if (SharedDataFlag)
   {
     errs() << "finish connecting global trees with users\n";
