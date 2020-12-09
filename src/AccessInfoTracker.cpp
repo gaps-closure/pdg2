@@ -1098,7 +1098,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     }
     else if (DIUtils::isPointerType(arg_di_type))
     {
-      ksplit_stats_collector.IncreaseNumberOfPointer(DIUtils::computeTotalPointerFieldNumberInStructType(func_ret_di_type));
+      ksplit_stats_collector.IncreaseNumberOfPointer(DIUtils::computeTotalPointerFieldNumberInStructType(arg_di_type));
       ksplit_stats_collector.PrintSharedPointer(func_name, arg_name, arg_name);
       // for a pointer type parameter, we don't know if the pointer could point
       // to an array of elements. So, we need to infer it.
