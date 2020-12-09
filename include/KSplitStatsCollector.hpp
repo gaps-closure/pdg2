@@ -48,6 +48,8 @@ private:
   unsigned num_of_shared_struct_type_;
   unsigned num_of_func_for_analyzing_shared_data_;
   unsigned num_of_func_for_analyzing_accessed_fields_;
+  unsigned num_of_global_var_;
+  unsigned num_of_shared_global_var_;
   std::ofstream projection_stats_file;
   std::ofstream kernel_idiom_stats_file;
   std::ofstream kernel_idiom_shared_stats_file;
@@ -101,6 +103,8 @@ public:
   void IncreaseNumberOfAtomicOperationSharedData() { num_of_atomic_operation_shared_data_++; }
   void IncreaseNumberOfCriticalSection() { num_of_critical_section_++; }
   void IncreaseNumberOfCriticalSectionSharedData() { num_of_critical_section_shared_data_++; }
+  void IncreaseNumberOfGlobalVar() { num_of_global_var_++; }
+  void IncreaseNumberOfSharedGlobalVar() { num_of_shared_global_var_++; }
   void IncreaseSavedDataSizeUseProjection(unsigned saved_data_size_use_projection) { saved_data_size_use_projection_ += saved_data_size_use_projection; }
   void IncreaseSavedDataSizeUseSharedData(unsigned saved_data_size_use_shared_data) { saved_data_size_use_shared_data_ += saved_data_size_use_shared_data; }
   void IncreaseNumberOfPointer(unsigned num_of_pointer) { num_of_pointer_ += num_of_pointer; }

@@ -50,7 +50,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   cross_domain_funcs_ = pdgUtils.computeCrossDomainFuncs(M);
   pdgUtils.computeCrossDomainTransFuncs(M, funcsNeedPDGConstruction);
   pdgUtils.printSeqPointerWhiteListFuncs(cross_domain_funcs_, M);
-  pdgUtils.printAddressOfFirstInstInInterfaceFunc(cross_domain_funcs_);
+  // pdgUtils.printAddressOfFirstInstInInterfaceFunc(cross_domain_funcs_);
   errs() << "Num of functions need PDG construction: " << funcsNeedPDGConstruction.size() << "\n";
   ksplit_stats_collector.SetNumberOfFunctionForAnalyzingAccessedFields(funcsNeedPDGConstruction.size());
   unsigned totalFuncInModule = 0;

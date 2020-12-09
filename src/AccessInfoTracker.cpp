@@ -30,6 +30,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   globalOpsStr = "";
   log_file.open("analysis_log");
   shared_ptr_file.open("shared_ptr.txt");
+  shared_ptr_debug_log.open("shared_ptr_debug_log.txt");
   // start generating IDL
   std::string file_name = "kernel";
   file_name += ".idl";
@@ -72,6 +73,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   idl_file.close();
   log_file.close();
   shared_ptr_file.close();
+  shared_ptr_debug_log.close();
   ksplit_stats_collector.PrintProjectionStats();
   ksplit_stats_collector.PrintKernelIdiomStats();
   ksplit_stats_collector.PrintKernelIdiomSharedStats();
@@ -1028,7 +1030,9 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
   auto funcMap = pdgUtils.getFuncMap();
   auto funcW = funcMap[&F];
   DIType *func_ret_di_type = DIUtils::getFuncRetDIType(F);
-  ksplit_stats_collector.IncreaseNumberOfPointer(DIUtils::computeTotalPointerFieldNumberInStructType(func_ret_di_type));
+  unsigned total_pointer_field_num = DIUtils::computeTotalPointerFieldNumberInStructType(func_ret_di_type);
+  ksplit_stats_collector.IncreaseNumberOfPointer(total_pointer_field_num);
+  errs() << "total ptr num: " << F.getName() << " ret - " << total_pointer_field_num << "\n";
   std::string ret_type_name = DIUtils::getDITypeName(func_ret_di_type);
   // when referencing a projection, discard the struct keyword.
   auto ret_argw = funcW->getRetW();
@@ -1045,7 +1049,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
   std::string func_name = F.getName().str();
   std::string func_ptr_name = getRegisteredFuncPtrName(func_name);
   if (DIUtils::isPointerType(func_ret_di_type))
-    ksplit_stats_collector.PrintSharedPointer(func_name, ret_type_name, "ret value");
+    printSharedPointerDebugLog(func_name, ret_type_name, "ret value", ret_argw->tree_begin(TreeType::FORMAL_IN_TREE));
 
   std::string rpc_prefix = "\trpc ";
   if (func_ptr_name != func_name)
@@ -1096,8 +1100,10 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     }
     else if (DIUtils::isPointerType(arg_di_type))
     {
-      ksplit_stats_collector.IncreaseNumberOfPointer(DIUtils::computeTotalPointerFieldNumberInStructType(arg_di_type));
-      ksplit_stats_collector.PrintSharedPointer(func_name, arg_name, arg_name);
+      unsigned total_arg_pointer_field = DIUtils::computeTotalPointerFieldNumberInStructType(arg_di_type);
+      errs() << "total ptr num: " << F.getName() << " arg - " << total_arg_pointer_field << "\n";
+      ksplit_stats_collector.IncreaseNumberOfPointer(total_arg_pointer_field);
+      printSharedPointerDebugLog(func_name, arg_name, arg_name, arg_tree_begin);
       // for a pointer type parameter, we don't know if the pointer could point
       // to an array of elements. So, we need to infer it.
       // if current arg is a struct, need to generate projection keyword and strip struct keyword
@@ -1531,7 +1537,10 @@ void pdg::AccessInfoTracker::generateProjectionForTreeNode(tree<InstructionWrapp
     std::string fieldID = DIUtils::computeFieldID(struct_di_type, struct_field_di_type);
 
     if (DIUtils::isPointerType(struct_field_di_type))
-      ksplit_stats_collector.PrintSharedPointer(func_name, arg_name, fieldID);
+    {
+      printSharedPointers(childI);
+      printSharedPointerDebugLog(func_name, arg_name, fieldID, childI);
+    }
     // start generaeting IDL for each field
     if (DIUtils::isFuncPointerTy(struct_field_lowest_di_type))
     {
@@ -2190,6 +2199,23 @@ void pdg::AccessInfoTracker::collectKSplitSharedStats(DIType* struct_di_type, DI
   {
     if (struct_lowest_di_type != struct_field_lowest_di_type)
       ksplit_stats_collector.IncreaseNumberOfSentinelArrayOp();
+  }
+}
+
+void pdg::AccessInfoTracker::printSharedPointerDebugLog(std::string func_name, std::string arg_name, std::string field_id, tree<InstructionWrapper *>::iterator treeI)
+{
+  shared_ptr_debug_log << func_name << " - " << arg_name << " - " << field_id << "\n";
+  auto dep_inst_pairs = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
+  for (auto dep_inst_pair : dep_inst_pairs)
+  {
+    auto dataW = const_cast<InstructionWrapper *>(dep_inst_pair.first->getData());
+    auto data_inst = dataW->getInstruction();
+    if (data_inst == nullptr)
+      continue;
+    std::string str;
+    raw_string_ostream ss(str);
+    ss << *data_inst;
+    shared_ptr_debug_log << "\t" << ss.str() << "\n";
   }
 }
 

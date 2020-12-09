@@ -35,6 +35,8 @@ pdg::KSplitStatsCollector::KSplitStatsCollector()
   num_of_shared_struct_type_ = 0;
   num_of_func_for_analyzing_shared_data_ = 0;
   num_of_func_for_analyzing_accessed_fields_ = 0;
+  num_of_global_var_ = 0;
+  num_of_shared_global_var_ = 0;
   // open stats files
   projection_stats_file.open("ProjectionStats", std::ios::trunc);
   if (!projection_stats_file)
@@ -64,12 +66,12 @@ pdg::KSplitStatsCollector::KSplitStatsCollector()
     abort();
   }
 
-  shared_pointer_log_file.open("SharedPtrLog", std::ios::trunc);
-  if (!shared_pointer_log_file)
-  {
-    errs() << "error opening shared pointer log file\n";
-    abort();
-  }
+  // shared_pointer_log_file.open("SharedPtrLog", std::ios::trunc);
+  // if (!shared_pointer_log_file)
+  // {
+  //   errs() << "error opening shared pointer log file\n";
+  //   abort();
+  // }
 }
 
 void pdg::KSplitStatsCollector::PrintAllStats()
@@ -133,7 +135,7 @@ void pdg::KSplitStatsCollector::PrintAtomicRegionStats()
   atomic_region_stats_file << "total number of shared struct types: " << num_of_shared_struct_type_ << "\n";
 }
 
-void pdg::KSplitStatsCollector::PrintSharedPointer(std::string func_name, std::string arg_name, std::string fieldID)
-{
- shared_pointer_log_file << func_name << " - " << arg_name << " - " << fieldID << "\n";
-}
+// void pdg::KSplitStatsCollector::PrintSharedPointer(std::string func_name, std::string arg_name, std::string fieldID)
+// {
+//  shared_pointer_log_file << func_name << " - " << arg_name << " - " << fieldID << "\n";
+// }
