@@ -76,7 +76,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   // errs() << "shared global var size: " << sharedGlobalVars.size() << "\n";
   // buildObjectTreeForGlobalVars();
   // connectGlobalObjectTreeWithAddressVars(funcsNeedPDGConstruction);
-  auto sharedTypes = DIUtils::collectSharedDITypes(M, pdgUtils.computeCrossDomainFuncs(M), EXPAND_LEVEL);
+  auto sharedTypes = DIUtils::collectSharedDITypes(M, cross_domain_funcs_, EXPAND_LEVEL);
   errs() << "number of found shared struct type: " << sharedTypes.size() << "\n";
   if (SharedDataFlag)
   {
@@ -107,8 +107,6 @@ void pdg::ProgramDependencyGraph::collectInstsWithDIType(std::set<Function *> &s
         continue;
       // here, we don't use getRawName, as we want the instruction with struct type, not including the struct pointers.
       std::string inst_di_type_name = DIUtils::getDITypeName(inst_di_type_map[i]);
-      if (inst_di_type_name.find("inode") != std::string::npos)
-        errs() << "inode found in: " << F.getName() << "\n";
       auto iter = shared_data_name_and_instw_map_.find(inst_di_type_name);
       if (iter != shared_data_name_and_instw_map_.end())
         iter->second.insert(instMap[i]);
@@ -1274,8 +1272,6 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
           {
             PDG->addDependency(*treeI, read_inst_w, DependencyType::VAL_DEP);
             PDG->addDependency(read_inst_w, *treeI, DependencyType::VAL_DEP);
-            if (allocFunc->getName().str() == "init_special_inode")
-              errs() << "init_special_inode: " << DIUtils::getDITypeName((*treeI)->getDIType()) << "\n";
           }
           // for GEP, checks the offset acutally match
           else if (isa<GetElementPtrInst>(read_inst))
@@ -1287,8 +1283,7 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
               {
                 PDG->addDependency(*treeI, read_inst_w, DependencyType::VAL_DEP);
                 PDG->addDependency(read_inst_w, *treeI, DependencyType::VAL_DEP);
-                if (allocFunc->getName().str() == "init_special_inode")
-                  errs() << "init_special_inode: " << DIUtils::getDITypeName((*treeI)->getDIType()) << "\n";
+                errs() << read_inst->getFunction()->getName() << " - " << DIUtils::getDIFieldName((*treeI)->getDIType()) << "\n";
               }
             }
           }

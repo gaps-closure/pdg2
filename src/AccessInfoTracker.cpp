@@ -39,13 +39,13 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   computeSharedData();
   ksplit_stats_collector.SetNumberOfSharedStructType(sharedDataTypeMap.size());
   unsigned num_of_shared_fields = 0;
-  for (auto pair : sharedDataTypeMap)
-  {
-    for (auto shared_field_id : pair.second)
-    {
-      errs() << "shared data id: " << shared_field_id << "\n";
-    }
-  }
+  // for (auto pair : sharedDataTypeMap)
+  // {
+  //   for (auto shared_field_id : pair.second)
+  //   {
+  //     errs() << "shared data id: " << shared_field_id << "\n";
+  //   }
+  // }
   // ksplit_stats_collector.SetNumberOfSharedStructFields(num_of_shared_fields);
 
   std::set<Function*> crossDomainTransFuncs;
@@ -807,8 +807,6 @@ std::set<Value *> pdg::AccessInfoTracker::findAliasInDomain(Value &V, Function &
       {
         if (s2.find(a1) != s2.end())
         {
-          if (F.getName() == "dummy_dev_init")
-            errs() << "find alias in " << transFunc->getName() << "\n";
           aliasInDomain.insert(&*I);
           break;
         }
@@ -1132,6 +1130,8 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       }
       else
       {
+        if (arg_type_name.find("var_len") != std::string::npos)
+          ksplit_stats_collector.IncreaseNumberOfUnhandledArray();
         arg_str = arg_type_name + " " + annotation_str + " " + pointerLevelStr + arg_name;
       }
       // unHandledArrayNum++;
