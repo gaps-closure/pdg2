@@ -859,6 +859,36 @@ bool pdg::DIUtils::actualArgHasAllocator(Function& F, unsigned argIdx)
   return false;
 }
 
+unsigned pdg::DIUtils::computeTotalPointerFieldNumberInStructType(DIType* dt)
+{
+  if (!isStructPointerTy(dt) && !isStructTy(dt))
+    return 0;
+  std::queue<DIType*> workQ;
+  std::set<DIType*> seenTypes;
+  workQ.push(dt);
+  unsigned pointer_field_num = 0;
+  while (!workQ.empty())
+  {
+    DIType* curDIType = workQ.front();
+    workQ.pop();
+    DIType* lowestDIType = getLowestDIType(curDIType);
+    if (seenTypes.find(lowestDIType) != seenTypes.end())
+      continue;
+    seenTypes.insert(lowestDIType);
+    auto DINodeArr = dyn_cast<DICompositeType>(lowestDIType)->getElements();
+    for (unsigned i = 0; i < DINodeArr.size(); ++i)
+    {
+      DIType *field_di_type = dyn_cast<DIType>(DINodeArr[i]);
+      DIType *field_lowest_di_type = getLowestDIType(field_di_type);
+      if (isPointerType(field_di_type))
+        pointer_field_num++;
+      if (isStructTy(field_lowest_di_type) || isUnionTy(field_lowest_di_type))
+        workQ.push(field_lowest_di_type);
+    }
+  }
+  return pointer_field_num;
+}
+
 unsigned pdg::DIUtils::computeTotalFieldNumberInStructType(DIType* dt)
 {
   if (!isStructPointerTy(dt) && !isStructTy(dt))

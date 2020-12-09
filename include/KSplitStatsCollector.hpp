@@ -93,7 +93,6 @@ public:
   void IncreaseNumberOfString() { num_of_string_++; }
   void IncreaseNumberOfStringOp() { num_of_string_op_++; }
   void IncreaseNumberOfCharPointer() { num_of_char_pointer_++; }
-  void IncreaseNumberOfPointer() { num_of_pointer_++; }
   void IncreaseNumberOfPointerOp() { num_of_pointer_op_++; }
   void IncreaseNumberOfSeqPointer() { num_of_seq_pointer_++; }
   void IncreaseNumberOfSeqPointerOp() { num_of_seq_pointer_op_++; }
@@ -104,6 +103,7 @@ public:
   void IncreaseNumberOfCriticalSectionSharedData() { num_of_critical_section_shared_data_++; }
   void IncreaseSavedDataSizeUseProjection(unsigned saved_data_size_use_projection) { saved_data_size_use_projection_ += saved_data_size_use_projection; }
   void IncreaseSavedDataSizeUseSharedData(unsigned saved_data_size_use_shared_data) { saved_data_size_use_shared_data_ += saved_data_size_use_shared_data; }
+  void IncreaseNumberOfPointer(unsigned num_of_pointer) { num_of_pointer_ += num_of_pointer; }
   void SetNumberOfDriverToKernelCalls(unsigned call_times) {num_of_driver_to_kernel_calls_ = call_times; }
   void SetNumberOfKernelToDriverCalls(unsigned call_times) {num_of_kernel_to_driver_calls_ = call_times; }
   void SetNumberOfCriticalSection(unsigned num_of_cs) { num_of_critical_section_ = num_of_cs; }

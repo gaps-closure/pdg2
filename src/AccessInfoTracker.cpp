@@ -1030,6 +1030,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
   auto funcMap = pdgUtils.getFuncMap();
   auto funcW = funcMap[&F];
   DIType *func_ret_di_type = DIUtils::getFuncRetDIType(F);
+  ksplit_stats_collector.IncreaseNumberOfPointer(DIUtils::computeTotalPointerFieldNumberInStructType(func_ret_di_type));
   std::string ret_type_name = DIUtils::getDITypeName(func_ret_di_type);
   // when referencing a projection, discard the struct keyword.
   auto ret_argw = funcW->getRetW();
@@ -1097,6 +1098,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     }
     else if (DIUtils::isPointerType(arg_di_type))
     {
+      ksplit_stats_collector.IncreaseNumberOfPointer(DIUtils::computeTotalPointerFieldNumberInStructType(func_ret_di_type));
       ksplit_stats_collector.PrintSharedPointer(func_name, arg_name, arg_name);
       // for a pointer type parameter, we don't know if the pointer could point
       // to an array of elements. So, we need to infer it.
@@ -1104,13 +1106,9 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
       // if the pointed element is yet another pointer, need to put * before argName
       // all pointer could point to array, need to check if the pointed buffer could be an array
       if (arg_type_name.find("_ops") != std::string::npos)
-      {
         arg_name = "_global_" + arg_type_name;
-      }
-
       if (DIUtils::isStructPointerTy(arg_di_type))
         arg_type_name = "projection " + arg_name;
-
       uint64_t arrSize = getArrayArgSize(arg, F);
       std::string pointerLevelStr = DIUtils::computePointerLevelStr(arg_di_type);
       std::string arg_str = "";
@@ -2144,8 +2142,6 @@ void pdg::AccessInfoTracker::collectKSplitStats(DIType* struct_di_type, DIType* 
   auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
   DIType* struct_lowest_di_type = DIUtils::getLowestDIType(struct_di_type);
   DIType* struct_field_lowest_di_type = DIUtils::getLowestDIType(struct_field_di_type);
-  if (DIUtils::isPointerType(struct_field_di_type))
-    ksplit_stats_collector.IncreaseNumberOfPointer();
   if (DIUtils::isCharPointer(struct_field_di_type))
     ksplit_stats_collector.IncreaseNumberOfCharPointer();
   if (DIUtils::isVoidPointer(struct_field_di_type))
