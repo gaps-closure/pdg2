@@ -100,8 +100,6 @@ void pdg::ProgramDependencyGraph::collectInstsWithDIType(std::set<Function *> &s
   {
     if (F.isDeclaration() || F.empty())
       continue;
-    if (search_domain.find(&F) == search_domain.end())
-      continue;
     for (auto instI = inst_begin(F); instI != inst_end(F); ++instI)
     {
       Instruction* i = &*instI;
@@ -109,6 +107,8 @@ void pdg::ProgramDependencyGraph::collectInstsWithDIType(std::set<Function *> &s
         continue;
       // here, we don't use getRawName, as we want the instruction with struct type, not including the struct pointers.
       std::string inst_di_type_name = DIUtils::getDITypeName(inst_di_type_map[i]);
+      if (inst_di_type_name.find("inode") != std::string::npos)
+        errs() << "inode found in: " << F.getName() << "\n";
       auto iter = shared_data_name_and_instw_map_.find(inst_di_type_name);
       if (iter != shared_data_name_and_instw_map_.end())
         iter->second.insert(instMap[i]);
@@ -1272,11 +1272,10 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
           Instruction *read_inst = read_inst_w->getInstruction();
           if (isa<LoadInst>(read_inst))
           {
-            // for (auto alias_inst_w : alias_set)
-            // {
             PDG->addDependency(*treeI, read_inst_w, DependencyType::VAL_DEP);
             PDG->addDependency(read_inst_w, *treeI, DependencyType::VAL_DEP);
-            // }
+            if (allocFunc->getName().str() == "init_special_inode")
+              errs() << "init_special_inode: " << DIUtils::getDITypeName((*treeI)->getDIType()) << "\n";
           }
           // for GEP, checks the offset acutally match
           else if (isa<GetElementPtrInst>(read_inst))
@@ -1286,11 +1285,10 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
             {
               if (isTreeNodeGEPMatch(structTy, *treeI, read_inst))
               {
-                // for (auto alias_inst_w : alias_set)
-                // {
                 PDG->addDependency(*treeI, read_inst_w, DependencyType::VAL_DEP);
                 PDG->addDependency(read_inst_w, *treeI, DependencyType::VAL_DEP);
-                // }
+                if (allocFunc->getName().str() == "init_special_inode")
+                  errs() << "init_special_inode: " << DIUtils::getDITypeName((*treeI)->getDIType()) << "\n";
               }
             }
           }
