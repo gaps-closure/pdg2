@@ -38,6 +38,7 @@ private:
   unsigned num_of_pointer_op_;
   unsigned num_of_seq_pointer_;
   unsigned num_of_seq_pointer_op_;
+  unsigned num_of_func_pointer_;
   unsigned num_of_container_of_macro_;
   unsigned num_of_kernel_to_driver_calls_;
   unsigned num_of_driver_to_kernel_calls_;
@@ -98,6 +99,7 @@ public:
   void IncreaseNumberOfPointerOp() { num_of_pointer_op_++; }
   void IncreaseNumberOfSeqPointer() { num_of_seq_pointer_++; }
   void IncreaseNumberOfSeqPointerOp() { num_of_seq_pointer_op_++; }
+  void IncreaseNumberOfFuncPointer() { num_of_func_pointer_++; }
   void IncreaseNumberOfContainerOfMacro() { num_of_container_of_macro_++; }
   void IncreaseNumberOfAtomicOperation() { num_of_atomic_operation_++; }
   void IncreaseNumberOfAtomicOperationSharedData() { num_of_atomic_operation_shared_data_++; }

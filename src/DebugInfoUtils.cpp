@@ -1,4 +1,5 @@
 #include "DebugInfoUtils.hpp"
+#include "KSplitStatsCollector.hpp"
 #include <queue>
 #include <set>
 
@@ -861,6 +862,7 @@ bool pdg::DIUtils::actualArgHasAllocator(Function& F, unsigned argIdx)
 
 unsigned pdg::DIUtils::computeTotalPointerFieldNumberInStructType(DIType* dt)
 {
+  auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
   if (!isStructPointerTy(dt) && !isStructTy(dt))
     return 0;
   std::queue<DIType*> workQ;
@@ -882,6 +884,8 @@ unsigned pdg::DIUtils::computeTotalPointerFieldNumberInStructType(DIType* dt)
       DIType *field_lowest_di_type = getLowestDIType(field_di_type);
       if (isPointerType(field_di_type))
         pointer_field_num++;
+      if (isFuncPointerTy(field_di_type))
+        ksplit_stats_collector.IncreaseNumberOfFuncPointer();
       if (isStructTy(field_lowest_di_type) || isUnionTy(field_lowest_di_type))
         workQ.push(field_lowest_di_type);
     }

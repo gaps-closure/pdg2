@@ -1283,7 +1283,6 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
               {
                 PDG->addDependency(*treeI, read_inst_w, DependencyType::VAL_DEP);
                 PDG->addDependency(read_inst_w, *treeI, DependencyType::VAL_DEP);
-                errs() << read_inst->getFunction()->getName() << " - " << DIUtils::getDIFieldName((*treeI)->getDIType()) << "\n";
               }
             }
           }
