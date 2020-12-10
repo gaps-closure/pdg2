@@ -7,5 +7,6 @@ namespace pdg {
 extern int EXPAND_LEVEL;
 extern int USEDEBUGINFO;
 extern int SHARED_DATA_FLAG;
+extern std::string LIBFILENAME;
 }
 #endif

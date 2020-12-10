@@ -3,6 +3,9 @@
 
 using namespace llvm;
 
+// std::string LIBFILENAME;
+cl::opt<std::string> BlackListFileName("libfile", cl::desc("Lib file"), cl::value_desc("lib filename"));
+
 void pdg::PDGUtils::constructInstMap(Function &F)
 {
   for (inst_iterator I = inst_begin(F); I != inst_end(F); ++I)
@@ -303,7 +306,9 @@ std::set<std::string> &pdg::PDGUtils::GetBlackListFuncs()
 {
   if (!black_list_func_names_.empty())
     return black_list_func_names_;
-  std::string filename("liblcd_funcs.txt");
+  if (BlackListFileName.empty())
+    BlackListFileName = "liblcd_funcs.txt";
+  std::string filename(BlackListFileName);
   std::ifstream blackListFuncs(filename);
   if (!blackListFuncs)
     errs() << "[WARNING]: Failed to open: " << filename << "\n";
