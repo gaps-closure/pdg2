@@ -6,6 +6,7 @@
 #include "ProgramDependencyGraph.hpp"
 #include "llvm/Analysis/CallGraph.h" 
 #include "DebugInfoUtils.hpp"
+#include "AtomicRegionTracker.hpp"
 #include <map>
 
 namespace pdg
@@ -57,6 +58,7 @@ public:
   void computeAccessedFieldsInStructType(std::string structTypeName);
   // compute Shared Data Based On Type
   void computeSharedData();
+  void computeAtomicRegionStats();
   void computeSharedDataInFunc(llvm::Function &F);
   std::set<std::string> computeAccessedFieldsForDIType(tree<InstructionWrapper *> objectTree, llvm::DIType *rootDIType);
   std::set<std::string> computeSharedDataForType(llvm::DIType* dt);
@@ -127,6 +129,8 @@ private:
   std::set<std::string> deallocatorWrappers;
   std::set<std::string> global_string_struct_fields_;
   std::set<std::string> global_array_fields_;
+  std::set<llvm::Instruction *> cs_insts_;
+  std::set<llvm::Instruction *> atomic_op_insts_;
   std::set<llvm::Function*> asyncCallAccessedSharedData;
   std::string globalOpsStr;
   std::set<std::string> seen_inst_ids_;

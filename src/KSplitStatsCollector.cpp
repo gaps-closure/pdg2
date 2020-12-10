@@ -4,6 +4,7 @@ using namespace llvm;
 pdg::KSplitStatsCollector::KSplitStatsCollector()
 {
   total_num_of_fields_ = 0;
+  total_num_of_fields_deep_copy_ = 0;
   num_of_projected_fields_ = 0;
   num_of_eliminated_private_fields_ = 0;
   saved_data_size_use_projection_ = 0;
@@ -112,6 +113,7 @@ void pdg::KSplitStatsCollector::PrintProjectionStats()
     errs() << "error opening projection stats file\n";
     abort();
   }
+  projection_stats_file << "total number of fields deep copy: " << total_num_of_fields_deep_copy_ << "\n";
   projection_stats_file << "total number of fields: " << total_num_of_fields_ << "\n";
   projection_stats_file << "number of fields eliminated by field access analysis: " << num_of_no_accessed_fields_ << "\n";
   projection_stats_file << "number of projected fields eliminated by shared data optimziation: " << num_of_eliminated_private_fields_ << "\n";

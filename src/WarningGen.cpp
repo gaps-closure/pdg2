@@ -35,7 +35,7 @@ namespace pdg
       setupLockPairMap();
       pdgUtils.computeCrossDomainTransFuncs(M, crossDomainTransFuncs);
       // computeAsyncFuncs(M);
-      computePtrToSharedData(crossDomainTransFuncs, M);
+      computePtrToSharedData(pdgUtils.computeCrossDomainFuncs(M), M);
       CSWarningFile.open("CSWarning.txt");
       AtomicWarningFile.open("AtomicWarning.txt");
       // print warnings for critical sections
@@ -261,8 +261,8 @@ namespace pdg
           }
         }
         CSWarningFile << " ----------------------------------------------- \n";
-        if (is_cs_shared)
-          ksplit_stats_collector.IncreaseNumberOfCriticalSectionSharedData();
+        // if (is_cs_shared)
+        //   ksplit_stats_collector.IncreaseNumberOfCriticalSectionSharedData();
       }
     }
 
@@ -430,7 +430,7 @@ namespace pdg
       return (ptrToSharedData.find(val) != ptrToSharedData.end());
     }
 
-    void computePtrToSharedData(std::set<Function *> crossDomainTranFuncs, Module &M)
+    void computePtrToSharedData(std::set<Function *> cross_domain_funcs, Module &M)
     {
       // auto sharedGlobalVars = PDG->getSharedGlobalVars();
       // for (auto sharedGlobalVar : sharedGlobalVars)
@@ -439,7 +439,7 @@ namespace pdg
       //   ptrToSharedData.insert(valAccessSharedGlobalVar.begin(), valAccessSharedGlobalVar.end());
       // }
 
-      for (Function *func : crossDomainTransFuncs)
+      for (Function *func : cross_domain_funcs)
       {
         for (auto argI = func->arg_begin(); argI != func->arg_end(); ++argI)
         {
@@ -655,7 +655,7 @@ namespace pdg
             if (ptrToSharedData.find(modifiedAddrVar) != ptrToSharedData.end())
             {
               printWarningForSharedVarInAtomicOperation(*modifiedAddrVar, *instI, func);
-              ksplit_stats_collector.IncreaseNumberOfAtomicOperationSharedData();
+              // ksplit_stats_collector.IncreaseNumberOfAtomicOperationSharedData();
             }
           }
         }

@@ -11,8 +11,8 @@ typedef struct person_t {
     Clothes s;
 } Person;
 
-void f(Clothes *c1) {
-    printf("clothes color %s.", c1->color);
+void f(Person *p1) {
+    printf("clothes color %c.", p1->name[9]);
 }
 
 int main() {

@@ -21,19 +21,20 @@
 #include <set>
 #include <map>
 
-namespace pdg {
-class PDGUtils final
+namespace pdg
 {
+  class PDGUtils final
+  {
   public:
     PDGUtils() = default;
     PDGUtils(const PDGUtils &) = delete;
     PDGUtils(PDGUtils &&) = delete;
-    PDGUtils &operator=(const PDGUtils&) = delete;
+    PDGUtils &operator=(const PDGUtils &) = delete;
     PDGUtils &operator=(PDGUtils &&) = delete;
 
-    static PDGUtils& getInstance()
+    static PDGUtils &getInstance()
     {
-      static PDGUtils pdgUtils { }; 
+      static PDGUtils pdgUtils{};
       return pdgUtils;
     }
 
@@ -61,25 +62,25 @@ class PDGUtils final
     std::set<llvm::Function *> computeDriverEntryExitFuncs(llvm::Module &M);
     std::set<llvm::CallSite> computeFunctionCallSites(llvm::Function &F);
     std::set<std::string> computeDriverExportFuncPtrName();
-    std::set<std::string>& GetBlackListFuncs();
+    std::set<std::string> &GetBlackListFuncs();
     std::map<std::string, std::string> computeDriverExportFuncPtrNameMap(llvm::Module &M);
     std::set<llvm::Function *> getTransitiveClosureInDomain(llvm::Function &F, std::set<llvm::Function *> &searchDomain);
     // building debugging info types
-    llvm::DIType* getInstDIType(llvm::Instruction* inst);
+    llvm::DIType *getInstDIType(llvm::Instruction *inst);
     llvm::StructType *getStructTypeFromGEP(llvm::Instruction *inst);
     unsigned getGEPAccessFieldOffset(llvm::GetElementPtrInst *gep);
     bool isGEPOffsetMatchWithDI(llvm::StructType *structTy, llvm::DIType *dt, llvm::Instruction *gep);
     bool isGEPforBitField(llvm::GetElementPtrInst *gep);
     llvm::Value *getLShrOnGep(llvm::GetElementPtrInst *gep);
     uint64_t getGEPOffsetInBits(llvm::StructType *structTy, llvm::GetElementPtrInst *gep);
-    void stripStr(std::string& targetStr, std::string eliminateStr);
-    bool isReturnValue(llvm::Argument& arg);
-    bool isRootNode(tree<InstructionWrapper*>::iterator treeI);
+    void stripStr(std::string &targetStr, std::string eliminateStr);
+    bool isReturnValue(llvm::Argument &arg);
+    bool isRootNode(tree<InstructionWrapper *>::iterator treeI);
     bool IsBlackListFunc(std::string func_name);
     std::string StripFuncnameVersionNumber(std::string func_name);
     void StripPointerSuffix(std::string &func_name);
     void printSeqPointerWhiteListFuncs(std::set<llvm::Function *> cross_domain_funcs_, llvm::Module &M);
-    void printAddressOfFirstInstInInterfaceFunc(std::set<llvm::Function*> interface_funcs);
+    void printAddressOfFirstInstInInterfaceFunc(std::set<llvm::Function *> interface_funcs);
     std::string computeInstID(llvm::Value &v);
 
   private:
@@ -91,6 +92,6 @@ class PDGUtils final
     std::unordered_map<const llvm::CallInst *, CallWrapper *> G_callMap;
     sea_dsa::DsaAnalysis *m_dsa;
     std::set<std::string> black_list_func_names_;
-};
+  };
 } // namespace pdg
 #endif

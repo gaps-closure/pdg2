@@ -1265,13 +1265,16 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
         // collect all alias instructions for each parent' dependent instruction
         for (auto read_inst_w : read_insts_w)
         {
-          // std::set<InstructionWrapper *> alias_set = getDepInstWrapperWithDepType(read_inst_w, DependencyType::DATA_ALIAS);
-          // alias_set.insert(read_inst_w);
+          std::set<InstructionWrapper *> alias_set = getDepInstWrapperWithDepType(read_inst_w, DependencyType::DATA_ALIAS);
+          alias_set.insert(read_inst_w);
           Instruction *read_inst = read_inst_w->getInstruction();
           if (isa<LoadInst>(read_inst))
           {
-            PDG->addDependency(*treeI, read_inst_w, DependencyType::VAL_DEP);
-            PDG->addDependency(read_inst_w, *treeI, DependencyType::VAL_DEP);
+            for (auto alias_inst_w : alias_set)
+            {
+              PDG->addDependency(*treeI, alias_inst_w, DependencyType::VAL_DEP);
+              PDG->addDependency(alias_inst_w, *treeI, DependencyType::VAL_DEP);
+            }
           }
           // for GEP, checks the offset acutally match
           else if (isa<GetElementPtrInst>(read_inst))
@@ -1281,8 +1284,11 @@ void pdg::ProgramDependencyGraph::connectGlobalTypeTreeWithAddressVars()
             {
               if (isTreeNodeGEPMatch(structTy, *treeI, read_inst))
               {
-                PDG->addDependency(*treeI, read_inst_w, DependencyType::VAL_DEP);
-                PDG->addDependency(read_inst_w, *treeI, DependencyType::VAL_DEP);
+                for (auto alias_inst_w : alias_set)
+                {
+                  PDG->addDependency(*treeI, alias_inst_w, DependencyType::VAL_DEP);
+                  PDG->addDependency(alias_inst_w, *treeI, DependencyType::VAL_DEP);
+                }
               }
             }
           }

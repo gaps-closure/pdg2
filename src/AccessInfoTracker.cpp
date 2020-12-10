@@ -11,8 +11,11 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   PDG = &getAnalysis<ProgramDependencyGraph>();
   auto &pdgUtils = PDGUtils::getInstance();
   auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
+  auto &atomic_region_tracker = AtomicRegionTracker::getInstance();
   // get cross domain functions and setup kernel and driver side functions
-
+  atomic_region_tracker.setupLockPairMap();
+  atomic_region_tracker.computeCriticalSectionPairs(M);
+  atomic_region_tracker.computeAtomicOperations(M);
   std::set<Function *> crossDomainFuncCalls = pdgUtils.computeCrossDomainFuncs(M);
   importedFuncs = pdgUtils.computeImportedFuncs(M);
   ksplit_stats_collector.SetNumberOfKernelToDriverCalls(importedFuncs.size());
@@ -38,6 +41,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   idl_file << "module kernel"
            << " {\n";
   computeSharedData();
+  computeAtomicRegionStats();
   ksplit_stats_collector.SetNumberOfSharedStructType(sharedDataTypeMap.size());
   unsigned num_of_shared_fields = 0;
   // for (auto pair : sharedDataTypeMap)
@@ -77,6 +81,7 @@ bool pdg::AccessInfoTracker::runOnModule(Module &M)
   ksplit_stats_collector.PrintProjectionStats();
   ksplit_stats_collector.PrintKernelIdiomStats();
   ksplit_stats_collector.PrintKernelIdiomSharedStats();
+  ksplit_stats_collector.PrintAtomicRegionStats();
   return false;
 }
 
@@ -393,6 +398,7 @@ void pdg::AccessInfoTracker::computeSharedData()
 {
   auto globalTypeTrees = PDG->getGlobalTypeTrees();
   auto &pdgUtils = PDGUtils::getInstance();
+  auto &atomic_region_tracker = AtomicRegionTracker::getInstance();
   auto instMap = pdgUtils.getInstMap();
   for (auto pair : globalTypeTrees)
   {
@@ -423,9 +429,11 @@ void pdg::AccessInfoTracker::computeSharedData()
         continue;
       }
 
-      std::set<std::string> kernel_access_func_names;
-      std::set<std::string> driver_access_func_names;
+      // std::set<std::string> kernel_access_func_names;
+      // std::set<std::string> driver_access_func_names;
       // get valdep pair, and check for intraprocedural accesses
+      std::set<Instruction *> cs_insts;
+      std::set<Instruction *> atomic_op_insts;
       auto valDepPairList = PDG->getNodesWithDepType(*treeI, DependencyType::VAL_DEP);
       bool accessInKernel = false;
       bool accessInDriver = false;
@@ -442,15 +450,15 @@ void pdg::AccessInfoTracker::computeSharedData()
           {
             Function *f = inst->getFunction();
             if (driver_domain_funcs_.find(f) != driver_domain_funcs_.end())
-            {
-              driver_access_func_names.insert(f->getName().str());
               accessInDriver = true;
-            }
             if (kernel_domain_funcs_.find(f) != kernel_domain_funcs_.end())
-            {
-              kernel_access_func_names.insert(f->getName().str());
               accessInKernel = true;
-            }
+            Instruction* cs_lock_inst = atomic_region_tracker.getCSUseInst(inst).first;
+            if (cs_lock_inst != nullptr)
+              cs_insts.insert(cs_lock_inst);
+            Instruction *atomic_op_inst = atomic_region_tracker.getAtomicOpUseInst(inst);
+            if (atomic_op_inst != nullptr)
+              atomic_op_insts.insert(atomic_op_inst);
           }
           if (accType == AccessType::WRITE)
             nodeAccessTy = AccessType::WRITE;
@@ -467,28 +475,28 @@ void pdg::AccessInfoTracker::computeSharedData()
 
         if (IsUsedInMemOps(dataW))
           global_array_fields_.insert(fieldID);
-
         // verified a field is accessed in both domains
-        if (accessInDriver && accessInKernel)
-          break;
+        // if (accessInDriver && accessInKernel)
+        //   break;
       }
       // if a field is not shared, continue to next tree node
       if (!accessInDriver || !accessInKernel)
         continue;
-
-      log_file << "field ID: " << fieldID << " - " << tree<InstructionWrapper*>::depth(treeI) << "\n";
-      log_file << "\t driver funcs: ";
-      for (auto func_name : driver_access_func_names)
-      {
-        log_file << func_name << ",  ";
-      }
-      log_file << "\n";
-      log_file << "\t kernel funcs: ";
-      for (auto func_name : kernel_access_func_names)
-      {
-        log_file << func_name << ",  ";
-      }
-      log_file << "\n";
+      cs_insts_.insert(cs_insts.begin(), cs_insts.end());
+      atomic_op_insts_.insert(atomic_op_insts.begin(), atomic_op_insts.end());
+      // log_file << "field ID: " << fieldID << " - " << tree<InstructionWrapper*>::depth(treeI) << "\n";
+      // log_file << "\t driver funcs: ";
+      // for (auto func_name : driver_access_func_names)
+      // {
+      //   log_file << func_name << ",  ";
+      // }
+      // log_file << "\n";
+      // log_file << "\t kernel funcs: ";
+      // for (auto func_name : kernel_access_func_names)
+      // {
+      //   log_file << func_name << ",  ";
+      // }
+      // log_file << "\n";
 
 
       TreeTypeWrapper *treeW = static_cast<TreeTypeWrapper *>(const_cast<InstructionWrapper *>(*treeI));
@@ -1032,7 +1040,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
   DIType *func_ret_di_type = DIUtils::getFuncRetDIType(F);
   unsigned total_pointer_field_num = DIUtils::computeTotalPointerFieldNumberInStructType(func_ret_di_type);
   ksplit_stats_collector.IncreaseNumberOfPointer(total_pointer_field_num);
-  errs() << "total ptr num: " << F.getName() << " ret - " << total_pointer_field_num << "\n";
+  // errs() << "total ptr num: " << F.getName() << " ret - " << total_pointer_field_num << "\n";
   std::string ret_type_name = DIUtils::getDITypeName(func_ret_di_type);
   // when referencing a projection, discard the struct keyword.
   auto ret_argw = funcW->getRetW();
@@ -1044,6 +1052,7 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     ret_type_name += ret_annotation;
     collectKSplitStats(nullptr, func_ret_di_type, ret_annotation);
     collectKSplitSharedStats(nullptr, func_ret_di_type, ret_annotation);
+    ksplit_stats_collector.IncreaseTotalNumberOfFieldForDeepCopy(DIUtils::computeTotalFieldNumberInStructType(func_ret_di_type));
   }
   // swap the function name with its registered function pointer to align with the IDL syntax
   std::string func_name = F.getName().str();
@@ -1101,8 +1110,9 @@ void pdg::AccessInfoTracker::generateRpcForFunc(Function &F)
     else if (DIUtils::isPointerType(arg_di_type))
     {
       unsigned total_arg_pointer_field = DIUtils::computeTotalPointerFieldNumberInStructType(arg_di_type);
-      errs() << "total ptr num: " << F.getName() << " arg - " << total_arg_pointer_field << "\n";
+      // errs() << "total ptr num: " << F.getName() << " arg - " << total_arg_pointer_field << "\n";
       ksplit_stats_collector.IncreaseNumberOfPointer(total_arg_pointer_field);
+    ksplit_stats_collector.IncreaseTotalNumberOfFieldForDeepCopy(DIUtils::computeTotalFieldNumberInStructType(arg_di_type));
       printSharedPointerDebugLog(func_name, arg_name, arg_name, arg_tree_begin);
       // for a pointer type parameter, we don't know if the pointer could point
       // to an array of elements. So, we need to infer it.
@@ -2261,6 +2271,29 @@ bool pdg::AccessInfoTracker::isSeqPointer(tree<InstructionWrapper*>::iterator it
     }
   }
   return false;
+}
+
+void pdg::AccessInfoTracker::computeAtomicRegionStats()
+{
+  std::ofstream warning_file;
+  warning_file.open("AtomicRegionWarning");
+  auto &ksplit_stats_collector = KSplitStatsCollector::getInstance();
+  ksplit_stats_collector.SetNumberOfCriticalSectionSharedData(cs_insts_.size());
+  unsigned cs_warning_no = 1;
+  for (auto cs_inst : cs_insts_)
+  {
+    warning_file << "[WARNING " << std::to_string(cs_warning_no) <<"]" << cs_inst->getFunction()->getName().str() << "\n";
+    cs_warning_no++;
+  }
+  warning_file << " ========================================================================= \n";
+  ksplit_stats_collector.SetNumberOfAtomicOperationSharedData(atomic_op_insts_.size());
+  unsigned atomic_op_no = 1;
+  for (auto atomic_op_inst : atomic_op_insts_)
+  {
+    warning_file << "[WARNING " << std::to_string(atomic_op_no) << "]" << atomic_op_inst->getFunction()->getName().str() << "\n";
+    atomic_op_no++;
+  }
+  warning_file.close();
 }
 
 static RegisterPass<pdg::AccessInfoTracker>
