@@ -30,6 +30,7 @@
 
 namespace
 {
+  llvm::cl::opt<std::string> BlackListFileName("libfile", llvm::cl::desc("Lib file"), llvm::cl::value_desc("lib filename"));
   using namespace llvm;
 
   class llvmTest : public ModulePass
@@ -282,6 +283,25 @@ namespace
       return ret;
     }
 
+    std::set<std::string> GetBlackListFuncs()
+    {
+      std::set<std::string> black_list_func_names;
+      if (BlackListFileName.empty())
+        BlackListFileName = "liblcd_funcs.txt";
+      std::string filename(BlackListFileName);
+      std::ifstream blackListFuncs(filename);
+      if (!blackListFuncs)
+        errs() << "[WARNING]: Failed to open: " << filename << "\n";
+      else
+      {
+        for (std::string line; std::getline(blackListFuncs, line);)
+        {
+          black_list_func_names.insert(line);
+        }
+      }
+      return black_list_func_names;
+    }
+
     bool runOnModule(Module &M)
     {
       module = &M;
@@ -303,13 +323,15 @@ namespace
           /* } */
         }
       }
-
+      if (BlackListFileName.empty())
+        BlackListFileName = "liblcd_funcs.txt";
       std::ofstream imported_func("imported_func.txt");
       std::ofstream defined_func("defined_func.txt");
       std::ofstream static_funcptr("static_funcptr.txt");
       std::ofstream static_func("static_func.txt");
       std::ofstream lock_func("lock_func.txt");
       std::ofstream driver_globalvars("driver_globalvars.txt");
+      std::set<std::string> blackListFuncs = GetBlackListFuncs();
 
       lock_func << "spin_lock\n";
       lock_func << "spin_lock_irq\n";
@@ -339,6 +361,8 @@ namespace
         if (F.isIntrinsic())
           continue;
 
+        if (blackListFuncs.find(F.getName().str()) != blackListFuncs.end())
+          continue;
         if (F.isDeclaration())
         {
           imported_func << funcName << "\n";
