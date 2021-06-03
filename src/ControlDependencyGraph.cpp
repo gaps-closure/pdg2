@@ -1,10 +1,73 @@
-#include "ControlDependencyGraph.hpp"
+#include "ControlDependencyGraph.hh"
+
+char pdg::ControlDependencyGraph::ID = 0;
 
 using namespace llvm;
-
-StringRef pdg::ControlDependencyGraph::getPassName() const
+bool pdg::ControlDependencyGraph::runOnFunction(Function &F)
 {
-  return "Control Dependency Graph";
+  _PDT = &getAnalysis<PostDominatorTreeWrapperPass>().getPostDomTree();
+  addControlDepFromEntryNodeToInsts(F);
+  addControlDepFromDominatedBlockToDominator(F);
+  return false;
+}
+
+void pdg::ControlDependencyGraph::addControlDepFromNodeToBB(Node &n, BasicBlock &BB, EdgeType edge_type)
+{
+  ProgramGraph &g = ProgramGraph::getInstance();
+  for (auto &inst : BB)
+  {
+    Node* inst_node = g.getNode(inst);
+    // TODO: a special case when gep is used as a operand in load. Fix later
+    if (inst_node != nullptr)
+      n.addNeighbor(*inst_node, edge_type);
+    // assert(inst_node != nullptr && "cannot find node for inst\n");
+  }
+}
+
+void pdg::ControlDependencyGraph::addControlDepFromEntryNodeToInsts(Function &F)
+{
+  ProgramGraph &g = ProgramGraph::getInstance();
+  FunctionWrapper* func_w = g.getFuncWrapperMap()[&F];
+  for (auto &BB : F)
+  {
+    addControlDepFromNodeToBB(*func_w->getEntryNode(), BB, EdgeType::CONTROLDEP_ENTRY);
+  }
+}
+
+void pdg::ControlDependencyGraph::addControlDepFromDominatedBlockToDominator(Function &F)
+{
+  ProgramGraph &g = ProgramGraph::getInstance();
+  for (auto &BB : F)
+  {
+    for (auto succ_iter = succ_begin(&BB); succ_iter != succ_end(&BB); succ_iter++)
+    {
+      BasicBlock *succ_bb = *succ_iter;
+      if (&BB == &*succ_bb || !_PDT->dominates(&*succ_bb, &BB))
+      {
+        // get terminator and connect with the dependent block
+        Instruction *terminator = BB.getTerminator();
+        if (BranchInst *bi = dyn_cast<BranchInst>(terminator))
+        {
+          if (!bi->isConditional() || !bi->getCondition())
+            break;
+          // Node *cond_node = g.getNode(*bi->getCondition());
+          // if (!cond_node)
+          //   break;
+          Node *branch_node = g.getNode(*bi);
+          if (branch_node == nullptr)
+            break;
+          BasicBlock *nearestCommonDominator = _PDT->findNearestCommonDominator(&BB, succ_bb);
+          if (nearestCommonDominator == &BB)
+            addControlDepFromNodeToBB(*branch_node, *succ_bb, EdgeType::CONTROLDEP_BR);
+
+          for (auto *cur = _PDT->getNode(&*succ_bb); cur != _PDT->getNode(nearestCommonDominator); cur = cur->getIDom())
+          {
+            addControlDepFromNodeToBB(*branch_node, *cur->getBlock(), EdgeType::CONTROLDEP_BR);
+          }
+        }
+      }
+    }
+  }
 }
 
 void pdg::ControlDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const
@@ -12,130 +75,6 @@ void pdg::ControlDependencyGraph::getAnalysisUsage(AnalysisUsage &AU) const
   AU.addRequired<PostDominatorTreeWrapperPass>();
   AU.setPreservesAll();
 }
-
-void pdg::ControlDependencyGraph::addInstToBBDependency(InstructionWrapper *from, BasicBlock *to, DependencyType depType)
-{
-  for (BasicBlock::iterator ii = to->begin(), ie = to->end(); ii != ie; ++ii)
-  {
-    if (Instruction *Ins = dyn_cast<Instruction>(ii))
-    {
-      InstructionWrapper *iw = PDGUtils::getInstance().getInstMap()[Ins];
-      CDG->addDependency(from, iw, depType);
-    }
-  }
-}
-
-void pdg::ControlDependencyGraph::addBBToBBDependency(BasicBlock *from, BasicBlock *to, DependencyType type)
-{
-  Instruction *Ins = from->getTerminator();
-  InstructionWrapper *iw = PDGUtils::getInstance().getInstMap()[Ins];
-  // self loop
-  if (from == to)
-  {
-    for (BasicBlock::iterator ii = from->begin(), ie = from->end(); ii != ie; ++ii)
-    {
-      Instruction *inst = dyn_cast<Instruction>(ii);
-      InstructionWrapper *iwTo = PDGUtils::getInstance().getInstMap()[inst];
-      CDG->addDependency(iw, iwTo, type);
-    }
-  }
-  else
-  {
-    for (BasicBlock::iterator ii = to->begin(), ie = to->end(); ii != ie; ++ii)
-    {
-      Instruction *inst = dyn_cast<Instruction>(ii);
-      InstructionWrapper *iwTo = PDGUtils::getInstance().getInstMap()[inst];
-      CDG->addDependency(iw, iwTo, type);
-    }
-  }
-}
-
-void pdg::ControlDependencyGraph::computeDependencies(Function &F)
-{
-  PDGUtils::getInstance().constructFuncMap(*F.getParent());
-  if (PDGUtils::getInstance().getFuncMap()[&F]->getEntryW() != nullptr)
-  {
-    return;
-  }
-
-  InstructionWrapper *entryW = new InstructionWrapper(&F, GraphNodeType::ENTRY);
-  PDGUtils::getInstance().getFuncInstWMap()[&F].insert(entryW);
-  PDGUtils::getInstance().getFuncMap()[&F]->setEntryW(entryW);
-
-  DomTreeNodeBase<BasicBlock> *node = PDT->getNode(&F.getEntryBlock());
-  while (node && node->getBlock()) {
-    // Walking the path backward and adding dependencies.
-    addInstToBBDependency(entryW, node->getBlock(), DependencyType::CONTROL);
-    node = node->getIDom();
-  }
-  std::vector<std::pair<BasicBlock *, BasicBlock *>> EdgeSet;
-
-  for (Function::iterator BI = F.begin(), E = F.end(); BI != E; ++BI)
-  {
-    BasicBlock *I = dyn_cast<BasicBlock>(BI);
-    for (succ_iterator SI = succ_begin(I), SE = succ_end(I); SI != SE; ++SI)
-    {
-      assert(I && *SI);
-      if (!PDT->dominates(*SI, I))
-      {
-        BasicBlock *B_second = dyn_cast<BasicBlock>(*SI);
-        EdgeSet.push_back(std::make_pair(I, B_second));
-      }
-    }
-  }
-
-  for (auto Edge : EdgeSet) {
-    BasicBlock *L = PDT->findNearestCommonDominator(Edge.first, Edge.second);
-
-    // capture loop dependence
-    if (L == Edge.first)
-    {
-      addBBToBBDependency(Edge.first, L, DependencyType::CONTROL);
-    }
-    DomTreeNode *domNode = PDT->getNode(Edge.second);
-    if (domNode == nullptr)
-    {
-      continue;
-    }
-    while (domNode->getBlock() != L)
-    {
-      addBBToBBDependency(Edge.first, domNode->getBlock(), DependencyType::CONTROL);
-      domNode = domNode->getIDom();
-    }
-  }
-
-  EdgeSet.clear();
-  for (Function::iterator FI = F.begin(), E = F.end(); FI != E; ++FI)
-  {
-    // Zhiyuan comment: find adjacent BasicBlock pairs in CFG, but the predecessor
-    //does not dominate successor.
-    BasicBlock *I = dyn_cast<BasicBlock>(FI);
-    for (succ_iterator SI = succ_begin(I), SE = succ_end(I); SI != SE; ++SI)
-    {
-      assert(I && *SI);
-      if (!PDT->dominates(*SI, I))
-      {
-        BasicBlock *B_second = dyn_cast<BasicBlock>(*SI);
-        EdgeSet.push_back(std::make_pair(I, B_second));
-      }
-    }
-  }
-}
-
-bool pdg::ControlDependencyGraph::runOnFunction(Function &F)
-{
-  PDGUtils::getInstance().constructInstMap(F);
-  PDT = &getAnalysis<PostDominatorTreeWrapperPass>().getPostDomTree();
-  computeDependencies(F); 
-  return false;
-}
-
-ControlDependencyGraph *CreateControlDependencyGraphPass()
-{
-  return new ControlDependencyGraph();
-}
-
-char ControlDependencyGraph::ID = 0;
 
 static RegisterPass<pdg::ControlDependencyGraph>
     CDG("cdg", "Control Dependency Graph Construction", false, true);
