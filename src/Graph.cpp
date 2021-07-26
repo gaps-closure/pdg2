@@ -111,8 +111,6 @@ void pdg::ProgramGraph::build(Module &M)
     addNode(*n);
   }
 
-  buildGlobalAnnotationNodes(M);
-
   for (auto &F : M)
   {
     if (F.isDeclaration() || F.empty())
@@ -139,7 +137,10 @@ void pdg::ProgramGraph::build(Module &M)
     addFormalTreeNodesToGraph(*func_w);
     addNode(*func_w->getEntryNode());
     _func_wrapper_map.insert(std::make_pair(&F, func_w));
+    _val_node_map.insert(std::pair<Value*, Node*>(&F, func_w->getEntryNode()));
   }
+
+  buildGlobalAnnotationNodes(M);
 
   // handle call sites
   for (auto &F : M)
@@ -342,6 +343,7 @@ void pdg::ProgramGraph::buildGlobalAnnotationNodes(Module &M)
   auto global_annos = M.getNamedGlobal("llvm.global.annotations");
   if (global_annos)
   {
+    // build a node for the annotation
     Node* global_anno_node = new Node(*global_annos, GraphNodeType::ANNO_GLOBAL);
     _val_node_map.insert(std::pair<Value *, Node *>(global_annos, global_anno_node));
     addNode(*global_anno_node);
