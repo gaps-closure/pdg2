@@ -248,8 +248,8 @@ namespace llvm
         return "label = \"{CONTROLDEP_CALLINV}\"";
       case pdg::EdgeType::CONTROLDEP_CALLRET:
         return "label = \"{CONTROLDEP_CALLRET}\"";
-      case pdg::EdgeType::CONTROLDEP_IND_BR:
-        return "label = \"{CONTROLDEP_IND_BR}\"";
+      // case pdg::EdgeType::CONTROLDEP_IND_BR:
+      //   return "label = \"{CONTROLDEP_IND_BR}\"";
       case pdg::EdgeType::DATA_DEF_USE:
         return "style=dotted,label = \"{D_DEF_USE}\" ";
       case pdg::EdgeType::DATA_ALIAS:

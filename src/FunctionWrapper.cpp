@@ -47,6 +47,7 @@ void pdg::FunctionWrapper::buildFormalTreeForArgs()
     }
     Tree *arg_formal_in_tree = new Tree(*arg);
     TreeNode *formal_in_root_node = new TreeNode(*_func, di_local_var->getType(), 0, nullptr, arg_formal_in_tree, GraphNodeType::PARAM_FORMALIN);
+    formal_in_root_node->setParamIdx(arg->getArgNo());
     formal_in_root_node->setDILocalVariable(*di_local_var);
     auto addr_taken_vars = pdgutils::computeAddrTakenVarsFromAlloc(*arg_alloca_inst);
     for (auto addr_taken_var : addr_taken_vars)
@@ -61,6 +62,7 @@ void pdg::FunctionWrapper::buildFormalTreeForArgs()
     Tree* formal_out_tree = new Tree(*arg_formal_in_tree);
     formal_out_tree->setBaseVal(*arg);
     TreeNode* formal_out_root_node = formal_out_tree->getRootNode();
+    formal_out_root_node->setParamIdx(arg->getArgNo());
     // copy address variables
     for (auto addr_var : formal_in_root_node->getAddrVars())
     {

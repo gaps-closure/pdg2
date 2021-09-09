@@ -2,6 +2,8 @@
 
 using namespace llvm;
 
+unsigned int pdg::Node::node_count = 0;
+
 void pdg::Node::addNeighbor(Node &neighbor, EdgeType edge_type)
 {
   if (hasOutNeighborWithEdgeType(neighbor, edge_type))

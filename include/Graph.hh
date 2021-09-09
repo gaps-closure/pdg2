@@ -9,7 +9,7 @@
 #include "PDGEnums.hh"
 #include "PDGCommandLineOptions.hh"
 
-
+#include <fstream>
 #include <unordered_map>
 #include <map>
 #include <set>
@@ -85,6 +85,7 @@ namespace pdg
     void addFormalTreeNodesToGraph(FunctionWrapper &func_w);
     bool isAnnotationCallInst(llvm::Instruction &inst);
     void buildGlobalAnnotationNodes(llvm::Module &M);
+    void dumpNodeLineNumbers();
 
   private:
     FuncWrapperMap _func_wrapper_map;

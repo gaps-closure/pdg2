@@ -298,39 +298,39 @@ std::string pdg::pdgutils::getNodeTypeStr(GraphNodeType node_type)
   switch (node_type)
   {
   case GraphNodeType::INST_FUNCALL:
-    return "INST_FUNCALL";
+    return "Inst_FunCall";
   case GraphNodeType::INST_RET:
-    return "INST_RET";
+    return "Inst_Ret";
   case GraphNodeType::INST_BR:
-    return "INST_BR";
+    return "Inst_Br";
   case GraphNodeType::INST_OTHER:
-    return "INST_OTHER";
+    return "Inst_Other";
   case GraphNodeType::FUNC_ENTRY:
-    return "FUNC_ENTRY";
+    return "FunctionEntry";
   case GraphNodeType::PARAM_FORMALIN:
-    return "PARAM_FORMALIN";
+    return "Param_FormalIn";
   case GraphNodeType::PARAM_FORMALOUT:
-    return "PARAM_FORMALOUT";
+    return "Param_FormalOut";
   case GraphNodeType::PARAM_ACTUALIN:
-    return "PARAM_ACTUALIN";
+    return "Param_ActualIn";
   case GraphNodeType::PARAM_ACTUALOUT:
-    return "PARAM_ACTUALOUT";
+    return "Param_ActualOut";
   case GraphNodeType::VAR_STATICALLOCGLOBALSCOPE:
-    return "VAR_STATICALLOCGLOBALSCOPE";
+    return "VarNode_StaticGlobal";
   case GraphNodeType::VAR_STATICALLOCMODULESCOPE:
-    return "VAR_STATICALLOCMODULESCOPE";
+    return "VarNode_StaticModule";
   case GraphNodeType::VAR_STATICALLOCFUNCTIONSCOPE:
-    return "VAR_STATICALLOCFUNCTIONSCOPE";
+    return "VarNode_StaticFunction";
   case GraphNodeType::VAR_OTHER:
-    return "VAR_OTHER";
-  case GraphNodeType::FUNC:
-    return "FUNC";
+    return "VarNode_StaticOther";
+  // case GraphNodeType::FUNC:
+  //   return "FUNC";
   case GraphNodeType::ANNO_VAR:
-    return "ANNO_VAR";
+    return "Annotation_Var";
   case GraphNodeType::ANNO_GLOBAL:
-    return "ANNO_GLOBAL";
+    return "Annotation_Global";
   case GraphNodeType::ANNO_OTHER:
-    return "ANNO_OTHER";
+    return "Annotation_Other";
   default:
     break;
   }
@@ -341,44 +341,44 @@ std::string pdg::pdgutils::getEdgeTypeStr(EdgeType edge_type)
 {
   switch (edge_type)
   {
-  case EdgeType::IND_CALL:
-    return "IND_CALL";
+  // case EdgeType::IND_CALL:
+  //   return "IND_CALL";
   case EdgeType::CONTROLDEP_CALLINV:
-    return "CONTROLDEP_CALLINV";
+    return "ControlDep_CallInv";
   case EdgeType::CONTROLDEP_ENTRY:
-    return "CONTROLDEP_ENTRY";
+    return "ControlDep_Entry";
   case EdgeType::CONTROLDEP_BR:
-    return "CONTROLDEP_BR";
-  case EdgeType::CONTROLDEP_IND_BR:
-    return "CONTROLDEP_IND_BR";
+    return "ControlDep_Br";
+  case EdgeType::CONTROLDEP_CALLRET:
+    return "ControlDep_CallRet";
   case EdgeType::DATA_DEF_USE:
-    return "DATA_DEF_USE";
+    return "DataDepEdge_DefUse";
   case EdgeType::DATA_RAW:
-    return "DATA_RAW";
-  case EdgeType::DATA_READ:
-    return "DATA_READ";
+    return "DataDepEdge_RAW";
+  // case EdgeType::DATA_READ:
+  //   return "DATA_READ";
   case EdgeType::DATA_ALIAS:
-    return "DATA_ALIAS";
+    return "DataDepEdge_Alias";
   case EdgeType::DATA_RET:
-    return "DATA_RET";
+    return "DataDepEdge_Ret";
   case EdgeType::PARAMETER_IN:
-    return "PARAMETER_IN";
+    return "Parameter_In";
   case EdgeType::PARAMETER_OUT:
-    return "PARAMETER_OUT";
+    return "Parameter_Out";
   case EdgeType::PARAMETER_FIELD:
-    return "PARAMETER_FIELD";
+    return "Parameter_Field";
   case EdgeType::GLOBAL_DEP:
     return "GLOBAL_DEP";
-  case EdgeType::VAL_DEP:
-    return "VAL_DEP";
+  // case EdgeType::VAL_DEP:
+  //   return "VAL_DEP";
   case EdgeType::ANNO_VAR:
-    return "ANNO_VAR";
+    return "Anno_Var";
   case EdgeType::ANNO_GLOBAL:
-    return "ANNO_GLOBAL";
+    return "Anno_Global";
   case EdgeType::ANNO_OTHER:
-    return "ANNO_OTHER";
+    return "Anno_Other";
   case EdgeType::TYPE_OTHEREDGE:
-    return "TYPE_OTHEREDGE";
+    return "ControlDep_Other";
   default:
     break;
   }

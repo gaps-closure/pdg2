@@ -16,7 +16,7 @@ namespace pdg
       {
         _arg_list.push_back(&*arg_iter);
       }
-      _entry_node = new Node(GraphNodeType::FUNC_ENTRY);
+      _entry_node = new Node(*func,GraphNodeType::FUNC_ENTRY);
       _entry_node->setFunc(*func);
     }
     llvm::Function *getFunc() const { return _func; }

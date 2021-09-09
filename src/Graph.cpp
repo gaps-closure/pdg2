@@ -120,10 +120,32 @@ void pdg::ProgramGraph::build(Module &M)
     {
       GraphNodeType node_type = GraphNodeType::INST_OTHER;
       if (isAnnotationCallInst(*inst_iter))
+      {
+        // errs() << "Inst: " <<  (*inst_iter).getOperand(1)) << "\n";
+        
+        // auto globalSenStr = cast<GlobalVariable>(cast<Instruction>((*inst_iter).getOperand(1))->getOperand(1));
+        // auto anno = cast<ConstantDataArray>(globalSenStr->getOperand(0))->getAsCString();
+
+        ConstantExpr *ce = cast<ConstantExpr>((*inst_iter).getOperand(1));
+        if (ce) 
+        {
+          if (ce->getOpcode() == Instruction::GetElementPtr) 
+          {
+            if (GlobalVariable *globalSenStr = dyn_cast<GlobalVariable>(ce->getOperand(0))) 
+            {
+              auto anno = cast<ConstantDataArray>(globalSenStr->getOperand(0))->getAsCString();
+              Node *source = getNode(*(inst_iter->getOperand(0)));
+              source->setAnno(anno.str()); 
+            }
+          }
+        }
+
+        
         node_type = GraphNodeType::ANNO_VAR;
+      }
       if (isa<ReturnInst>(&*inst_iter))
         node_type = GraphNodeType::INST_RET;
-      if (isa<CallInst>(&*inst_iter))
+      if (isa<CallInst>(&*inst_iter) && !isAnnotationCallInst(*inst_iter))
         node_type = GraphNodeType::INST_FUNCALL;
       if (isa<BranchInst>(&*inst_iter))
         node_type = GraphNodeType::INST_BR;
@@ -358,12 +380,43 @@ void pdg::ProgramGraph::buildGlobalAnnotationNodes(Module &M)
         Node *n = getNode(*annotated_gv);
         if (n == nullptr)
         {
+          // couldn't this also be a module static variable?
           n = new Node(*annotated_gv, GraphNodeType::VAR_STATICALLOCGLOBALSCOPE);
           _val_node_map.insert(std::pair<Value *, Node *>(annotated_gv, n));
           addNode(*n);
         }
+        n->setAnno(anno.str());
         n->addNeighbor(*global_anno_node, EdgeType::ANNO_GLOBAL);
       }
     }
   }
+}
+
+void pdg::ProgramGraph::dumpNodeLineNumbers()
+{
+  std::ofstream outLineNumbers;
+  outLineNumbers.open ("nodes2linenumbers.txt");
+  for (auto node_iter = begin(); node_iter != end(); ++node_iter)
+  {
+    auto node = *node_iter;
+    if(node->getNodeType() == pdg::GraphNodeType::FUNC_ENTRY)
+    {
+      llvm::Function *function = llvm::dyn_cast<llvm::Function>(node->getValue());
+      unsigned dbgKind = function->getContext().getMDKindID("dbg");
+      if (llvm::MDNode *Dbg = function->getMetadata(dbgKind)) 
+      {
+        
+        llvm::DebugLoc Loc(Dbg);
+        // filename = Loc.getDirectory().str() + "/" + Loc.getFilename().str();
+        int line_number = Loc.getLine();
+        outLineNumbers << "ID" << std::to_string(node->getNodeID()) << " : " << std::to_string(line_number) << "\n";
+      }
+    }
+    else
+    {
+      outLineNumbers << "ID" << std::to_string(node->getNodeID()) << " : " << std::to_string(node->getLineNumber()) << "\n";
+    }
+    
+  }
+  outLineNumbers.close();
 }

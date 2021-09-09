@@ -1,6 +1,9 @@
 #ifndef NODE_H_
 #define NODE_H_
 #include "LLVMEssentials.hh"
+#include <llvm/IR/DebugLoc.h>
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/Metadata.h>
 #include "PDGEdge.hh"
 #include "PDGEnums.hh"
 #include <set>
@@ -26,19 +29,87 @@ namespace pdg
       _is_visited = false;
       _func = nullptr;
       _node_di_type = nullptr;
+      node_count++;
+      node_ID = node_count;
+      _annotation = "None";
+      _line_number = -1;
+      _file_name = "Not Found";
+      _paramIdx = -1;
     }
     Node(llvm::Value &v, GraphNodeType node_type)
     {
       _val = &v;
       if (auto inst = llvm::dyn_cast<llvm::Instruction>(&v))
         _func = inst->getFunction();
+      else if (node_type == pdg::GraphNodeType::FUNC_ENTRY )
+        _func = llvm::dyn_cast<llvm::Function>(&v);
       else
         _func = nullptr;
       _node_type = node_type;
       _is_visited = false;
       _node_di_type = nullptr;
+      node_count++;
+      node_ID = node_count;
+      _annotation = "None";
+      _paramIdx = -1;
+
+      if (llvm::isa<llvm::Instruction>(_val) )
+      {
+        llvm::Instruction *instruction = llvm::dyn_cast<llvm::Instruction>(_val);
+        const llvm::DebugLoc &debugInfo = instruction->getDebugLoc();
+        llvm::errs() << "debug: " << debugInfo << "\n";
+        if(debugInfo) {
+          std::string directory = debugInfo->getDirectory();
+          std::string filePath = debugInfo->getFilename();
+          _file_name = directory + "/" + filePath;
+          _line_number = debugInfo->getLine();
+          llvm::errs() << "line number: " << _line_number << "\n";
+        }
+      }
+      else if (node_type == pdg::GraphNodeType::FUNC_ENTRY)
+      {
+          // llvm::Function *function = llvm::dyn_cast<llvm::Function>(_val);
+          unsigned dbgKind = _func->getContext().getMDKindID("dbg");
+          if (auto *debugInfo = _func->getSubprogram() ) 
+          {
+            // llvm::DebugLoc Loc(Dbg);
+            // auto *scope = llvm::cast<llvm::DIScope>(Loc->getScope());
+            std::string directory = debugInfo->getDirectory();
+            std::string filePath = debugInfo->getFilename();
+            // filename = Loc.getDirectory().str() + "/" + Loc.getFilename().str();
+            _line_number = debugInfo->getLine();
+            _file_name = directory + "/" + filePath;
+          }
+      }
+      else if( node_type == pdg::GraphNodeType::VAR_STATICALLOCGLOBALSCOPE || 
+          node_type == pdg::GraphNodeType::VAR_STATICALLOCMODULESCOPE || 
+          node_type == pdg::GraphNodeType::VAR_STATICALLOCFUNCTIONSCOPE
+        )
+        {
+          llvm::SmallVector< llvm::DIGlobalVariableExpression *,4 >  GVs;
+          llvm::GlobalVariable *globalVar = llvm::dyn_cast<llvm::GlobalVariable>(_val);
+          globalVar->getDebugInfo(GVs);
+          llvm::DIGlobalVariableExpression* dbgExpr =  GVs[0];
+          llvm::DIGlobalVariable* dbgGV =  dbgExpr->getVariable();
+          std::string directory = dbgGV->getDirectory();
+          std::string filePath = dbgGV->getFilename();
+          _line_number = dbgGV->getLine();
+          _file_name = directory + "/" + filePath;
+
+        }
+      else
+      {
+        _line_number = -1;
+        _file_name = "Not Found";
+      }
     }
+
     
+    int getParamIdx() { return _paramIdx;}
+    void setParamIdx(int new_idx) { _paramIdx = new_idx;}
+    void setAnno(std::string new_anno) {  _annotation = new_anno; }
+    std::string getAnno() { return _annotation; }
+    unsigned int getNodeID()  { return node_ID;}
     void addInEdge(Edge &e) { _in_edge_set.insert(&e); }
     void addOutEdge(Edge &e) { _out_edge_set.insert(&e); }
     EdgeSet &getInEdgeSet() { return _in_edge_set; }
@@ -62,6 +133,8 @@ namespace pdg
     std::set<Node *> getOutNeighborsWithDepType(EdgeType edge_type);
     bool hasInNeighborWithEdgeType(Node &n, EdgeType edge_type);
     bool hasOutNeighborWithEdgeType(Node &n, EdgeType edge_type);
+    int getLineNumber() {return _line_number;};
+    std::string getFileName() {return _file_name;};
     virtual ~Node() = default;
 
   protected:
@@ -72,6 +145,12 @@ namespace pdg
     EdgeSet _out_edge_set;
     GraphNodeType _node_type;
     llvm::DIType *_node_di_type;
+    static unsigned int node_count;
+    unsigned int node_ID;
+    std::string _annotation;
+    int _line_number;
+    std::string _file_name;
+    int _paramIdx;
   };
 
   // used to iterate through all neighbors (used in dot pdg printer)
