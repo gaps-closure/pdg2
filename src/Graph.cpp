@@ -111,6 +111,8 @@ void pdg::ProgramGraph::build(Module &M)
     addNode(*n);
   }
 
+  // buildGlobalAnnotationNodes(M);
+
   for (auto &F : M)
   {
     if (F.isDeclaration() || F.empty())
@@ -150,6 +152,8 @@ void pdg::ProgramGraph::build(Module &M)
       if (isa<BranchInst>(&*inst_iter))
         node_type = GraphNodeType::INST_BR;
       Node *n = new Node(*inst_iter, node_type);
+      Value *v = &*inst_iter;
+      errs() << "Added: " << v << "\n";
       _val_node_map.insert(std::pair<Value *, Node *>(&*inst_iter, n));
       func_w->addInst(*inst_iter);
       addNode(*n);
@@ -158,11 +162,9 @@ void pdg::ProgramGraph::build(Module &M)
     func_w->buildFormalTreesForRetVal();
     addFormalTreeNodesToGraph(*func_w);
     addNode(*func_w->getEntryNode());
+    _val_node_map.insert(std::pair<Value *, Node *>(&F, func_w->getEntryNode()));
     _func_wrapper_map.insert(std::make_pair(&F, func_w));
-    _val_node_map.insert(std::pair<Value*, Node*>(&F, func_w->getEntryNode()));
   }
-
-  buildGlobalAnnotationNodes(M);
 
   // handle call sites
   for (auto &F : M)
@@ -188,6 +190,8 @@ void pdg::ProgramGraph::build(Module &M)
       _call_wrapper_map.insert(std::make_pair(ci, cw));
     }
   }
+
+  buildGlobalAnnotationNodes(M);
   _is_build = true;
 }
 
@@ -365,7 +369,6 @@ void pdg::ProgramGraph::buildGlobalAnnotationNodes(Module &M)
   auto global_annos = M.getNamedGlobal("llvm.global.annotations");
   if (global_annos)
   {
-    // build a node for the annotation
     Node* global_anno_node = new Node(*global_annos, GraphNodeType::ANNO_GLOBAL);
     _val_node_map.insert(std::pair<Value *, Node *>(global_annos, global_anno_node));
     addNode(*global_anno_node);
@@ -377,9 +380,11 @@ void pdg::ProgramGraph::buildGlobalAnnotationNodes(Module &M)
       {
         auto globalSenStr = cast<GlobalVariable>(casted_struct->getOperand(1)->getOperand(0));
         auto anno = cast<ConstantDataArray>(globalSenStr->getOperand(0))->getAsCString();
+        llvm::errs() << "Checking for Global: " << *annotated_gv << "\n";
         Node *n = getNode(*annotated_gv);
         if (n == nullptr)
         {
+          llvm::errs() << "MAKING GLOBAL! \n ";
           // couldn't this also be a module static variable?
           n = new Node(*annotated_gv, GraphNodeType::VAR_STATICALLOCGLOBALSCOPE);
           _val_node_map.insert(std::pair<Value *, Node *>(annotated_gv, n));

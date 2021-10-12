@@ -20,6 +20,7 @@ bool pdg::dbgutils::isUnionType(DIType& dt)
 
 bool pdg::dbgutils::isStructPointerType(DIType &dt)
 {
+  errs() << "Checking DT: " << dt << "\n";
   if (isPointerType(dt))
   {
     DIType *lowest_di_type = getLowestDIType(dt);

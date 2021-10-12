@@ -520,7 +520,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
         {
           filename = nodeID2Node[outputArrays["hasFunction"][index-1]]->getFileName();
         }
-        if (lineNumber = -1)
+        if (lineNumber == -1)
         {
           lineNumber = nodeID2Node[outputArrays["hasFunction"][index-1]]->getLineNumber();
         }

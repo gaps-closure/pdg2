@@ -15,6 +15,8 @@ pdg::TreeNode::TreeNode(DIType *di_type, int depth, TreeNode *parent_node, Tree 
   _depth = depth;
   _parent_node = parent_node;
   _tree = tree;
+  errs() << "Made tree node at arrs: " << this << "\n";
+  errs() << "Parent tree node at adrs: " << _parent_node << "\n";
 }
 
 pdg::TreeNode::TreeNode(Function &f, DIType *di_type, int depth, TreeNode *parent_node, Tree *tree, GraphNodeType node_type) : Node(node_type)
@@ -24,6 +26,8 @@ pdg::TreeNode::TreeNode(Function &f, DIType *di_type, int depth, TreeNode *paren
   _parent_node = parent_node;
   _tree = tree;
   _func = &f;
+  errs() << "Made tree node at adrs: " << this << "\n";
+  errs() << "Parent tree node at adrs: " << _parent_node << "\n";
 }
 
 int pdg::TreeNode::expandNode()
@@ -77,8 +81,8 @@ void pdg::TreeNode::computeDerivedAddrVarsFromParent()
   // handle struct pointer
   TreeNode* grand_parent_node = _parent_node->getParentNode();
   // TODO: now handle struct specifically, but should also verify on other aggregate pointer types
-  // errs() << "Parent Node: " <<  _parent_node << "\n";
-  // errs() << "Grand Parent Node: " <<  grand_parent_node << "\n";
+  errs() << "Parent Node: " <<  _parent_node << "\n";
+  errs() << "Grand Parent Node: " <<  grand_parent_node << "\n";
   if (_parent_node != nullptr && grand_parent_node != nullptr && _parent_node->getDIType() != nullptr && grand_parent_node->getDIType() != nullptr && dbgutils::isStructType(*_parent_node->getDIType()) && dbgutils::isStructPointerType(*grand_parent_node->getDIType()))
   {
     base_node_addr_vars = grand_parent_node->getAddrVars();
