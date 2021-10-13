@@ -11,7 +11,7 @@ namespace pdg
   public:
     FunctionWrapper(llvm::Function *func)
     {
-      llvm::errs() << "Checking for Function: " << *func << "\n";
+      // llvm:: errs() << "Checking for Function: " << *func << "\n";
       _func = func;
       for (auto arg_iter = _func->arg_begin(); arg_iter != _func->arg_end(); arg_iter++)
       {

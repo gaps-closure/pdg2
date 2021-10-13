@@ -42,12 +42,12 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
     connectInterprocDependencies(F);
     func_size++;
   }
-  errs() << "func size: " << func_size << "\n";
-  errs() << "Finsh adding dependencies" << "\n";
+  // errs() << "func size: " << func_size << "\n";
+  // errs() << "Finsh adding dependencies" << "\n";
   auto stop = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-  errs() << "building PDG takes: " <<  duration.count() << "\n";
-  errs() << "PDG Node size: " << _PDG->numNode() << "\n";
+  // errs() << "building PDG takes: " <<  duration.count() << "\n";
+  // errs() << "PDG Node size: " << _PDG->numNode() << "\n";
 
   if (DEBUG)
     _PDG->dumpGraph();
@@ -236,7 +236,7 @@ void pdg::ProgramDependencyGraph::connectInterprocDependencies(Function &F)
         Tree* actual_in_tree = call_w->getArgActualInTree(*arg);
         if (!actual_in_tree)
         {
-          // errs() << "[WARNING]: empty actual tree for callsite " << *call_inst << "\n";
+          // // errs() << "[WARNING]: empty actual tree for callsite " << *call_inst << "\n";
           return;
         }
         Tree* actual_out_tree = call_w->getArgActualOutTree(*arg);

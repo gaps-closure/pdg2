@@ -87,6 +87,8 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
     // "invForRet"
   };
 
+  std::map<std::string,bool> oneWayCheck;
+
   std::vector<std::string> hasParamIdx;
 
   // initialize output
@@ -131,11 +133,14 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   std::ofstream dbgFile;
   std::ofstream node2line;
   std::ofstream funFile;
+  std::ofstream onewayFile;
 
   outFile.open ("pdg_instance.mzn");
   dbgFile.open ("pdg_data.csv");
   node2line.open ("node2lineNumber.txt");
   funFile.open ("functionArgs.txt");
+  onewayFile.open ("oneway.txt");
+  
 
   for (auto node_iter = _PDG->begin(); node_iter != _PDG->end(); ++node_iter)
   {
@@ -163,7 +168,10 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       }
       else
       {
-        errs() << "Null Called Function: " << *inst << "\n";
+        if (DEBUGZINC)
+        {
+          errs() << "Null Called Function: " << *inst << "\n";
+        }
       }
     }
 
@@ -209,21 +217,29 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       
       if (std::find(PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].begin(), PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].end(), out_edge->getSrcNode()) == PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].end())
       {
-        errs() << "Warning, edges source idx became zero! \n"; 
-        errs() << "Source ID: " << getSrcID.str() << "Source Node Type: " << pdgutils::getNodeTypeStr(out_edge->getSrcNode()->getNodeType())  <<"\n";
-        errs() << "Dest ID: " << getDstID.str() << "Dest Node Type: " << pdgutils::getNodeTypeStr(out_edge->getDstNode()->getNodeType()) << "\n";
-        
+        if (DEBUGZINC)
+        {
+          errs() << "Warning, edges source idx became zero! \n"; 
+          errs() << "Source ID: " << getSrcID.str() << "Source Node Type: " << pdgutils::getNodeTypeStr(out_edge->getSrcNode()->getNodeType())  <<"\n";
+          errs() << "Dest ID: " << getDstID.str() << "Dest Node Type: " << pdgutils::getNodeTypeStr(out_edge->getDstNode()->getNodeType()) << "\n";
+        }
         PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].push_back(out_edge->getSrcNode());
-        errs() << "Node: " <<  getSrcID.str() << " added. \n";
+        if (DEBUGZINC)
+        {
+          errs() << "Node: " <<  getSrcID.str() << " added. \n";
+        }
       }
 
       if (std::find(PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].begin(), PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].end(), out_edge->getDstNode()) == PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].end())
       {
-        errs() << "Warning, edge Dest idx became zero! \n"; 
-        errs() << "Source ID: " << getSrcID.str() << " Source Node Type: " << pdgutils::getNodeTypeStr(out_edge->getSrcNode()->getNodeType())  <<"\n";
-        errs() << "Dest ID: " << getDstID.str() << " Dest Node Type: " << pdgutils::getNodeTypeStr(out_edge->getDstNode()->getNodeType()) << "\n";
-        
-        errs() << "Node: " <<  getDstID.str() << " added. \n";
+        if (DEBUGZINC)
+        {
+          errs() << "Warning, edge Dest idx became zero! \n"; 
+          errs() << "Source ID: " << getSrcID.str() << " Source Node Type: " << pdgutils::getNodeTypeStr(out_edge->getSrcNode()->getNodeType())  <<"\n";
+          errs() << "Dest ID: " << getDstID.str() << " Dest Node Type: " << pdgutils::getNodeTypeStr(out_edge->getDstNode()->getNodeType()) << "\n";
+          
+          errs() << "Node: " <<  getDstID.str() << " added. \n";
+        }
         PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].push_back(out_edge->getDstNode());
       }
 
@@ -244,7 +260,10 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
         }
         else
         {
-          errs() << "Null Called Function: " << *inst << "\n";
+          if (DEBUGZINC)
+          {
+            errs() << "Null Called Function: " << *inst << "\n";
+          }
         }
         }
       
@@ -264,7 +283,10 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
         }
         else
         {
-          errs() << "Null Called Function: " << *inst << "\n";
+          if (DEBUGZINC)
+          {
+              errs() << "Null Called Function: " << *inst << "\n";
+          }
         }
       }
 
@@ -359,7 +381,10 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
     if (func_node != nullptr)
     {
       getNodeID << func_node->getNodeID();
-      // errs() << "Adding Function" << *val << "\n";
+      // if (DEBUGZINC)
+      // {
+      //   errs() << "Adding Function" << *val << "\n";
+      // }
       outputArrays["hasFunction"].push_back(getNodeID.str()); 
     }
     else
@@ -493,6 +518,8 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
         {
           hasFuncAnno.push_back(false);
         }
+
+        oneWayCheck[i] = false;
       }
 
       if(nodeID2Node[i]->getNodeType() == pdg::GraphNodeType::PARAM_FORMALIN || 
@@ -513,7 +540,10 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       
       std::string filename = nodeID2Node[i]->getFileName();
       int lineNumber = nodeID2Node[i]->getLineNumber();
-      // errs() << "hasFunction ID" << outputArrays["hasFunction"][index-1] << "Value: " <<valueStr << "\n";
+      if (DEBUGZINC)
+      {
+        errs() << "hasFunction ID" << outputArrays["hasFunction"][index-1] << "Value: " <<valueStr << "\n";
+      }
       if (outputArrays["hasFunction"][index-1] != "0")
       {
         if (filename == "" || filename == "Not Found")
@@ -526,8 +556,10 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
         }
       }
 
-
-      dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << nodeID2index[outputArrays["hasFunction"][index-1]] << ", na, na, " << filename  << ", " << lineNumber << ", " << nodeID2Node[i]->getParamIdx() << "\n";
+      if (DEBUGZINC)
+      {
+        dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << nodeID2index[outputArrays["hasFunction"][index-1]] << ", na, na, " << filename  << ", " << lineNumber << ", " << nodeID2Node[i]->getParamIdx() << "\n";
+      }
       node2line << index << ", " << nameStr << ", " << filename  << ", " << lineNumber << "\n";
       index++;
     } 
@@ -584,21 +616,37 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
         getSrcID << edg->getSrcNode()->getNodeID();
         getDstID << edg->getDstNode()->getNodeID();
 
+        if (edg->getEdgeType() == EdgeType::CONTROLDEP_CALLINV)
+        {
+          bool hasUse = edg->getSrcNode()->getValue()->user_empty();
+          if (oneWayCheck[getSrcID.str()] == false)
+          {
+            oneWayCheck[getSrcID.str()] = hasUse;
+          } 
+        
+        }
+
         if (nodeID2index[getSrcID.str()] == 0)
         {
-          errs() << "Error! Source Edge ID is 0! \n";
+          if (DEBUGZINC)
+          {
+              errs() << "Error! Source Edge ID is 0! \n";
 
-          errs() << "Source ID: " << getSrcID.str() << " Source Node Type: " << pdgutils::getNodeTypeStr(edg->getSrcNode()->getNodeType())  <<"\n";
-          errs() << "Dest ID: " << getDstID.str() << " Dest Node Type: " << pdgutils::getNodeTypeStr(edg->getDstNode()->getNodeType()) << "\n";
+              errs() << "Source ID: " << getSrcID.str() << " Source Node Type: " << pdgutils::getNodeTypeStr(edg->getSrcNode()->getNodeType())  <<"\n";
+              errs() << "Dest ID: " << getDstID.str() << " Dest Node Type: " << pdgutils::getNodeTypeStr(edg->getDstNode()->getNodeType()) << "\n";
+          }
           return false;
         }
 
         if (nodeID2index[getDstID.str()] == 0)
         {
-          errs() << "Error! Dest Edge ID is 0! \n";
+          if (DEBUGZINC)
+          {
+            errs() << "Error! Dest Edge ID is 0! \n";
 
-          errs() << "Source ID: " << getSrcID.str() << " Source Node Type: " << pdgutils::getNodeTypeStr(edg->getSrcNode()->getNodeType())  <<"\n";
-          errs() << "Dest ID: " << getDstID.str() << " Dest Node Type: " << pdgutils::getNodeTypeStr(edg->getDstNode()->getNodeType()) << "\n";
+            errs() << "Source ID: " << getSrcID.str() << " Source Node Type: " << pdgutils::getNodeTypeStr(edg->getSrcNode()->getNodeType())  <<"\n";
+            errs() << "Dest ID: " << getDstID.str() << " Dest Node Type: " << pdgutils::getNodeTypeStr(edg->getDstNode()->getNodeType()) << "\n";
+          }
           return false;
         } 
 
@@ -610,6 +658,8 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   }
 
   index = 1;
+  if (DEBUGZINC)
+ {
   for(auto &id : edgeOrder)
   {
     for(auto const& i : outputEnumsPDGEdge[id]) {
@@ -617,6 +667,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       index++;
     } 
   }
+ }
 
  std::vector<std::string> hasFunctionIndx;
  for(auto &i : outputArrays["hasFunction"])
@@ -696,13 +747,23 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
     }
     if(numArgs > maxParam)
     {
-      errs() << *f << "\n";
+      if (DEBUGZINC)
+      {
+        errs() << *f << "\n";
+      }
       maxParam = numArgs;
     }
   }
 
   outFile << "MaxFuncParms = " <<  maxParam << ";\n";
   
+
+  // onewayFile << "OneWayCheck \n";
+  for(auto &i : oneWayCheck)
+  {
+    if(nodeID2Node[i.first]->getNodeType() == pdg::GraphNodeType::FUNC_ENTRY && nodeID2Node[i.first]->getAnno() != "None")
+      onewayFile << nodeID2Node[i.first]->getAnno() << " " << oneWayCheck[i.first] << "\n";
+  }
   
   for(auto &id : nodeOrder)
   {
@@ -725,6 +786,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   dbgFile.close();
   node2line.close();
   funFile.close();
+  onewayFile.close();
 }
 
 

@@ -20,7 +20,7 @@ bool pdg::dbgutils::isUnionType(DIType& dt)
 
 bool pdg::dbgutils::isStructPointerType(DIType &dt)
 {
-  errs() << "Checking DT: " << dt << "\n";
+  // errs() << "Checking DT: " << dt << "\n";
   if (isPointerType(dt))
   {
     DIType *lowest_di_type = getLowestDIType(dt);
@@ -144,7 +144,7 @@ std::string pdg::dbgutils::getSourceLevelTypeName(DIType &dt)
   {
   case dwarf::DW_TAG_pointer_type:
   {
-    // errs() << "1\n";
+    // // errs() << "1\n";
     auto base_type = getBaseDIType(dt);
     if (!base_type)
       return "nullptr";
@@ -152,7 +152,7 @@ std::string pdg::dbgutils::getSourceLevelTypeName(DIType &dt)
   }
   case dwarf::DW_TAG_member:
   {
-    // errs() << "2\n";
+    // // errs() << "2\n";
     auto base_type = getBaseDIType(dt);
     if (!base_type)
       return "null";
@@ -164,7 +164,7 @@ std::string pdg::dbgutils::getSourceLevelTypeName(DIType &dt)
   // assert(!type_name.empty() && !var_name.empty() && "cannot generation idl from empty var/type name!");
   case dwarf::DW_TAG_structure_type:
   {
-    // errs() << "3\n";
+    // // errs() << "3\n";
     if (dt.getName().empty())
       return "struct";
     return "struct " + dt.getName().str();
@@ -188,7 +188,7 @@ std::string pdg::dbgutils::getSourceLevelTypeName(DIType &dt)
   }
   case dwarf::DW_TAG_const_type:
   {
-    // errs() << "4" << "\n";
+    // // errs() << "4" << "\n";
     auto base_type = getBaseDIType(dt);
     if (!base_type)
       return "const nullptr";
@@ -196,7 +196,7 @@ std::string pdg::dbgutils::getSourceLevelTypeName(DIType &dt)
   }
   default:
   {
-    // errs() << "5\n";
+    // // errs() << "5\n";
     return dt.getName().str();
   }
   }
