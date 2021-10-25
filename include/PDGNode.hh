@@ -58,13 +58,13 @@ namespace pdg
       {
         llvm::Instruction *instruction = llvm::dyn_cast<llvm::Instruction>(_val);
         const llvm::DebugLoc &debugInfo = instruction->getDebugLoc();
-        llvm::errs() << "debug: " << debugInfo << "\n";
+        // llvm:: errs() << "debug: " << debugInfo << "\n";
         if(debugInfo) {
           std::string directory = debugInfo->getDirectory();
           std::string filePath = debugInfo->getFilename();
           _file_name = directory + "/" + filePath;
           _line_number = debugInfo->getLine();
-          llvm::errs() << "line number: " << _line_number << "\n";
+          // llvm:: errs() << "line number: " << _line_number << "\n";
         }
       }
       else if (node_type == pdg::GraphNodeType::FUNC_ENTRY)

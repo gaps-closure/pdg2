@@ -123,7 +123,7 @@ void pdg::ProgramGraph::build(Module &M)
       GraphNodeType node_type = GraphNodeType::INST_OTHER;
       if (isAnnotationCallInst(*inst_iter))
       {
-        // errs() << "Inst: " <<  (*inst_iter).getOperand(1)) << "\n";
+        // // errs() << "Inst: " <<  (*inst_iter).getOperand(1)) << "\n";
         
         // auto globalSenStr = cast<GlobalVariable>(cast<Instruction>((*inst_iter).getOperand(1))->getOperand(1));
         // auto anno = cast<ConstantDataArray>(globalSenStr->getOperand(0))->getAsCString();
@@ -153,7 +153,7 @@ void pdg::ProgramGraph::build(Module &M)
         node_type = GraphNodeType::INST_BR;
       Node *n = new Node(*inst_iter, node_type);
       Value *v = &*inst_iter;
-      errs() << "Added: " << v << "\n";
+      // errs() << "Added: " << v << "\n";
       _val_node_map.insert(std::pair<Value *, Node *>(&*inst_iter, n));
       func_w->addInst(*inst_iter);
       addNode(*n);
@@ -380,11 +380,11 @@ void pdg::ProgramGraph::buildGlobalAnnotationNodes(Module &M)
       {
         auto globalSenStr = cast<GlobalVariable>(casted_struct->getOperand(1)->getOperand(0));
         auto anno = cast<ConstantDataArray>(globalSenStr->getOperand(0))->getAsCString();
-        llvm::errs() << "Checking for Global: " << *annotated_gv << "\n";
+        // llvm::errs() << "Checking for Global: " << *annotated_gv << "\n";
         Node *n = getNode(*annotated_gv);
         if (n == nullptr)
         {
-          llvm::errs() << "MAKING GLOBAL! \n ";
+          // llvm::errs() << "MAKING GLOBAL! \n ";
           // couldn't this also be a module static variable?
           n = new Node(*annotated_gv, GraphNodeType::VAR_STATICALLOCGLOBALSCOPE);
           _val_node_map.insert(std::pair<Value *, Node *>(annotated_gv, n));
