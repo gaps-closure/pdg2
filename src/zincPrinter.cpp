@@ -142,10 +142,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   node2line.open ("node2lineNumber.txt");
   funFile.open ("functionArgs.txt");
   onewayFile.open ("oneway.txt");
-<<<<<<< HEAD
-=======
   auto begin = std::chrono::high_resolution_clock::now();
->>>>>>> origin/performance_improvements
   
 
   for (auto node_iter = _PDG->begin(); node_iter != _PDG->end(); ++node_iter)
@@ -226,35 +223,6 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       getDstID << out_edge->getDstNode()->getNodeID();
 
       
-<<<<<<< HEAD
-      if (std::find(PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].begin(), PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].end(), out_edge->getSrcNode()) == PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].end())
-      {
-        if (DEBUGZINC)
-        {
-          errs() << "Warning, edges source idx became zero! \n"; 
-          errs() << "Source ID: " << getSrcID.str() << "Source Node Type: " << pdgutils::getNodeTypeStr(out_edge->getSrcNode()->getNodeType())  <<"\n";
-          errs() << "Dest ID: " << getDstID.str() << "Dest Node Type: " << pdgutils::getNodeTypeStr(out_edge->getDstNode()->getNodeType()) << "\n";
-        }
-        PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].push_back(out_edge->getSrcNode());
-        if (DEBUGZINC)
-        {
-          errs() << "Node: " <<  getSrcID.str() << " added. \n";
-        }
-      }
-
-      if (std::find(PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].begin(), PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].end(), out_edge->getDstNode()) == PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].end())
-      {
-        if (DEBUGZINC)
-        {
-          errs() << "Warning, edge Dest idx became zero! \n"; 
-          errs() << "Source ID: " << getSrcID.str() << " Source Node Type: " << pdgutils::getNodeTypeStr(out_edge->getSrcNode()->getNodeType())  <<"\n";
-          errs() << "Dest ID: " << getDstID.str() << " Dest Node Type: " << pdgutils::getNodeTypeStr(out_edge->getDstNode()->getNodeType()) << "\n";
-          
-          errs() << "Node: " <<  getDstID.str() << " added. \n";
-        }
-        PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].push_back(out_edge->getDstNode());
-      }
-=======
       // if (std::find(PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].begin(), PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].end(), out_edge->getSrcNode()) == PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].end())
       // {
 
@@ -297,7 +265,6 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
               PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].push_back(out_edge->getDstNode());
             }
           }
->>>>>>> origin/performance_improvements
 
 
 
@@ -450,11 +417,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       // {
       //   errs() << "Adding Function" << *val << "\n";
       // }
-<<<<<<< HEAD
-      outputArrays["hasFunction"].push_back(getNodeID.str()); 
-=======
       outputArrayHasFunction->push_back(getNodeID.str()); 
->>>>>>> origin/performance_improvements
     }
     else
     {
@@ -623,12 +586,6 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
         }
       }
 
-<<<<<<< HEAD
-      if (DEBUGZINC)
-      {
-        dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << nodeID2index[outputArrays["hasFunction"][index-1]] << ", na, na, " << filename  << ", " << lineNumber << ", " << nodeID2Node[i]->getParamIdx() << "\n";
-      }
-=======
       
     
       if (nodeID2Node[i]->getValue() != nullptr)
@@ -649,7 +606,6 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
        
        
       dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << nodeID2index[outputArrays["hasFunction"][index-1]] << ", na, na, " << filename  << ", " << lineNumber << ", " << nodeID2Node[i]->getParamIdx() << "\n";
->>>>>>> origin/performance_improvements
       node2line << index << ", " << nameStr << ", " << filename  << ", " << lineNumber << "\n";
       index++;
     } 
@@ -764,13 +720,8 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   errs() << "717@ Time: " << elapsed.count() << "\n";
   begin = std::chrono::high_resolution_clock::now();
   index = 1;
-<<<<<<< HEAD
-  if (DEBUGZINC)
- {
-=======
 //   if (DEBUGZINC)
 //  {
->>>>>>> origin/performance_improvements
   for(auto &id : edgeOrder)
   {
     for(auto const& i : outputEnumsPDGEdge[id]) {
@@ -778,9 +729,6 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       index++;
     } 
   }
-<<<<<<< HEAD
- }
-=======
 //  }
 
  end = std::chrono::high_resolution_clock::now();
@@ -788,7 +736,6 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
 
   errs() << "734@ Time: " << elapsed.count() << "\n";
   begin = std::chrono::high_resolution_clock::now();
->>>>>>> origin/performance_improvements
 
  std::vector<std::string> hasFunctionIndx;
  for(auto &i : outputArrays["hasFunction"])
@@ -898,15 +845,11 @@ end = std::chrono::high_resolution_clock::now();
 
   outFile << "MaxFuncParms = " <<  maxParam << ";\n";
   
-<<<<<<< HEAD
-
-=======
 end = std::chrono::high_resolution_clock::now();
   elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
 
   errs() << "848@ Time: " << elapsed.count() << "\n";
   begin = std::chrono::high_resolution_clock::now();
->>>>>>> origin/performance_improvements
   // onewayFile << "OneWayCheck \n";
   for(auto &i : oneWayCheck)
   {
