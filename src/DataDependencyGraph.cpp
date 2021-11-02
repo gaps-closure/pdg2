@@ -40,6 +40,9 @@ void pdg::DataDependencyGraph::addAliasEdges(Instruction &inst)
     if (&inst == &*inst_iter)
       continue;
     
+    if (!inst.getType()->isPointerTy())
+      continue;
+
     auto alias_result = queryAliasUnderApproximate(inst, *inst_iter);
     if (alias_result != NoAlias)
     {

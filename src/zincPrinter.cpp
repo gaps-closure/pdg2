@@ -1,4 +1,5 @@
 #include "zincPrinter.hh"
+#include <chrono> 
 
 using namespace llvm;
 
@@ -33,7 +34,8 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   std::map<std::string,int> edgeID2enum;
 
   std::map<std::string,int> nodeID2index;
-  
+
+
   std::vector<std::string> nodeOrder{
     "Inst_FunCall", 
     "Inst_Ret",
@@ -140,6 +142,10 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   node2line.open ("node2lineNumber.txt");
   funFile.open ("functionArgs.txt");
   onewayFile.open ("oneway.txt");
+<<<<<<< HEAD
+=======
+  auto begin = std::chrono::high_resolution_clock::now();
+>>>>>>> origin/performance_improvements
   
 
   for (auto node_iter = _PDG->begin(); node_iter != _PDG->end(); ++node_iter)
@@ -191,10 +197,15 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   }
 
   
+  auto end = std::chrono::high_resolution_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "199@ Time: " << elapsed.count() << "\n";
 
   //print edges
   // outFile << "=============== Edge Set ===============\n";
-
+  
+  begin = std::chrono::high_resolution_clock::now();
   int edge_index = 1;
   for (auto& enums: PDG_edges)
   {
@@ -215,6 +226,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       getDstID << out_edge->getDstNode()->getNodeID();
 
       
+<<<<<<< HEAD
       if (std::find(PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].begin(), PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].end(), out_edge->getSrcNode()) == PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].end())
       {
         if (DEBUGZINC)
@@ -242,6 +254,50 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
         }
         PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].push_back(out_edge->getDstNode());
       }
+=======
+      // if (std::find(PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].begin(), PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].end(), out_edge->getSrcNode()) == PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].end())
+      // {
+
+      //     errs() << "Warning, edges source idx became zero! \n"; 
+      //     errs() << "Source ID: " << getSrcID.str() << "Source Node Type: " << pdgutils::getNodeTypeStr(out_edge->getSrcNode()->getNodeType())  <<"\n";
+      //     errs() << "Dest ID: " << getDstID.str() << "Dest Node Type: " << pdgutils::getNodeTypeStr(out_edge->getDstNode()->getNodeType()) << "\n";
+        
+      //   PDG_nodes[static_cast<int>(out_edge->getSrcNode()->getNodeType())].push_back(out_edge->getSrcNode());
+       
+      //     errs() << "Node: " <<  getSrcID.str() << " added. \n";
+        
+      // }
+
+      // if (std::find(PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].begin(), PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].end(), out_edge->getDstNode()) == PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].end())
+      // {
+
+      //     errs() << "Warning, edge Dest idx became zero! \n"; 
+      //     errs() << "Source ID: " << getSrcID.str() << " Source Node Type: " << pdgutils::getNodeTypeStr(out_edge->getSrcNode()->getNodeType())  <<"\n";
+      //     errs() << "Dest ID: " << getDstID.str() << " Dest Node Type: " << pdgutils::getNodeTypeStr(out_edge->getDstNode()->getNodeType()) << "\n";
+         
+      //     errs() << "Node: " <<  getDstID.str() << " added. \n";
+        
+      //   PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].push_back(out_edge->getDstNode());
+      // }
+
+      if (out_edge->getDstNode()->getNodeType() == pdg::GraphNodeType::INST_FUNCALL ||
+          out_edge->getDstNode()->getNodeType() == pdg::GraphNodeType::PARAM_ACTUALIN ||
+          out_edge->getDstNode()->getNodeType() == pdg::GraphNodeType::PARAM_ACTUALOUT 
+          )
+          {
+            if (std::find(PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].begin(), PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].end(), out_edge->getDstNode()) == PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].end())
+            {
+
+                // errs() << "Warning, edge Dest idx became zero! \n"; 
+                // errs() << "Source ID: " << getSrcID.str() << " Source Node Type: " << pdgutils::getNodeTypeStr(out_edge->getSrcNode()->getNodeType())  <<"\n";
+                // errs() << "Dest ID: " << getDstID.str() << " Dest Node Type: " << pdgutils::getNodeTypeStr(out_edge->getDstNode()->getNodeType()) << "\n";
+              
+                // errs() << "Node: " <<  getDstID.str() << " added. \n";
+              
+              PDG_nodes[static_cast<int>(out_edge->getDstNode()->getNodeType())].push_back(out_edge->getDstNode());
+            }
+          }
+>>>>>>> origin/performance_improvements
 
 
 
@@ -321,7 +377,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
             {
               edge_id = "";
               getEdgeID << edge->getEdgeID();
-              outputArrays["invForRet"].push_back(getEdgeID.str());
+              // outputArrays["invForRet"].push_back(getEdgeID.str());
               break;
             }
           }
@@ -333,7 +389,14 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
     }
   }
 
+  end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "361@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
+
   int node_index = 1;
+  auto outputArrayHasFunction = &outputArrays["hasFunction"];
   for (auto& enums: PDG_nodes)
   {
     for (auto& nodes: enums)
@@ -356,6 +419,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
 
 
     }
+   
     if( node->getNodeType() == pdg::GraphNodeType::FUNC_ENTRY)
     {
       int numArgs = 0;
@@ -370,11 +434,12 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
 
     Value* val = node->getValue();
 
-    FuncWrapperMap Fwm = _PDG->getFuncWrapperMap();
+    
     Node* func_node = nullptr;
     if (node->getFunc())
     {
-      func_node = Fwm[node->getFunc()]->getEntryNode();
+      // FuncWrapperMap Fwm = _PDG->getFuncWrapperMap();
+      func_node = _PDG->getFuncWrapperMap()[node->getFunc()]->getEntryNode();
     }
    
     
@@ -385,22 +450,26 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       // {
       //   errs() << "Adding Function" << *val << "\n";
       // }
+<<<<<<< HEAD
       outputArrays["hasFunction"].push_back(getNodeID.str()); 
+=======
+      outputArrayHasFunction->push_back(getNodeID.str()); 
+>>>>>>> origin/performance_improvements
     }
     else
     {
       // needs to be assigned to something or minizinc will complain
-      outputArrays["hasFunction"].push_back("0"); 
+      outputArrayHasFunction->push_back("0"); 
     }
     
 
-    if (val != nullptr)
-    {
-      if (Function* f = dyn_cast<Function>(val))
-        OS << f->getName().str() << "\n";
-      else
-        OS << *val << "\n";
-    }
+    // if (val != nullptr)
+    // {
+    //   if (Function* f = dyn_cast<Function>(val))
+    //     OS << f->getName().str() << "\n";
+    //   else
+    //     OS << *val << "\n";
+    // }
 
 
     node_id = "";
@@ -409,10 +478,6 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
     outputEnumsPDGNode[pdgutils::getNodeTypeStr(node->getNodeType())].push_back(getNodeID.str());
     nodeID2Node[getNodeID.str()] = node;
     nodeID2enum[getNodeID.str()] = node_index;
-    // outputEnums["PDGNode"].push_back(getNodeID.str());
-
-    // Need to make sure that these arrays sync up with the concatinated data
-    // outputArrays["hasCle"].push_back(node->getAnno()); 
     node_index++;
     }
 
@@ -422,6 +487,11 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
 
   // outFile << "PDGNodes" << " = [ ";
  
+  end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "456@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
   bool first = true;
   for(auto &id : nodeOrder)
   {
@@ -442,6 +512,12 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   int super_class_start = 1;
   int super_class_end = -1;
   int max_node_idx = 1;
+  end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "481@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
+
   for(auto &id : nodeOrder)
   {
     if (class_idx == 4 || class_idx == 9 || class_idx == 15 || class_idx == 19)
@@ -482,29 +558,20 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   outFile << "PDGNode_end" << " = " << max_node_idx << ";\n";
   std::vector<bool> hasFuncAnno;
 
+  end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
 
+  errs() << "527@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
   index = 1;
   for(auto &id : nodeOrder)
   {
     for(auto const& i : outputEnumsPDGNode[id]) {
-      std::string valueStr;
-      std::string nameStr;
-      if (nodeID2Node[i]->getValue() == nullptr)
-      {
-        valueStr = "No Value";
-        nameStr  = "None";
-      }
-      else
-      {
-        llvm::raw_string_ostream(valueStr) << *(nodeID2Node[i]->getValue());
-        // escape quotes in the string
-        std::string::size_type sz = 0;
-        while ( ( sz = valueStr.find("\"", sz) ) != std::string::npos )
-        {
-            valueStr.replace(sz, 1, "\"\"");
-            sz += 2;
-        }
+      std::string valueStr = "No Value";
+      std::string nameStr = "None";
 
+      if (nodeID2Node[i]->getValue() != nullptr)
+      {
         nameStr  = nodeID2Node[i]->getValue()->getName();
       }
 
@@ -556,10 +623,33 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
         }
       }
 
+<<<<<<< HEAD
       if (DEBUGZINC)
       {
         dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << nodeID2index[outputArrays["hasFunction"][index-1]] << ", na, na, " << filename  << ", " << lineNumber << ", " << nodeID2Node[i]->getParamIdx() << "\n";
       }
+=======
+      
+    
+      if (nodeID2Node[i]->getValue() != nullptr)
+      {
+        valueStr = "";
+        llvm::raw_string_ostream(valueStr) << *(nodeID2Node[i]->getValue());
+        // escape quotes in the string
+        std::string::size_type sz = 0;
+        if(nodeID2Node[i]->getNodeType() == pdg::GraphNodeType::FUNC_ENTRY)
+        {
+          while ( ( sz = valueStr.find("\"", sz) ) != std::string::npos )
+          {
+              valueStr.replace(sz, 1, "\"\"");
+              sz += 2;
+          }
+        }
+      }
+       
+       
+      dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << nodeID2index[outputArrays["hasFunction"][index-1]] << ", na, na, " << filename  << ", " << lineNumber << ", " << nodeID2Node[i]->getParamIdx() << "\n";
+>>>>>>> origin/performance_improvements
       node2line << index << ", " << nameStr << ", " << filename  << ", " << lineNumber << "\n";
       index++;
     } 
@@ -570,6 +660,11 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   super_class_start = 1;
   super_class_end = -1;
   int max_edge_idx = 1; 
+  end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "619@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
   for(auto &id : edgeOrder)
   {
     if (class_idx == 5 || class_idx == 10 || class_idx == 14 || class_idx == 18)
@@ -602,6 +697,11 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   outFile << "PDGEdge_end" << " = " << max_edge_idx << ";\n";
 
   index = 1;
+  end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "656@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
   for(auto &id : edgeOrder)
   {
      for(auto const &i : outputEnumsPDGEdge[id] )
@@ -657,9 +757,20 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
      }
   }
 
+
+  end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "717@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
   index = 1;
+<<<<<<< HEAD
   if (DEBUGZINC)
  {
+=======
+//   if (DEBUGZINC)
+//  {
+>>>>>>> origin/performance_improvements
   for(auto &id : edgeOrder)
   {
     for(auto const& i : outputEnumsPDGEdge[id]) {
@@ -667,7 +778,17 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       index++;
     } 
   }
+<<<<<<< HEAD
  }
+=======
+//  }
+
+ end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "734@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
+>>>>>>> origin/performance_improvements
 
  std::vector<std::string> hasFunctionIndx;
  for(auto &i : outputArrays["hasFunction"])
@@ -678,6 +799,11 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
  }
  outputArrays["hasFunction"] = hasFunctionIndx;
 
+end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "749@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
   std::string out_string = "";
   for(auto &id : arrayOrder)
   {
@@ -701,6 +827,11 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   first = true;
   int last_id = -1;
   
+  end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "777@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
   out_string = "hasParamIdx = array1d(Param, [\n";
   for(auto const& i : hasParamIdx) {
     out_string += i + ",";
@@ -715,6 +846,11 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   //  std::ofstream outFileCle;
   // outFileCle.open ("init_cle.mzn");
 
+  end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "793@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
   out_string = " ";
   outFile << "userAnnotatedFunction = array1d(FunctionEntry, [\n"; 
   for(auto b: hasFuncAnno)
@@ -731,6 +867,11 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   out_string.pop_back();
   outFile << out_string << "\n]);\n";
 
+end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "817@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
   int maxParam = 3;
   for (auto node_iter = _PDG->begin(); node_iter != _PDG->end(); ++node_iter)
   {
@@ -757,7 +898,15 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
 
   outFile << "MaxFuncParms = " <<  maxParam << ";\n";
   
+<<<<<<< HEAD
 
+=======
+end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "848@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
+>>>>>>> origin/performance_improvements
   // onewayFile << "OneWayCheck \n";
   for(auto &i : oneWayCheck)
   {
@@ -765,6 +914,11 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       onewayFile << nodeID2Node[i.first]->getAnno() << " " << oneWayCheck[i.first] << "\n";
   }
   
+  end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "860@ Time: " << elapsed.count() << "\n";
+  begin = std::chrono::high_resolution_clock::now();
   for(auto &id : nodeOrder)
   {
     for(auto const& i : outputEnumsPDGNode[id]) {
@@ -775,6 +929,10 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       }
     } 
   }
+end = std::chrono::high_resolution_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+
+  errs() << "875@ Time: " << elapsed.count() << "\n";
 
 
 
