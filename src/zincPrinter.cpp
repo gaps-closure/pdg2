@@ -413,10 +413,10 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
     if (func_node != nullptr)
     {
       getNodeID << func_node->getNodeID();
-      if (DEBUGZINC)
-      {
-        errs() << "Adding Function" << *val << "\n";
-      }
+      // if (DEBUGZINC)
+      // {
+      //   errs() << "Adding Function" << *val << "\n";
+      // }
       outputArrayHasFunction->push_back(getNodeID.str()); 
     }
     else
@@ -587,21 +587,24 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       }
 
       
-      if (DEBUGZINC)
+    
+      if (nodeID2Node[i]->getValue() != nullptr)
       {
-        if (nodeID2Node[i]->getValue() != nullptr)
+        valueStr = "";
+        llvm::raw_string_ostream(valueStr) << *(nodeID2Node[i]->getValue());
+        // escape quotes in the string
+        std::string::size_type sz = 0;
+        if(nodeID2Node[i]->getNodeType() == pdg::GraphNodeType::FUNC_ENTRY)
         {
-          llvm::raw_string_ostream(valueStr) << *(nodeID2Node[i]->getValue());
-          // escape quotes in the string
-          std::string::size_type sz = 0;
           while ( ( sz = valueStr.find("\"", sz) ) != std::string::npos )
           {
               valueStr.replace(sz, 1, "\"\"");
               sz += 2;
           }
         }
+      }
        
-      }  
+       
       dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << nodeID2index[outputArrays["hasFunction"][index-1]] << ", na, na, " << filename  << ", " << lineNumber << ", " << nodeID2Node[i]->getParamIdx() << "\n";
       node2line << index << ", " << nameStr << ", " << filename  << ", " << lineNumber << "\n";
       index++;
