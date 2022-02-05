@@ -53,6 +53,7 @@ namespace pdg
       node_ID = node_count;
       _annotation = "None";
       _paramIdx = -1;
+      _line_number = -1;
 
       if (llvm::isa<llvm::Instruction>(_val) )
       {
