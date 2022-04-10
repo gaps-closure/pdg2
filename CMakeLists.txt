@@ -54,4 +54,5 @@ INSTALL(
 	PATTERN "**/*.h"
 	)
 enable_testing()
+#add_subdirectory(Test-Suite)
 include(CTest)
