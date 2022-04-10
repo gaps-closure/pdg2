@@ -6,6 +6,7 @@ project("SVF")
 # we check for the presence of the add_llvm_loadable_module command.
 # - if this command is not present, we are building out-of-source
 if(NOT COMMAND add_llvm_library)
+    find_package(LLVM "10.0.1" REQUIRED CONFIG)
     if (DEFINED LLVM_DIR)
         set(ENV{LLVM_DIR} "${LLVM_DIR}")
     endif()
@@ -26,6 +27,7 @@ if(NOT COMMAND add_llvm_library)
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS} -O3 -fno-rtti")
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_FLAGS} -O3")
         endif()
+
 
         find_package(LLVM REQUIRED CONFIG)
 
@@ -67,4 +69,5 @@ INSTALL(
     PATTERN "**/*.h"
     )
 enable_testing()
+#add_subdirectory(Test-Suite)
 include(CTest)
