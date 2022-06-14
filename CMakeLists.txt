@@ -48,6 +48,8 @@ add_library(pdg MODULE
 
 add_library(pdg_shared STATIC ${SOURCES})
 
+install(TARGETS pdg pdg_shared LIBRARY DESTINATION lib)
+
 #
 # Turn on C++11, turn off C++ RTTI.
 #
