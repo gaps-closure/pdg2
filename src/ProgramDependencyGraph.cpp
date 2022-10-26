@@ -136,7 +136,11 @@ void pdg::ProgramDependencyGraph::connectCallerAndCallee(CallWrapper &cw, Functi
   // step 2: connect actual in -> formal in, formal out -> actual out
   auto actual_arg_list = cw.getArgList();
   auto formal_arg_list = fw.getArgList();
-  assert(actual_arg_list.size() == formal_arg_list.size() && "cannot connect tree edges due to inequal arg num! (connectCallerandCallee)");
+  if(!(actual_arg_list.size() == formal_arg_list.size())) 
+  {
+    errs() << "cannot connect tree edges due to inequal arg num! " << *call_site_node->getValue() << "\n";
+    return;
+  }
   int num_arg = cw.getArgList().size();
   for (int i = 0; i < num_arg; i++)
   {
@@ -145,6 +149,8 @@ void pdg::ProgramDependencyGraph::connectCallerAndCallee(CallWrapper &cw, Functi
     // step 2: connect actual in -> formal in
     auto actual_in_tree = cw.getArgActualInTree(*actual_arg);
     auto formal_in_tree = fw.getArgFormalInTree(*formal_arg);
+    if (actual_in_tree == nullptr || formal_in_tree == nullptr)
+      continue;
     _PDG->addTreeNodesToGraph(*actual_in_tree);
     connectInTrees(actual_in_tree, formal_in_tree, EdgeType::PARAMETER_IN);
     // step 3: connect actual out -> formal out
@@ -236,8 +242,8 @@ void pdg::ProgramDependencyGraph::connectInterprocDependencies(Function &F)
         Tree* actual_in_tree = call_w->getArgActualInTree(*arg);
         if (!actual_in_tree)
         {
-          // // errs() << "[WARNING]: empty actual tree for callsite " << *call_inst << "\n";
-          return;
+          errs() << "[WARNING]: empty actual tree for callsite " << *call_inst << "\n";
+          continue;
         }
         Tree* actual_out_tree = call_w->getArgActualOutTree(*arg);
         call_site_node->addNeighbor(*actual_in_tree->getRootNode(), EdgeType::PARAMETER_IN);
@@ -253,9 +259,11 @@ void pdg::ProgramDependencyGraph::connectInterprocDependencies(Function &F)
         connectActualOutTreeWithAddrVars(*call_w->getRetActualInTree(), *call_inst);
         connectActualOutTreeWithAddrVars(*call_w->getRetActualOutTree(), *call_inst);
       }
-      
-      auto called_func_w = getFuncWrapper(*call_w->getCalledFunc());
-      connectCallerAndCallee(*call_w, *called_func_w);
+      if(call_w->getCalledFunc() != nullptr) 
+      {
+        auto called_func_w = getFuncWrapper(*call_w->getCalledFunc());
+        connectCallerAndCallee(*call_w, *called_func_w);
+      }
     }
   }
 }
