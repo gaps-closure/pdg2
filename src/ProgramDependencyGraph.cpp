@@ -133,6 +133,28 @@ void pdg::ProgramDependencyGraph::connectCallerAndCallee(CallWrapper &cw, Functi
     return;
   call_site_node->addNeighbor(*func_entry_node, EdgeType::CONTROLDEP_CALLINV);
 
+  // step4: connect both control/data return edges of callee to the call site
+  auto ret_insts = fw.getReturnInsts();
+  auto call_inst = cw.getCallInst();
+  Node *dst = _PDG->getNode(*call_inst);
+  assert(dst != nullptr && "cannot add control edge to call node on nullptr!\n");
+  // add control return edge
+  for (auto ret_inst : ret_insts)
+  {
+    Node *src = _PDG->getNode(*ret_inst);
+    if (src == nullptr)
+      continue;
+    src->addNeighbor(*dst, EdgeType::CONTROLDEP_CALLRET);
+  }
+  // add data return edge
+  for (auto ret_inst : ret_insts)
+  {
+    Node* src = _PDG->getNode(*ret_inst);
+    if (src == nullptr)
+      continue;
+    src->addNeighbor(*dst, EdgeType::DATA_RET);
+  }
+
   // step 2: connect actual in -> formal in, formal out -> actual out
   auto actual_arg_list = cw.getArgList();
   auto formal_arg_list = fw.getArgList();
@@ -171,27 +193,7 @@ void pdg::ProgramDependencyGraph::connectCallerAndCallee(CallWrapper &cw, Functi
     connectInTrees(ret_actual_out_tree, ret_formal_out_tree, EdgeType::PARAMETER_OUT);
   }
 
-  // step4: connect both control/data return edges of callee to the call site
-  auto ret_insts = fw.getReturnInsts();
-  auto call_inst = cw.getCallInst();
-  Node *dst = _PDG->getNode(*call_inst);
-  assert(dst != nullptr && "cannot add control edge to call node on nullptr!\n");
-  // add control return edge
-  for (auto ret_inst : ret_insts)
-  {
-    Node *src = _PDG->getNode(*ret_inst);
-    if (src == nullptr)
-      continue;
-    src->addNeighbor(*dst, EdgeType::CONTROLDEP_CALLRET);
-  }
-  // add data return edge
-  for (auto ret_inst : ret_insts)
-  {
-    Node* src = _PDG->getNode(*ret_inst);
-    if (src == nullptr)
-      continue;
-    src->addNeighbor(*dst, EdgeType::DATA_RET);
-  }
+  
 }
 
 // ===== connect dependencies =====
