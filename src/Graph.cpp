@@ -118,6 +118,7 @@ void pdg::ProgramGraph::build(Module &M)
     if (F.isDeclaration() || F.empty())
       continue;
     FunctionWrapper *func_w = new FunctionWrapper(&F);
+    int k = 0;
     for (auto inst_iter = inst_begin(F); inst_iter != inst_end(F); inst_iter++)
     {
       GraphNodeType node_type = GraphNodeType::INST_OTHER;
@@ -152,11 +153,13 @@ void pdg::ProgramGraph::build(Module &M)
       if (isa<BranchInst>(&*inst_iter))
         node_type = GraphNodeType::INST_BR;
       Node *n = new Node(*inst_iter, node_type);
+      n->setInstructionIndex(k);
       Value *v = &*inst_iter;
       // errs() << "Added: " << v << "\n";
       _val_node_map.insert(std::pair<Value *, Node *>(&*inst_iter, n));
       func_w->addInst(*inst_iter);
       addNode(*n);
+      k++;
     }
     func_w->buildFormalTreeForArgs();
     func_w->buildFormalTreesForRetVal();

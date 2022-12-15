@@ -137,6 +137,10 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   std::ofstream funFile;
   std::ofstream onewayFile;
 
+  const char *delim = ",";
+  const char *term = "\n";
+  const char *quote = "\'";
+
   outFile.open ("pdg_instance.mzn");
   dbgFile.open ("pdg_data.csv");
   node2line.open ("node2lineNumber.txt");
@@ -570,6 +574,8 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
       
       std::string filename = nodeID2Node[i]->getFileName();
       int lineNumber = nodeID2Node[i]->getLineNumber();
+      int colNumber = nodeID2Node[i]->getColumnNumber();
+      int instIndex = nodeID2Node[i]->getInstructionIndex();
       if (DEBUGZINC)
       {
         errs() << "hasFunction ID" << outputArrays["hasFunction"][index-1] << "Value: " <<valueStr << "\n";
@@ -603,9 +609,28 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
           }
         }
       }
+
+      if (nodeID2Node[i]->getValue() != nullptr) 
+      {
+        auto val = nodeID2Node[i]->getValue();
+
+      }
        
-       
-      dbgFile << "Node, " << index << ", " <<  id << ", " << i << ", \"" << valueStr << "\", " << nodeID2index[outputArrays["hasFunction"][index-1]] << ", na, na, " << filename  << ", " << lineNumber << ", " << nodeID2Node[i]->getParamIdx() << "\n";
+      dbgFile 
+        << "Node" << delim 
+        << index << delim 
+        << id << delim 
+        << i << delim 
+        << quote << valueStr << quote << delim
+        << nodeID2index[outputArrays["hasFunction"][index-1]] << delim 
+        << delim 
+        << delim
+        << filename << delim 
+        << lineNumber << delim 
+        << colNumber << delim
+        << instIndex << delim
+        << nodeID2Node[i]->getParamIdx() 
+        << term;
       node2line << index << ", " << nameStr << ", " << filename  << ", " << lineNumber << "\n";
       index++;
     } 
@@ -725,7 +750,20 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   for(auto &id : edgeOrder)
   {
     for(auto const& i : outputEnumsPDGEdge[id]) {
-      dbgFile << "Edge, " << index << ", " << id << ", " << i << ", na, na, " << outputArrays["hasSource"][index-1] << ", " << outputArrays["hasDest"][index-1] << ", na, na, na" << "\n";
+      dbgFile 
+        << "Edge" << delim 
+        << index << delim
+        << id << delim 
+        << i << delim 
+        << delim 
+        << delim
+        << outputArrays["hasSource"][index-1] << delim 
+        << outputArrays["hasDest"][index-1] << delim 
+        << delim 
+        << delim 
+        << delim 
+        << delim
+        << term;
       index++;
     } 
   }

@@ -34,9 +34,12 @@ namespace pdg
       node_ID = node_count;
       _annotation = "None";
       _line_number = -1;
+      _col_number = -1;
       _file_name = "Not Found";
       _paramIdx = -1;
+      _inst_index = -1;
     }
+
     Node(llvm::Value &v, GraphNodeType node_type)
     {
       _val = &v;
@@ -54,6 +57,8 @@ namespace pdg
       _annotation = "None";
       _paramIdx = -1;
       _line_number = -1;
+      _col_number = -1;
+      _inst_index = -1;
 
       if (llvm::isa<llvm::Instruction>(_val) )
       {
@@ -65,6 +70,7 @@ namespace pdg
           std::string filePath = debugInfo->getFilename();
           _file_name = directory + "/" + filePath;
           _line_number = debugInfo->getLine();
+          _col_number = debugInfo->getColumn();
           // llvm:: errs() << "line number: " << _line_number << "\n";
         }
       }
@@ -136,6 +142,9 @@ namespace pdg
     bool hasInNeighborWithEdgeType(Node &n, EdgeType edge_type);
     bool hasOutNeighborWithEdgeType(Node &n, EdgeType edge_type);
     int getLineNumber() {return _line_number;};
+    int getColumnNumber() {return _col_number;};
+    int getInstructionIndex() {return _inst_index;};
+    void setInstructionIndex(int index) {_inst_index = index;};
     std::string getFileName() {return _file_name;};
     virtual ~Node() = default;
 
@@ -151,6 +160,8 @@ namespace pdg
     unsigned int node_ID;
     std::string _annotation;
     int _line_number;
+    int _col_number;
+    int _inst_index;
     std::string _file_name;
     int _paramIdx;
   };
