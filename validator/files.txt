@@ -1,0 +1,14 @@
+1.* output CSV file(s) of validator in its current state
+2.  coordinated test input data set(s) for the validator:
+    a.*   pdg.csv
+    b.*   pdg_instance.mzn
+    c.    enclave_instance.mzn
+    d.    cle_instance.mzn
+    e.    DOT file for PDG
+    f.    topology.json built from b-d above
+    g.    artifact.json built from b-d above
+    h.*   LLVM IR file from which a-e above were built
+    i.    CLE JSON file from which a-e above were built
+    j.    annotated source code from which h-i above were built
+3.  output CSV file(s) from previous discussion (what's new)
+4.  ETL python script of current data into graph DB
