@@ -1,0 +1,9 @@
+IRParameter,IRParameter.In,2473,2473,0,0
+IRGlobal,IRGlobal.Global + IRGlobal.Function + IRGlobal.Other,432,432,0,0
+IRInstruction.Call.Internal,IRInstruction.Call.Internal.NonVarArg + IRInstruction.Call.Internal.VarArg,2487,2487,0,0
+IRInstruction,IRInstruction.Mul + IRInstruction.AShr + IRInstruction.FPToSI + IRInstruction.Phi + IRInstruction.SExt + IRInstruction.CondBr + IRInstruction.Ret + IRInstruction.FNeg + IRInstruction.Shl + IRInstruction.Load + IRInstruction.FPExt + IRInstruction.Store + IRInstruction.ExtractValue + IRInstruction.Alloca + IRInstruction.SDiv + IRInstruction.Or + IRInstruction.ICmp + IRInstruction.FCmp + IRInstruction.SIToFP + IRInstruction.Unreachable + IRInstruction.ZExt + IRInstruction.FPToUI + IRInstruction.GetElementPtr + IRInstruction.Br + IRInstruction.UDiv + IRInstruction.LShr + IRInstruction.FAdd + IRInstruction.UIToFP + IRInstruction.BitCast + IRInstruction.Switch + IRInstruction.Sub + IRInstruction.PtrToInt + IRInstruction.FMul + IRInstruction.IntToPtr + IRInstruction.Add + IRInstruction.SRem + IRInstruction.FSub + IRInstruction.FPTrunc + IRInstruction.Call + IRInstruction.Trunc + IRInstruction.URem + IRInstruction.And + IRInstruction.FDiv + IRInstruction.Xor + IRInstruction.Select,75484,75484,0,0
+IRInstruction.Call,IRInstruction.Call.Internal + IRInstruction.Call.Annotation + IRInstruction.Call.Intrinsic + IRInstruction.Call.External + IRInstruction.Call.Pointer,7659,7659,0,0
+PDGNode.Inst.FunCall,IRInstruction.Call - IRInstruction.Call.Annotation,7644,7644,0,0
+PDGNode.Inst.Other,IRInstruction - IRInstruction.Call - IRInstruction.Ret - IRInstruction.Br - IRInstruction.CondBr,60770,60770,0,0
+PDGNode.Param.FormalIn.Proper,IRParameter,2438,2473,0,35
+PDGEdge.ControlDep.CallInv,IRInstruction.Call.Internal,2487,2487,0,0

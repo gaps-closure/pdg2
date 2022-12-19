@@ -1,6 +1,9 @@
 use std::collections::HashSet;
 use std::fmt::Display;
+use std::iter::FromIterator;
+use std::ops::Add;
 
+use llvm_ir::constant::ConstUnaryOp;
 use llvm_ir::{Module, Instruction, Function, Operand, HasDebugLoc, Name, Terminator};
 use llvm_ir::instruction::Call;
 
@@ -228,3 +231,313 @@ pub fn callee_name(call: &Call) -> Option<Name> {
         }
     }) 
 }
+
+pub trait FunctionUsedAsPointer {
+    fn funcs_used_as_pointer(&self) -> HashSet<Name>;
+} 
+
+impl<T: FunctionUsedAsPointer> FunctionUsedAsPointer for Vec<T> {
+    fn funcs_used_as_pointer(&self) -> HashSet<Name> {
+        self.iter().flat_map(|e| e.funcs_used_as_pointer()).collect()
+    }
+}
+// impl FunctionUsedAsPointer for llvm_ir::ConstantRef {
+//     fn funcs_used_as_pointer(&self) -> HashSet<Name> {
+//         self.to_owned().funcs_used_as_pointer()
+//     }
+// }
+
+macro_rules! union {
+    ($e:expr, $($f:expr),+) => {
+        {
+            let mut s = $e;
+            $(
+                s.extend($f);
+            )+
+            s 
+        }
+    };
+}
+
+impl FunctionUsedAsPointer for llvm_ir::Module {
+    fn funcs_used_as_pointer(&self) -> HashSet<Name> {
+        union! {
+            self.functions.funcs_used_as_pointer(),
+            self.global_vars.funcs_used_as_pointer(),
+            self.global_aliases.funcs_used_as_pointer()
+        }
+    }
+}
+
+impl FunctionUsedAsPointer for llvm_ir::module::GlobalAlias {
+    fn funcs_used_as_pointer(&self) -> HashSet<Name> {
+        self.aliasee.funcs_used_as_pointer()
+    }
+}
+impl FunctionUsedAsPointer for llvm_ir::module::GlobalVariable {
+    fn funcs_used_as_pointer(&self) -> HashSet<Name> {
+        self.initializer.as_ref().map(|i| i.funcs_used_as_pointer()).unwrap_or(HashSet::new())
+    }
+}
+
+impl FunctionUsedAsPointer for llvm_ir::Function {
+    fn funcs_used_as_pointer(&self) -> HashSet<Name> {
+        self.basic_blocks.funcs_used_as_pointer()
+    }
+}
+impl FunctionUsedAsPointer for llvm_ir::BasicBlock {
+    fn funcs_used_as_pointer(&self) -> HashSet<Name> {
+        union!(self.instrs.funcs_used_as_pointer(), self.term.funcs_used_as_pointer())
+    }
+}
+
+impl FunctionUsedAsPointer for llvm_ir::Terminator {
+    fn funcs_used_as_pointer(&self) -> HashSet<Name> {
+        let empty = HashSet::new();
+        match self {
+            Terminator::Ret(r) => r.return_operand.as_ref().map(|r| r.funcs_used_as_pointer()).unwrap_or(empty),
+            Terminator::Br(_) => empty,
+            Terminator::CondBr(b) => b.condition.funcs_used_as_pointer(),
+            Terminator::Switch(s) => union!(s.operand.funcs_used_as_pointer(), s.dests.iter().flat_map(|(c,_)| c.funcs_used_as_pointer())),
+            Terminator::IndirectBr(b) => b.operand.funcs_used_as_pointer(),
+            Terminator::Invoke(i) => i.arguments.iter().flat_map(|(o,_)| o.funcs_used_as_pointer()).collect(),
+            Terminator::Resume(v) => v.operand.funcs_used_as_pointer(),
+            Terminator::Unreachable(_) => empty,
+            Terminator::CleanupRet(r) => r.cleanup_pad.funcs_used_as_pointer(),
+            Terminator::CatchRet(r) => r.catch_pad.funcs_used_as_pointer(),
+            Terminator::CatchSwitch(r) => r.parent_pad.funcs_used_as_pointer(),
+            Terminator::CallBr(b) => b.arguments.iter().flat_map(|(o,_)| o.funcs_used_as_pointer()).collect(),
+        } 
+    }
+}
+
+impl FunctionUsedAsPointer for llvm_ir::Instruction {
+    fn funcs_used_as_pointer(&self) -> HashSet<Name> {
+        let empty = HashSet::new();
+        match self {
+            // Instruction::Add(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::Sub(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::Mul(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::UDiv(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::SDiv(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::URem(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::SRem(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::And(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::Or(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::Xor(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::Shl(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::LShr(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::AShr(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::FAdd(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::FSub(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::FMul(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::FDiv(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::FRem(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::FNeg(x) => 
+            //     x.operand.funcs_used_as_pointer(),
+            // Instruction::ExtractElement(x) => 
+            //     union!(x.vector.funcs_used_as_pointer(), x.index.funcs_used_as_pointer()),
+            // Instruction::InsertElement(x) =>
+            //     union!(x.element.funcs_used_as_pointer(), x.index.funcs_used_as_pointer()),
+            // Instruction::ShuffleVector(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::ExtractValue(x) => 
+            //     x.aggregate.funcs_used_as_pointer(),
+            // Instruction::InsertValue(x) => 
+            //     union!(x.element.funcs_used_as_pointer(), x.aggregate.funcs_used_as_pointer()),
+            // Instruction::Alloca(_) => empty,
+            Instruction::Load(x) => 
+                x.address.funcs_used_as_pointer(),
+            Instruction::Store(x) => 
+                union!(x.value.funcs_used_as_pointer(), x.address.funcs_used_as_pointer()),
+            // Instruction::Fence(_) => empty,
+            // Instruction::CmpXchg(x) => union!(x.address.funcs_used_as_pointer(), x.expected.funcs_used_as_pointer()),
+            // Instruction::AtomicRMW(x) => 
+                // union!(x.value.funcs_used_as_pointer(), x.address.funcs_used_as_pointer()),
+            Instruction::GetElementPtr(x) => 
+                x.address.funcs_used_as_pointer(),
+            // Instruction::Trunc(x) => 
+                // x.operand.funcs_used_as_pointer(),
+            // Instruction::ZExt(x) => 
+                // x.operand.funcs_used_as_pointer(),
+            // Instruction::SExt(x) => 
+            //     x.operand.funcs_used_as_pointer(),
+            // Instruction::FPTrunc(x) => 
+            //     x.operand.funcs_used_as_pointer(),
+            // Instruction::FPExt(x) => 
+            //     x.operand.funcs_used_as_pointer(),
+            // Instruction::FPToUI(x) =>
+            //     x.operand.funcs_used_as_pointer(),
+            // Instruction::FPToSI(x) =>
+            //     x.operand.funcs_used_as_pointer(),
+            // Instruction::UIToFP(x) =>
+            //     x.operand.funcs_used_as_pointer(),
+            // Instruction::SIToFP(x) =>
+            //     x.operand.funcs_used_as_pointer(),
+            // Instruction::PtrToInt(x) => 
+            //     x.operand.funcs_used_as_pointer(),
+            // Instruction::IntToPtr(x) => 
+            //     x.operand.funcs_used_as_pointer(),
+            // Instruction::BitCast(x) => 
+            //     x.operand.funcs_used_as_pointer(),
+            // Instruction::AddrSpaceCast(x) => 
+            //     x.operand.funcs_used_as_pointer(),
+            // Instruction::ICmp(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::FCmp(x) => 
+            //     union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+            // Instruction::Phi(x) => 
+            //     x.incoming_values.iter().flat_map(|(c,_)| c.funcs_used_as_pointer()).collect(),
+            // Instruction::Select(s) => 
+            //     union!(s.condition.funcs_used_as_pointer(), s.true_value.funcs_used_as_pointer(), s.false_value.funcs_used_as_pointer()),
+            // Instruction::Freeze(f) => 
+            //     f.operand.funcs_used_as_pointer(),
+            Instruction::Call(c) => 
+                c.arguments.iter().flat_map(|(c, _)| c.funcs_used_as_pointer()).collect(),
+            // Instruction::VAArg(x) => 
+            //     x.arg_list.funcs_used_as_pointer(),
+            // Instruction::LandingPad(_) => empty,
+            // Instruction::CatchPad(_) => empty,
+            // Instruction::CleanupPad(_) => empty,
+            _ => empty,
+        }
+    }
+}
+
+impl FunctionUsedAsPointer for llvm_ir::Operand {
+    fn funcs_used_as_pointer(&self) -> HashSet<Name> {
+        let empty = HashSet::new();
+        match self {
+            // don't include local names
+            Operand::LocalOperand { name: _, ty: _ } => empty,
+            Operand::ConstantOperand(c) => c.funcs_used_as_pointer(),
+            Operand::MetadataOperand => empty,
+        }
+    }
+}
+
+
+
+impl FunctionUsedAsPointer for llvm_ir::Constant {
+    fn funcs_used_as_pointer(&self) -> HashSet<Name> {
+        let empty = HashSet::new();
+        if let llvm_ir::Constant::GlobalReference { name, ty: _ } = self {
+            return HashSet::from_iter([name.to_owned()])
+        }
+        empty
+        // match self {
+        //     llvm_ir::Constant::Int { bits, value } => empty,
+        //     llvm_ir::Constant::Float(_) => empty,
+        //     llvm_ir::Constant::Null(_) => empty,
+        //     llvm_ir::Constant::AggregateZero(_) => empty,
+        //     llvm_ir::Constant::Struct { name: _, values, is_packed: _ } => 
+        //         values.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::Array { element_type: _, elements } => 
+        //         elements.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::Vector(elements) =>
+        //         elements.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::Undef(_) => empty,
+        //     llvm_ir::Constant::BlockAddress => empty,
+        //     llvm_ir::Constant::GlobalReference { name, ty } => HashSet::from_iter([name.to_owned()]),
+        //     llvm_ir::Constant::TokenNone => empty,
+        //     llvm_ir::Constant::Add(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::Sub(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::Mul(x) =>
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::UDiv(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::SDiv(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::URem(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::SRem(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::And(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::Or(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::Xor(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::Shl(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::LShr(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::AShr(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::FAdd(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::FSub(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::FMul(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::FDiv(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::FRem(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::ExtractElement(e) => 
+        //         union!(e.index.funcs_used_as_pointer(), e.vector.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::InsertElement(e) => 
+        //         union!(e.index.funcs_used_as_pointer(), e.vector.funcs_used_as_pointer(), e.element.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::ShuffleVector(s) => 
+        //         union!(s.mask.funcs_used_as_pointer(), s.operand0.funcs_used_as_pointer(), s.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::ExtractValue(e) => 
+        //         e.aggregate.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::InsertValue(i) => 
+        //         union!(i.aggregate.funcs_used_as_pointer(), i.element.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::GetElementPtr(g) => 
+        //         union!(g.address.funcs_used_as_pointer(), g.indices.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::Trunc(x) => 
+        //         x.operand.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::ZExt(x) => 
+        //         x.operand.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::SExt(x) => 
+        //         x.operand.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::FPTrunc(x) => 
+        //         x.operand.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::FPExt(x) => 
+        //         x.operand.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::FPToUI(x) => 
+        //         x.operand.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::FPToSI(x) => 
+        //         x.operand.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::UIToFP(x) => 
+        //         x.operand.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::SIToFP(x) => 
+        //         x.operand.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::PtrToInt(x) => 
+        //         x.operand.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::IntToPtr(x) => 
+        //         x.operand.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::BitCast(x) => 
+        //         x.operand.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::AddrSpaceCast(x) => 
+        //         x.operand.funcs_used_as_pointer(),
+        //     llvm_ir::Constant::ICmp(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::FCmp(x) => 
+        //         union!(x.operand0.funcs_used_as_pointer(), x.operand1.funcs_used_as_pointer()),
+        //     llvm_ir::Constant::Select(s) => 
+        //         union!(s.condition.funcs_used_as_pointer(), s.true_value.funcs_used_as_pointer(), s.false_value.funcs_used_as_pointer())
+        // }
+    }
+} 
