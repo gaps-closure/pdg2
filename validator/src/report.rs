@@ -45,7 +45,7 @@ fn rollup_prefixes<V: Clone>(bag: &mut Bag<SetID, V>) {
 
 
 
-pub fn write_ir_bag(bag: &Bag<SetID, LLValue>, mut writer: Writer<File>) {
+pub fn write_ir_bag(bag: &Bag<SetID, LLValue>, writer: &mut Writer<File>) {
     // let rows = length_sorted_rows(map);
     for (key, count) in bag.sizes() {
         writer.write_record(&vec![key.join("."), count.to_string()]).unwrap();
@@ -332,8 +332,7 @@ fn write_inst_other_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, node_bag: &Bag<
    
 }
 
-
-fn write_validation_csv(ir_bag: Bag<SetID, LLValue>, mut writer: Writer<File>, pdg: &Pdg) {
+fn write_validation_csv(ir_bag: Bag<SetID, LLValue>, mut validation_writer: Writer<File>, mut counts_writer: Writer<File>, pdg: &Pdg) {
     for (k, values) in &ir_bag.hashmap {
         let rollup = has_prefix(&ir_bag, &k).collect::<Vec<_>>();
         if rollup.len() == 0 {
@@ -355,9 +354,9 @@ fn write_validation_csv(ir_bag: Bag<SetID, LLValue>, mut writer: Writer<File>, p
                 .sum();
         
         // TODO: actually calculate values for last two entries
-        writer.write_record(&vec![name,rollup_names,values.len().to_string(),rollup_count.to_string(), "0".to_string(), "0".to_string()]).unwrap();
+        validation_writer.write_record(&vec![name,rollup_names,values.len().to_string(),rollup_count.to_string(), "0".to_string(), "0".to_string()]).unwrap();
     } 
-    writer.write_record(&vec!["PDGNode".to_string(), "".to_string(), pdg.nodes.len().to_string()]).unwrap();
+    // counts.write_record(&vec!["PDGNode".to_string(), "".to_string(), pdg.nodes.len().to_string()]).unwrap();
 
     let mut node_bag = Bag::new();
     for node in &pdg.nodes {
@@ -365,16 +364,16 @@ fn write_validation_csv(ir_bag: Bag<SetID, LLValue>, mut writer: Writer<File>, p
         name.insert(0, "PDGNode".to_string());
         node_bag.insert(name, node);
     }
+    rollup_prefixes(&mut node_bag);
     let proper_param_nodes = proper_param_nodes(&node_bag);
     node_bag.hashmap.insert(vec!["PDGNode".to_string(), "Param".to_string(), "FormalIn".to_string(), "Proper".to_string()], proper_param_nodes.iter().collect::<Vec<_>>());
-    rollup_prefixes(&mut node_bag);
-    write_inst_funcall_csv(&ir_bag, pdg, &node_bag, &mut writer);
-    write_inst_other_csv(&ir_bag, pdg, &node_bag, &mut writer);
-    write_param_in_csv(&ir_bag, pdg, &node_bag, &mut writer);
+    write_inst_funcall_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
+    write_inst_other_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
+    write_param_in_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
 
 
     for (k, v) in &node_bag.hashmap {
-        writer.write_record(&vec![k.join("."), String::new(), v.len().to_string()]).unwrap();
+        counts_writer.write_record(&vec![k.join("."), String::new(), v.len().to_string()]).unwrap();
     }
 
     let mut edge_bag = Bag::new();
@@ -384,14 +383,14 @@ fn write_validation_csv(ir_bag: Bag<SetID, LLValue>, mut writer: Writer<File>, p
         edge_bag.insert(name, edge);
     }
 
+    rollup_prefixes(&mut edge_bag);
     let proper_param_edges = proper_param_edges(pdg, &mut edge_bag);
     edge_bag.hashmap.insert(vec!["PDGEdge".to_string(), "Parameter".to_string(), "In".to_string(), "Proper".to_string()], proper_param_edges.iter().collect::<Vec<_>>());
-    rollup_prefixes(&mut edge_bag);
 
-    write_controldep_callinv_csv(&ir_bag, pdg, &edge_bag, &mut writer);
+    write_controldep_callinv_csv(&ir_bag, pdg, &edge_bag, &mut validation_writer);
 
     for (k, v) in &edge_bag.hashmap {
-        writer.write_record(&vec![k.join("."), String::new(), v.len().to_string()]).unwrap();
+        counts_writer.write_record(&vec![k.join("."), String::new(), v.len().to_string()]).unwrap();
     }
 
 }
@@ -476,7 +475,7 @@ fn proper_param_edges(pdg: &Pdg, edge_bag: &Bag<SetID, &Edge>) -> Vec<Edge> {
 }
 
 
-pub fn report(bc_file: &str, pdg_data_file: &str, ir_csv: &str, validation_csv: &str) {
+pub fn report(bc_file: &str, pdg_data_file: &str, counts_csv: &str, validation_csv: &str) {
     let module = Module::from_bc_path(bc_file).unwrap();
     let pdg = {
         let file = File::open(pdg_data_file).unwrap();
@@ -489,10 +488,10 @@ pub fn report(bc_file: &str, pdg_data_file: &str, ir_csv: &str, validation_csv: 
 
         Pdg::from_csv_reader(rdr).unwrap()
     };
-    let ir_writer = 
+    let mut counts_writer = 
         csv::WriterBuilder::new()
             .flexible(true)
-            .from_path(ir_csv)
+            .from_path(counts_csv)
             .unwrap();
 
     let validation_writer = 
@@ -501,6 +500,6 @@ pub fn report(bc_file: &str, pdg_data_file: &str, ir_csv: &str, validation_csv: 
             .from_path(validation_csv)
             .unwrap();
     let bag = ir_bag(&module);
-    write_ir_bag(&bag, ir_writer);
-    write_validation_csv(bag, validation_writer, &pdg);
+    write_ir_bag(&bag, &mut counts_writer);
+    write_validation_csv(bag, validation_writer, counts_writer, &pdg);
 }
