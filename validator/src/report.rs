@@ -1,5 +1,5 @@
 use std::{collections::{HashMap}, fs::File};
-use llvm_ir::{Module, Constant, Operand, Function, instruction::{Call, Store}, DebugLoc, Instruction, Terminator, module::{GlobalVariable, Linkage}, Name, function::Parameter, HasDebugLoc};
+use llvm_ir::{Module, Constant, Operand, Function, instruction::{Call, Store}, DebugLoc, Instruction, Terminator, module::{GlobalVariable, Linkage}, Name, function::Parameter, HasDebugLoc, types::Typed};
 use crate::{pdg::{Pdg, Node, Edge}, llvm::{call_sites, LLID, LLValue, LLItem, instr_name, term_name}, bag::Bag};
 use std::error::Error;
 use std::hash::Hash;
@@ -227,6 +227,7 @@ pub fn ir_bag(module: &Module) -> Bag<SetID, LLValue> {
                 }
                 Vec::new()
             });
+
     globals.chain(fns).chain(instrs).chain(params).collect()
 } 
 
@@ -475,6 +476,17 @@ fn proper_param_edges(pdg: &Pdg, edge_bag: &Bag<SetID, &Edge>) -> Vec<Edge> {
 }
 
 
+fn write_distinct_fn_sigs(module: &Module, writer: &mut Writer<File>) {
+    let distinct_fns =
+        module
+            .functions
+            .iter()
+            .map(|f| (f.get_type(&module.types), f))
+            .collect::<Bag<_,_>>();
+    writer.write_record(vec!["DistinctFunctionSignatures".to_string(), distinct_fns.hashmap.len().to_string()]).unwrap();
+}
+
+
 pub fn report(bc_file: &str, pdg_data_file: &str, counts_csv: &str, validation_csv: &str) {
     let module = Module::from_bc_path(bc_file).unwrap();
     let pdg = {
@@ -501,5 +513,6 @@ pub fn report(bc_file: &str, pdg_data_file: &str, counts_csv: &str, validation_c
             .unwrap();
     let bag = ir_bag(&module);
     write_ir_bag(&bag, &mut counts_writer);
+    write_distinct_fn_sigs(&module, &mut counts_writer);
     write_validation_csv(bag, validation_writer, counts_writer, &pdg);
 }

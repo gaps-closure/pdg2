@@ -1,12 +1,14 @@
-rename ir.csv to counts.csv
-move PDGNode/Edge counts to counts.csv
-make sure all possible types from pdg_instance.mzn are included in counts.csv 
-level n - 1 to level n tallies for node and edge
-DistinctFunctionSignatures count in counts.csv
-DistinctFunctionsUsedAsPointer count in counts.csv
-account AB for every node subtype and edge subtype
-subsubtype the parameter edges
-get information about source level signature via ctags (for struct literals)
+[ x ] rename ir.csv to counts.csv  
+[ x ] move PDGNode/Edge counts to counts.csv
+[   ] make sure all possible types from pdg_instance.mzn are included in counts.csv 
+[ x ] DistinctFunctionSignatures count in counts.csv
+[   ] DistinctFunctionsUsedAsPointer count in counts.csv
+[   ] account AB for every node subtype and edge subtype 
+    - [   ] only for root parameter nodes 
+    - [   ] for all parameter nodes 
+[   ] level n - 1 to level n tallies for node and edge
+[   ] subsubtype the parameter edges
+[   ] get information about source level signature via ctags (for struct literals)
 
 
 when pdg is extended for function pointers:
