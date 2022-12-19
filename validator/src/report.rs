@@ -6,6 +6,70 @@ use std::hash::Hash;
 use csv::Writer;
 
 type SetID = Vec<String>;
+macro_rules! id {
+    ($($x:ident).+) => {
+        vec![$(stringify!{$x}.to_string()),+]
+    };
+    ($($e:expr),+) => {
+        vec![$($e.to_string()),+]
+    };
+}
+
+macro_rules! ids {
+    ($($($x:ident).+),+) => {
+        vec![$(id!($($x).+)),+]
+    };
+}
+
+fn edge_ids() -> Vec<SetID> {
+    ids! {
+        PDGEdge,
+        PDGEdge.ControlDep,
+        PDGEdge.ControlDep.CallInv,
+        PDGEdge.ControlDep.CallRet,
+        PDGEdge.ControlDep.Entry,
+        PDGEdge.ControlDep.Br,
+        PDGEdge.ControlDep.Other,
+        PDGEdge.DataDepEdge,
+        PDGEdge.DataDepEdge.DefUse,
+        PDGEdge.DataDepEdge.RAW,
+        PDGEdge.DataDepEdge.Alias,
+        PDGEdge.Parameter,
+        PDGEdge.Parameter.In,
+        PDGEdge.Parameter.Out,
+        PDGEdge.Parameter.Field,
+        PDGEdge.Anno,
+        PDGEdge.Anno.Global,
+        PDGEdge.Anno.Var,
+        PDGEdge.Anno.Other
+    }
+}
+
+fn node_ids() -> Vec<SetID> {
+    ids! {
+        PDGNode,
+        PDGNode.Inst,
+        PDGNode.Inst.FunCall,
+        PDGNode.Inst.Ret,
+        PDGNode.Inst.Br,
+        PDGNode.Inst.Other,
+        PDGNode.VarNode,
+        PDGNode.VarNode.StaticGlobal,
+        PDGNode.VarNode.StaticModule,
+        PDGNode.VarNode.StaticFunction,
+        PDGNode.VarNode.StaticOther,
+        PDGNode.FunctionEntry,
+        PDGNode.Param,
+        PDGNode.Param.FormalIn,
+        PDGNode.Param.FormalOut,
+        PDGNode.Param.ActualIn,
+        PDGNode.Param.ActualOut,
+        PDGNode.Annotation,
+        PDGNode.Annotation.Var,
+        PDGNode.Annotation.Global,
+        PDGNode.Annotation.Other
+    }
+}
 
 fn has_prefix<'a, V>(map: &'a Bag<SetID, V>, pref: &'a SetID) -> impl Iterator<Item = (&'a SetID, &'a Vec<V>)> {
     map.hashmap.iter()
@@ -60,8 +124,8 @@ fn instruction_tags(fn_map: &HashMap<String, Function>, instr: &Instruction) -> 
         let fn_name = 
             call.function.clone().right().and_then(|op| {
                 match &op {
-                    Operand::LocalOperand { name, ty } => Some(name.to_owned()),
-                    Operand::ConstantOperand(c) => 
+                    Operand::LocalOperand { name, ty: _ } => Some(name.to_owned()),
+                    Operand::ConstantOperand(_) => 
                         if let llvm_ir::Constant::GlobalReference { name, ty: _ } = op.as_constant().unwrap() { Some(name.to_owned()) } else { None },
                     Operand::MetadataOperand => None,
                 }
@@ -360,11 +424,15 @@ fn write_validation_csv(ir_bag: Bag<SetID, LLValue>, mut validation_writer: Writ
     // counts.write_record(&vec!["PDGNode".to_string(), "".to_string(), pdg.nodes.len().to_string()]).unwrap();
 
     let mut node_bag = Bag::new();
+    for id in node_ids() {
+        node_bag.insert_all(id, vec![]);
+    } 
     for node in &pdg.nodes {
         let mut name = node.r#type.split("_").map(|x| x.to_owned()).collect::<Vec<_>>();
         name.insert(0, "PDGNode".to_string());
         node_bag.insert(name, node);
     }
+    
     rollup_prefixes(&mut node_bag);
     let proper_param_nodes = proper_param_nodes(&node_bag);
     node_bag.hashmap.insert(vec!["PDGNode".to_string(), "Param".to_string(), "FormalIn".to_string(), "Proper".to_string()], proper_param_nodes.iter().collect::<Vec<_>>());
@@ -372,12 +440,14 @@ fn write_validation_csv(ir_bag: Bag<SetID, LLValue>, mut validation_writer: Writ
     write_inst_other_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
     write_param_in_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
 
-
     for (k, v) in &node_bag.hashmap {
         counts_writer.write_record(&vec![k.join("."), String::new(), v.len().to_string()]).unwrap();
     }
 
     let mut edge_bag = Bag::new();
+    for id in edge_ids() {
+        edge_bag.insert_all(id, vec![]);
+    } 
     for edge in &pdg.edges {
         let mut name = edge.r#type.split("_").map(|x| x.to_owned()).collect::<Vec<_>>();
         name.insert(0, "PDGEdge".to_string());
@@ -488,6 +558,7 @@ fn write_distinct_fn_sigs(module: &Module, writer: &mut Writer<File>) {
 
 
 pub fn report(bc_file: &str, pdg_data_file: &str, counts_csv: &str, validation_csv: &str) {
+
     let module = Module::from_bc_path(bc_file).unwrap();
     let pdg = {
         let file = File::open(pdg_data_file).unwrap();
