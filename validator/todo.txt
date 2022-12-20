@@ -2,7 +2,7 @@
 [ x ] move PDGNode/Edge counts to counts.csv
 [ x ] make sure all possible types from pdg_instance.mzn are included in counts.csv 
 [ x ] DistinctFunctionSignatures count in counts.csv
-[   ] DistinctFunctionsUsedAsPointer count in counts.csv
+[ x ] DistinctFunctionsUsedAsPointer count in counts.csv
 [   ] account AB for every node subtype and edge subtype 
     - [   ] only for root parameter nodes 
     - [   ] for all parameter nodes 
