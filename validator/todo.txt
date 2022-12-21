@@ -4,12 +4,15 @@
 [ x ] DistinctFunctionSignatures count in counts.csv
 [ x ] DistinctFunctionsUsedAsPointer count in counts.csv
 [   ] account AB for every node subtype and edge subtype 
+    - [   ] subtype IR globals for module static variables (look at linkage?) 
+    - [   ] call annotations should match annotation nodes
     - [   ] only for root parameter nodes 
     - [   ] for all parameter nodes 
+[   ] save all relevant files
 [   ] level n - 1 to level n tallies for node and edge
 [   ] subsubtype the parameter edges
 [   ] get information about source level signature via ctags (for struct literals)
-
+[   ] ensure every annotation application must be exported to the mzn
 
 when pdg is extended for function pointers:
 PDGEdge.ControlDep.Call.Ind = 
@@ -18,3 +21,5 @@ PDGEdge.ControlDep.Call.Ind =
     and also have been referenced by a function pointer 
 - for each i in DistinctFunctionSignatures:
    functions which match that signature
+
+missing pdg edge dependency on a global constant
