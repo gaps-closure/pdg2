@@ -1,8 +1,6 @@
 use std::{collections::{HashMap}, fs::File};
 use llvm_ir::{Module, Constant, Operand, Function, instruction::{Call, Store}, DebugLoc, Instruction, Terminator, module::{GlobalVariable, Linkage}, Name, function::Parameter, HasDebugLoc, types::Typed};
 use crate::{pdg::{Pdg, Node, Edge}, llvm::{call_sites, LLID, LLValue, LLItem, instr_name, term_name, FunctionUsedAsPointer}, bag::Bag};
-use std::error::Error;
-use std::hash::Hash;
 use csv::Writer;
 
 type SetID = Vec<String>;
@@ -195,8 +193,8 @@ fn parameter_tags(_function: &Function, _parameter: &Parameter) -> Vec<SetID> {
     // temporary, will need to discriminate between in / out parameters
     ids! {
         IRParameter,
-        IRParameter.In,
-        IRParameter.Out
+        IRParameter.In
+        // IRParameter.Out
     }
 }
 
@@ -315,6 +313,33 @@ fn write_inst_funcall_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, node_bag: &Ba
         node_fun_call_map.len(), ir_subtraction_map.len(), a_minus_b.count(), b_minus_a.count())).unwrap();
 }
 
+fn write_fns_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, node_bag: &Bag<SetID, &Node>, writer: &mut Writer<File>) {
+    let ir_fns
+        = ir_bag.hashmap.get(&id!(IRFunction)).unwrap()
+            .iter()
+            .map(|v| (v.id.clone(), v))
+            .collect::<HashMap<_,_>>();
+    let function_entries
+        = node_bag.hashmap.get(&id!(PDGNode.FunctionEntry)).unwrap()
+            .iter()
+            .map(|n| (pdg.llid(n).unwrap(), n))
+            .collect::<HashMap<_,_>>();
+    let a_minus_b = 
+        function_entries
+            .iter()
+            .filter(|(key, _)| ir_fns.get(&key).is_none())
+            .collect::<Vec<_>>();
+
+    let b_minus_a = 
+        ir_fns
+            .iter()
+            .filter(|(key, _)| function_entries.get(&key).is_none())
+            .collect::<Vec<_>>(); 
+    writer.write_record(&id!("PDGNode.FunctionEntry", "IRFunction", 
+        function_entries.len(), ir_fns.len(), a_minus_b.len(), b_minus_a.len())).unwrap();
+
+}
+
 fn write_inst_other_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, node_bag: &Bag<SetID, &Node>, writer: &mut Writer<File>) {
     let ir_insts
         = ir_bag.hashmap.get(&id!(IRInstruction)).unwrap();
@@ -408,10 +433,10 @@ fn pdg_bag(pdg: &Pdg) -> (Bag<SetID, &Node>, Bag<SetID, &Edge>) {
 fn write_counts_csv(ir_bag: &Bag<SetID, LLValue>, pdg_bags: (&Bag<SetID, &Node>, &Bag<SetID, &Edge>), writer: &mut Writer<File>) {
     let (node_bag, edge_bag) = pdg_bags;
     for (k, count) in node_bag.sizes() {
-        writer.write_record(&vec![k.join("."), String::new(), count.to_string()]).unwrap();
+        writer.write_record(&vec![k.join("."), count.to_string()]).unwrap();
     }
     for (k, count) in edge_bag.sizes() {
-        writer.write_record(&vec![k.join("."), String::new(), count.to_string()]).unwrap();
+        writer.write_record(&vec![k.join("."), count.to_string()]).unwrap();
     }
     for (k, count) in ir_bag.sizes() {
         writer.write_record(&vec![k.join("."), count.to_string()]).unwrap();
@@ -446,11 +471,76 @@ fn write_validation_csv(ir_bag: Bag<SetID, LLValue>, pdg_bags: (Bag<SetID, &Node
     // counts.write_record(&vec!["PDGNode".to_string(), "".to_string(), pdg.nodes.len().to_string()]).unwrap();
     let (node_bag, edge_bag) = pdg_bags;
     write_inst_funcall_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
+    write_fns_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
     write_inst_other_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
+    write_inst_ret_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
+    write_inst_br_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
     write_param_in_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
     write_controldep_callinv_csv(&ir_bag, pdg, &edge_bag, &mut validation_writer);
 
 }
+
+fn write_inst_ret_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
+    let ir_ret =
+        ir_bag.hashmap.get(&id!(IRInstruction.Ret)).unwrap()
+            .iter()
+            .map(|v| (v.id.clone(), v))
+            .collect::<HashMap<_,_>>();
+    
+    let pdg_ret =
+        node_bag.hashmap.get(&id!(PDGNode.Inst.Ret)).unwrap()
+            .iter()
+            .map(|n| (pdg.llid(n).unwrap(), n))
+            .collect::<HashMap<_,_>>();
+    
+    let a_minus_b =
+        pdg_ret
+            .iter()
+            .filter(|(k, _)| !ir_ret.contains_key(k)) 
+            .collect::<Vec<_>>();
+    
+    let b_minus_a =
+        ir_ret
+            .iter()
+            .filter(|(k, _)| !pdg_ret.contains_key(k))
+            .collect::<Vec<_>>();
+    
+    writer.write_record(&id!("PDGNode.Inst.Ret", "IRInstruction.Ret", 
+        ir_ret.len(), pdg_ret.len(), a_minus_b.len(), b_minus_a.len())).unwrap();
+}
+
+fn write_inst_br_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
+    let ir_br =
+        ir_bag.hashmap.get(&id!(IRInstruction.Br)).unwrap();
+    let ir_cond_br =
+        ir_bag.hashmap.get(&id!(IRInstruction.CondBr)).unwrap();
+    let ir_br = 
+        ir_br.iter().chain(ir_cond_br)
+            .map(|v| (v.id.clone(), v))
+            .collect::<HashMap<_,_>>();
+    
+    let pdg_br =
+        node_bag.hashmap.get(&id!(PDGNode.Inst.Br)).unwrap()
+            .iter()
+            .map(|n| (pdg.llid(n).unwrap(), n))
+            .collect::<HashMap<_,_>>();
+    
+    let a_minus_b =
+        pdg_br
+            .iter()
+            .filter(|(k, _)| !ir_br.contains_key(k)) 
+            .collect::<Vec<_>>();
+    
+    let b_minus_a =
+        ir_br
+            .iter()
+            .filter(|(k, _)| !pdg_br.contains_key(k))
+            .collect::<Vec<_>>();
+   
+    writer.write_record(&id!("PDGNode.Inst.Br", "IRInstruction.Br + IRInstruction.CondBr", 
+        pdg_br.len(), ir_br.len(), a_minus_b.len(), b_minus_a.len())).unwrap();
+}
+
 
 fn write_param_in_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
     let ir_params = 
