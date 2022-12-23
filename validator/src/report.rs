@@ -1,7 +1,8 @@
-use std::{collections::{HashMap}, fs::File};
+use std::{collections::{HashMap, HashSet}, fs::File};
 use llvm_ir::{Module, Constant, Operand, Function, instruction::{Call, Store}, DebugLoc, Instruction, Terminator, module::{GlobalVariable, Linkage}, Name, function::Parameter, HasDebugLoc, types::Typed};
 use crate::{pdg::{Pdg, Node, Edge}, llvm::{call_sites, LLID, LLValue, LLItem, instr_name, term_name, FunctionUsedAsPointer}, bag::Bag};
 use csv::Writer;
+use std::hash::Hash;
 
 type SetID = Vec<String>;
 macro_rules! id {
@@ -16,6 +17,17 @@ macro_rules! id {
 macro_rules! ids {
     ($($($x:ident).+),+) => {
         vec![$(id!($($x).+)),+]
+    };
+}
+
+macro_rules! iter_union {
+    ($e:expr) => {
+        $e
+    };
+    ($e:expr, $($es:expr),+) => {
+        $e
+            .into_iter()
+            .chain(iter_union!($($es),+))
     };
 }
 
@@ -105,6 +117,50 @@ fn rollup_prefixes<V: Clone>(bag: &mut Bag<SetID, V>) {
     }
 }
 
+fn ir_iter_to_map<'a, I: IntoIterator<Item = &'a LLValue>>(iter: I) -> HashMap<LLID, &'a LLValue> {
+    iter
+        .into_iter()
+        .map(|v| (v.id.clone(), v))
+        .collect()
+}
+fn node_iter_to_map<'a, I: IntoIterator<Item = &'a Node>>(iter: I, pdg: &Pdg) -> HashMap<LLID, &'a Node> {
+    iter
+        .into_iter()
+        .map(|n| (pdg.llid(n).unwrap(), n))
+        .collect()
+}
+
+fn map_difference<'a, K: Hash + Eq, A, B>(map1: &'a HashMap<K, A>, map2: &'a HashMap<K, B>)
+    -> HashMap<&'a K, &'a A> {
+    map1
+        .iter()
+        .filter(|(k, _)| !map2.contains_key(&k)) 
+        .collect()
+}
+fn map_difference_owned<'a, K: Hash + Eq + ToOwned, A, B>(map1: &'a HashMap<K, A>, map2: &'a HashMap<K, B>)
+    -> HashMap<<K as ToOwned>::Owned, &'a A> 
+        where
+        <K as ToOwned>::Owned: Hash + Eq 
+        {
+    map1
+        .iter()
+        .filter(|(k, _)| !map2.contains_key(&k)) 
+        .map(|(k, v)| (k.to_owned(), v))
+        .collect()
+}
+
+fn compare_a_b<'a, K: Hash + Eq + ToOwned, A: ToOwned, B: ToOwned>(
+    a_name: &str, b_name: &str, a: &'a HashMap<K, A>, b: &'a HashMap<K, B>, writer: &mut Writer<File>) {
+
+    let a_minus_b = map_difference(a, b);
+    let b_minus_a = map_difference(b, a);
+    writer.write_record(&id![a_name, b_name, a.len(), b.len(), a_minus_b.len(), b_minus_a.len()]).unwrap();
+}
+
+fn compare_node_ir<'a, I: IntoIterator<Item = &'a Node>, J: IntoIterator<Item = &'a LLValue>>(node_name: &str, ir_name: &str, node_iter: I, ir_iter: J, pdg: &Pdg, writer: &mut Writer<File>) {
+    compare_a_b(node_name, ir_name, &node_iter_to_map(node_iter, pdg), &ir_iter_to_map(ir_iter), writer);
+}
+
 fn instruction_tags(fn_map: &HashMap<String, Function>, instr: &Instruction) -> Vec<SetID> {
     let mut tags = Vec::new();
     tags.push(id!(IRInstruction));
@@ -164,7 +220,7 @@ fn instruction_tags(fn_map: &HashMap<String, Function>, instr: &Instruction) -> 
     tags
 }
 
-fn global_tags(global: &GlobalVariable) -> Vec<SetID> {
+fn global_tags(global: &GlobalVariable, fn_names: &HashSet<String>) -> Vec<SetID> {
     let mut tags = Vec::new();
     tags.push(id!(IRGlobal));
     if &global.name.to_string() == "@llvm.global.annotations" {
@@ -172,21 +228,33 @@ fn global_tags(global: &GlobalVariable) -> Vec<SetID> {
         return tags;
     }
 
+    let name = global.name.to_string()[1..].to_string();
+    let mut subname_iter = name.split(".");
+
+    let first_part = 
+        subname_iter.next();
+        
+    let second_part = subname_iter.next();
+    let fn_name_candidate = first_part.and_then(|s|
+        if s == "__const" { second_part } else { Some(s) });
+    let is_fn_local = fn_name_candidate
+        .map(|n| fn_names.contains(n))
+        .unwrap_or(false);
     if global.debugloc.is_some() {
-        if global.name.to_string().contains(".") {
+        if is_fn_local {
             tags.push(id!(IRGlobal.Function));
+        } else if global.linkage == Linkage::Internal {
+            tags.push(id!(IRGlobal.Module));
+        } else if global.is_constant {
+            tags.push(id!(IRGlobal.Constant));
         } else {
-            // how to distinguish "Global" and "Module"  
-            if global.linkage == Linkage::Internal {
-                tags.push(id!(IRGlobal.Module));
-            } else {
-                tags.push(id!(IRGlobal.Global));
-            } 
-        }
-        return tags;
-    } 
-    tags.push(id!(IRGlobal.Other));
+            tags.push(id!(IRGlobal.Global));
+        } 
+    } else {
+        tags.push(id!(IRGlobal.Other));
+    }
     tags
+    
 }
 
 fn parameter_tags(_function: &Function, _parameter: &Parameter) -> Vec<SetID> {
@@ -210,7 +278,13 @@ pub fn ir_bag(module: &Module) -> Bag<SetID, LLValue> {
                 let item = LLItem::Function(f.clone());
                 (id!(IRFunction), LLValue::new(id, item))
             });
-    
+    let fn_names =
+        module
+            .functions
+            .iter()
+            .map(|f| f.name.to_string())
+            .collect::<HashSet<_>>();
+        
     let globals = 
         module
             .global_vars
@@ -218,7 +292,7 @@ pub fn ir_bag(module: &Module) -> Bag<SetID, LLValue> {
             .flat_map(|g| {
                 let id = LLID::GlobalName { global_name: g.name.to_string() };
                 let item = LLItem::Global(g.clone());
-                global_tags(&g)
+                global_tags(&g, &fn_names)
                     .iter()
                     .map(|t| (t.clone(), LLValue::new(id.clone(), item.clone())))
                     .collect::<Vec<_>>()
@@ -271,131 +345,71 @@ pub fn ir_bag(module: &Module) -> Bag<SetID, LLValue> {
 
 fn write_inst_funcall_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, node_bag: &Bag<SetID, &Node>, writer: &mut Writer<File>) {
     let node_fun_calls = 
-        node_bag.hashmap.get(&id!(PDGNode.Inst.FunCall)).unwrap();
+        node_iter_to_map(node_bag.get(&id!(PDGNode.Inst.FunCall)).unwrap().iter().map(|f| *f), pdg);
     let ir_fun_calls =
-        ir_bag.hashmap.get(&id!(IRInstruction.Call)).unwrap();
-    let ir_fun_call_annotations = 
-        ir_bag.hashmap.get(&id!(IRInstruction.Call.Annotation))
-            .unwrap()
-            .iter()
-            .map(|v| (v.id.clone(), v.item.clone()))
-            .collect::<HashMap<_,_>>();
-
-    let ir_subtraction = 
-        ir_fun_calls
-            .iter()
-            .filter(|l| !ir_fun_call_annotations.contains_key(&l.id))
-            .collect::<Vec<_>>();
-  
-    let node_fun_call_map = 
-        node_fun_calls
-            .iter()
-            .map(|n| (pdg.llid(n).unwrap(), n))
-            .collect::<HashMap<_,_>>();
-    let ir_subtraction_map =
-        ir_subtraction
-            .iter()
-            .map(|v| {
-                (v.id.clone(), v)
-            })
-            .collect::<HashMap<_,_>>();
-    
-    let a_minus_b = 
-        node_fun_call_map
-            .iter()
-            .filter(|(key, _)| ir_subtraction_map.get(&key).is_none());
-    let b_minus_a = 
-        ir_subtraction_map
-            .iter()
-            .filter(|(key, _)| node_fun_call_map.get(&key).is_none());
-
-    writer.write_record(&id!("PDGNode.Inst.FunCall", "IRInstruction.Call - IRInstruction.Call.Annotation", 
-        node_fun_call_map.len(), ir_subtraction_map.len(), a_minus_b.count(), b_minus_a.count())).unwrap();
+        ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Call)).unwrap());
+    let ir_fun_call_annotations =
+        ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Call.Annotation)).unwrap());
+    let ir_subtraction = map_difference_owned(&ir_fun_calls, &ir_fun_call_annotations);
+    compare_a_b("PDGNode.Inst.FunCall", "IRInstruction.Call - IRInstruction.Call.Annotation", &node_fun_calls, &ir_subtraction, writer);
 }
 
 fn write_fns_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, node_bag: &Bag<SetID, &Node>, writer: &mut Writer<File>) {
-    let ir_fns
-        = ir_bag.hashmap.get(&id!(IRFunction)).unwrap()
-            .iter()
-            .map(|v| (v.id.clone(), v))
-            .collect::<HashMap<_,_>>();
-    let function_entries
-        = node_bag.hashmap.get(&id!(PDGNode.FunctionEntry)).unwrap()
-            .iter()
-            .map(|n| (pdg.llid(n).unwrap(), n))
-            .collect::<HashMap<_,_>>();
-    let a_minus_b = 
-        function_entries
-            .iter()
-            .filter(|(key, _)| ir_fns.get(&key).is_none())
-            .collect::<Vec<_>>();
-
-    let b_minus_a = 
-        ir_fns
-            .iter()
-            .filter(|(key, _)| function_entries.get(&key).is_none())
-            .collect::<Vec<_>>(); 
-    writer.write_record(&id!("PDGNode.FunctionEntry", "IRFunction", 
-        function_entries.len(), ir_fns.len(), a_minus_b.len(), b_minus_a.len())).unwrap();
-
+    let function_entries = node_bag.get(&id!(PDGNode.FunctionEntry)).unwrap()
+        .iter().map(|f| *f);
+    let ir_fns = ir_bag.get(&id!(IRFunction)).unwrap();
+    compare_node_ir("PDGNode.FunctionEntry", "IRFunction", function_entries, ir_fns, pdg, writer);
 }
 
 fn write_inst_other_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, node_bag: &Bag<SetID, &Node>, writer: &mut Writer<File>) {
+    let node_inst_other
+        = node_iter_to_map(node_bag.get(&id!(PDGNode.Inst.Other)).unwrap().iter().map(|n| *n), pdg);
     let ir_insts
-        = ir_bag.hashmap.get(&id!(IRInstruction)).unwrap();
-    let ir_fun_calls =
-        ir_bag.hashmap.get(&id!(IRInstruction.Call)).unwrap()
-            .iter()
-            .map(|v| (v.id.clone(), v))
-            .collect::<HashMap<_,_>>();
-    let ir_rets =
-        ir_bag.hashmap.get(&id!(IRInstruction.Ret)).unwrap()
-            .iter()
-            .map(|v| (v.id.clone(), v))
-            .collect::<HashMap<_,_>>();
-    let ir_brs =
-        ir_bag.hashmap.get(&id!(IRInstruction.Br)).unwrap()
-            .iter()
-            .map(|v| (v.id.clone(), v))
-            .collect::<HashMap<_,_>>();
-
-    let ir_cond_brs =
-        ir_bag.hashmap.get(&id!(IRInstruction.CondBr)).unwrap()
-            .iter()
-            .map(|v| (v.id.clone(), v))
-            .collect::<HashMap<_,_>>();
-
-    let ir_subtraction_map = 
-        ir_insts
-            .iter()
-            .filter(|v| {
-                let k = &v.id;
-                !(ir_fun_calls.contains_key(k) || ir_rets.contains_key(k) || ir_brs.contains_key(k) || ir_cond_brs.contains_key(k))
-            })
-            .map(|v| (v.id.clone(), v))
-            .collect::<HashMap<_,_>>();
+        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction)).unwrap());
+    let ir_fun_calls
+        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Call)).unwrap());
+    let ir_rets
+        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Ret)).unwrap());
+    let ir_brs
+        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Br)).unwrap());
+    let ir_cond_brs
+        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.CondBr)).unwrap());
+    let union = 
+        iter_union!(ir_fun_calls, ir_rets, ir_brs, ir_cond_brs).collect();
+    let ir_subtraction
+        = map_difference_owned(&ir_insts, &union);
     
-    let node_inst_other_map = 
-        node_bag.hashmap.get(&id!(PDGNode.Inst.Other)).unwrap()
-            .iter()
-            .map(|n| (pdg.llid(n).unwrap(), n))
-            .collect::<HashMap<_,_>>();
-    
-    let a_minus_b = 
-        node_inst_other_map
-            .iter()
-            .filter(|(key, _)| ir_subtraction_map.get(&key).is_none())
-            .collect::<Vec<_>>();
+    compare_a_b("PDGNode.Inst.Other", "IRInstruction - IRInstruction.Call - IRInstruction.Ret - IRInstruction.Br - IRInstruction.CondBr", 
+        &node_inst_other, &ir_subtraction, writer);
+}
 
-    let b_minus_a = 
-        ir_subtraction_map
-            .iter()
-            .filter(|(key, _)| node_inst_other_map.get(&key).is_none())
-            .collect::<Vec<_>>();
+fn write_inst_ret_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
+    let pdg_ret
+        = node_bag.get(&id!(PDGNode.Inst.Ret)).unwrap().iter().map(|n| *n);
+    let ir_ret
+        = ir_bag.get(&id!(IRInstruction.Ret)).unwrap();
+    compare_node_ir("PDGNode.Inst.Ret", "IRInstruction.Ret", pdg_ret, ir_ret, pdg, writer);
+}
 
-    writer.write_record(&id!("PDGNode.Inst.Other", "IRInstruction - IRInstruction.Call - IRInstruction.Ret - IRInstruction.Br - IRInstruction.CondBr", 
-        node_inst_other_map.len(), ir_subtraction_map.len(), a_minus_b.len(), b_minus_a.len())).unwrap();
-   
+fn write_inst_br_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
+    let ir_br =
+        ir_bag.hashmap.get(&id!(IRInstruction.Br)).unwrap();
+    let ir_cond_br =
+        ir_bag.hashmap.get(&id!(IRInstruction.CondBr)).unwrap();
+    let ir_br = iter_union!(ir_br, ir_cond_br);
+    let pdg_br =
+        node_bag.hashmap.get(&id!(PDGNode.Inst.Br)).unwrap().iter().map(|n| *n);
+    compare_node_ir("PDGNode.Inst.Br", "IRInstruction.Br + IRInstruction.CondBr", pdg_br, ir_br, pdg, writer);    
+}
+
+fn write_param_in_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
+    let ir_params = 
+        ir_bag.hashmap.get(&id!(IRParameter)).unwrap();
+
+    let proper_param_in =  
+        node_bag.hashmap.get(&id!(PDGNode.Param.FormalIn.Proper)).unwrap().iter().map(|n| *n);
+
+    compare_node_ir("PDGNode.Param.FormalIn.Proper", "IRParameter", proper_param_in, ir_params, pdg, writer);
 }
 
 fn pdg_bag(pdg: &Pdg) -> (Bag<SetID, &Node>, Bag<SetID, &Edge>) {
@@ -468,7 +482,6 @@ fn write_validation_csv(ir_bag: Bag<SetID, LLValue>, pdg_bags: (Bag<SetID, &Node
         // TODO: actually calculate values for last two entries
         validation_writer.write_record(&vec![name,rollup_names,values.len().to_string(),rollup_count.to_string(), "0".to_string(), "0".to_string()]).unwrap();
     } 
-    // counts.write_record(&vec!["PDGNode".to_string(), "".to_string(), pdg.nodes.len().to_string()]).unwrap();
     let (node_bag, edge_bag) = pdg_bags;
     write_inst_funcall_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
     write_fns_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
@@ -476,101 +489,11 @@ fn write_validation_csv(ir_bag: Bag<SetID, LLValue>, pdg_bags: (Bag<SetID, &Node
     write_inst_ret_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
     write_inst_br_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
     write_param_in_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
+    // write_varnode_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
     write_controldep_callinv_csv(&ir_bag, pdg, &edge_bag, &mut validation_writer);
 
 }
 
-fn write_inst_ret_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
-    let ir_ret =
-        ir_bag.hashmap.get(&id!(IRInstruction.Ret)).unwrap()
-            .iter()
-            .map(|v| (v.id.clone(), v))
-            .collect::<HashMap<_,_>>();
-    
-    let pdg_ret =
-        node_bag.hashmap.get(&id!(PDGNode.Inst.Ret)).unwrap()
-            .iter()
-            .map(|n| (pdg.llid(n).unwrap(), n))
-            .collect::<HashMap<_,_>>();
-    
-    let a_minus_b =
-        pdg_ret
-            .iter()
-            .filter(|(k, _)| !ir_ret.contains_key(k)) 
-            .collect::<Vec<_>>();
-    
-    let b_minus_a =
-        ir_ret
-            .iter()
-            .filter(|(k, _)| !pdg_ret.contains_key(k))
-            .collect::<Vec<_>>();
-    
-    writer.write_record(&id!("PDGNode.Inst.Ret", "IRInstruction.Ret", 
-        ir_ret.len(), pdg_ret.len(), a_minus_b.len(), b_minus_a.len())).unwrap();
-}
-
-fn write_inst_br_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
-    let ir_br =
-        ir_bag.hashmap.get(&id!(IRInstruction.Br)).unwrap();
-    let ir_cond_br =
-        ir_bag.hashmap.get(&id!(IRInstruction.CondBr)).unwrap();
-    let ir_br = 
-        ir_br.iter().chain(ir_cond_br)
-            .map(|v| (v.id.clone(), v))
-            .collect::<HashMap<_,_>>();
-    
-    let pdg_br =
-        node_bag.hashmap.get(&id!(PDGNode.Inst.Br)).unwrap()
-            .iter()
-            .map(|n| (pdg.llid(n).unwrap(), n))
-            .collect::<HashMap<_,_>>();
-    
-    let a_minus_b =
-        pdg_br
-            .iter()
-            .filter(|(k, _)| !ir_br.contains_key(k)) 
-            .collect::<Vec<_>>();
-    
-    let b_minus_a =
-        ir_br
-            .iter()
-            .filter(|(k, _)| !pdg_br.contains_key(k))
-            .collect::<Vec<_>>();
-   
-    writer.write_record(&id!("PDGNode.Inst.Br", "IRInstruction.Br + IRInstruction.CondBr", 
-        pdg_br.len(), ir_br.len(), a_minus_b.len(), b_minus_a.len())).unwrap();
-}
-
-
-fn write_param_in_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
-    let ir_params = 
-        ir_bag.hashmap.get(&id!(IRParameter)).unwrap()
-            .iter()
-            .map(|v| (v.id.clone(), v))
-            .collect::<HashMap<_,_>>();
-
-    let proper_param_in =  
-        node_bag.hashmap.get(&id!(PDGNode.Param.FormalIn.Proper)).unwrap()
-            .iter()
-            .map(|n| (pdg.llid(n).unwrap(), n))
-            .collect::<HashMap<_,_>>();
-
-    let a_minus_b = 
-        proper_param_in
-            .iter()
-            .filter(|(key, _)| ir_params.get(&key).is_none())
-            .collect::<Vec<_>>();
-
-    let b_minus_a = 
-        ir_params
-            .iter()
-            .filter(|(key, _)| proper_param_in.get(&key).is_none())
-            .collect::<Vec<_>>();
-
-    writer.write_record(&id!("PDGNode.Param.FormalIn.Proper", "IRParameter", 
-        proper_param_in.len(), ir_params.len(), a_minus_b.len(), b_minus_a.len())).unwrap();
-
-}
 
 
 fn write_controldep_callinv_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, edge_bag: &Bag<SetID, &Edge>, writer: &mut Writer<File>) {

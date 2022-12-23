@@ -37,6 +37,9 @@ impl<K: std::hash::Hash + Eq, V> Bag<K, V> {
             }
         }
     }
+    pub fn get(&self, key: &K) -> Option<&Vec<V>> {
+       self.hashmap.get(key) 
+    }
 }
 
 impl<K: std::hash::Hash + Eq, V> FromIterator<(K, V)> for Bag<K, V> {
