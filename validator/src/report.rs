@@ -222,36 +222,38 @@ fn instruction_tags(fn_map: &HashMap<String, Function>, instr: &Instruction) -> 
 
 fn global_tags(global: &GlobalVariable, fn_names: &HashSet<String>) -> Vec<SetID> {
     let mut tags = Vec::new();
-    tags.push(id!(IRGlobal));
-    if &global.name.to_string() == "@llvm.global.annotations" {
-        tags.push(id!(IRGlobal.Annotation));
+
+    if global.linkage == Linkage::Private {
         return tags;
     }
 
+    tags.push(id!(IRGlobal));
+
     let name = global.name.to_string()[1..].to_string();
+    if &name == "llvm.global.annotations" {
+        tags.push(id!(IRGlobal.Internal.Annotation));
+        return tags;
+    }
+    if global.initializer.is_none() {
+        tags.push(id!(IRGlobal.External));
+        return tags;
+    }
+    tags.push(id!(IRGlobal.Internal));
     let mut subname_iter = name.split(".");
 
-    let first_part = 
+    let fn_name_candidate = 
         subname_iter.next();
-        
-    let second_part = subname_iter.next();
-    let fn_name_candidate = first_part.and_then(|s|
-        if s == "__const" { second_part } else { Some(s) });
     let is_fn_local = fn_name_candidate
         .map(|n| fn_names.contains(n))
         .unwrap_or(false);
-    if global.debugloc.is_some() {
+    if global.linkage == Linkage::Internal {
         if is_fn_local {
-            tags.push(id!(IRGlobal.Function));
-        } else if global.linkage == Linkage::Internal {
-            tags.push(id!(IRGlobal.Module));
-        } else if global.is_constant {
-            tags.push(id!(IRGlobal.Constant));
+            tags.push(id!(IRGlobal.Internal.Function));
         } else {
-            tags.push(id!(IRGlobal.Global));
-        } 
+            tags.push(id!(IRGlobal.Internal.Module));
+        }
     } else {
-        tags.push(id!(IRGlobal.Other));
+        tags.push(id!(IRGlobal.Internal.Omni));
     }
     tags
     
@@ -290,7 +292,7 @@ pub fn ir_bag(module: &Module) -> Bag<SetID, LLValue> {
             .global_vars
             .iter()
             .flat_map(|g| {
-                let id = LLID::GlobalName { global_name: g.name.to_string() };
+                let id = LLID::GlobalName { global_name: g.name.to_string()[1..].to_string() };
                 let item = LLItem::Global(g.clone());
                 global_tags(&g, &fn_names)
                     .iter()
@@ -412,6 +414,43 @@ fn write_param_in_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &
     compare_node_ir("PDGNode.Param.FormalIn.Proper", "IRParameter", proper_param_in, ir_params, pdg, writer);
 }
 
+fn write_anno_var_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
+    let ir_anno_var
+        = ir_bag.get(&id!(IRInstruction.Call.Annotation)).unwrap();
+    let pdg_anno_var
+        = node_bag.get(&id!(PDGNode.Annotation.Var)).unwrap().iter().map(|n| *n);
+    compare_node_ir("PDGNode.Annotation.Var", "IRInstruction.Call.Annotation", pdg_anno_var, ir_anno_var, pdg, writer);
+}
+fn write_anno_global_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
+    let ir_anno_var
+        = ir_bag.get(&id!(IRGlobal.Internal.Annotation)).unwrap();
+    let pdg_anno_var
+        = node_bag.get(&id!(PDGNode.Annotation.Global)).unwrap().iter().map(|n| *n);
+    compare_node_ir("PDGNode.Annotation.Global", "IRGlobal.Annotation", pdg_anno_var, ir_anno_var, pdg, writer);
+}
+
+fn write_varnode_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
+    let ir_global_omni
+        = ir_bag.get(&id!(IRGlobal.Internal.Omni)).unwrap();
+    let pdg_varnode_global
+        = node_bag.get(&id!(PDGNode.VarNode.StaticGlobal)).unwrap().iter().map(|n| *n);
+    compare_node_ir("PDGNode.VarNode.StaticGlobal", "IRGlobal.Internal.Omni", pdg_varnode_global, ir_global_omni, pdg, writer);
+
+    let ir_global_function
+        = ir_bag.get(&id!(IRGlobal.Internal.Function)).unwrap();
+    let pdg_varnode_function
+        = node_bag.get(&id!(PDGNode.VarNode.StaticFunction)).unwrap().iter().map(|n| *n);
+    compare_node_ir("PDGNode.VarNode.StaticFunction", "IRGlobal.Internal.Function", pdg_varnode_function, ir_global_function, pdg, writer);
+
+    let empty = Vec::new();
+    let ir_global_function
+        = ir_bag.get(&id!(IRGlobal.Internal.Module)).unwrap_or(&empty);
+    let pdg_varnode_function
+        = node_bag.get(&id!(PDGNode.VarNode.StaticModule)).unwrap().iter().map(|n| *n);
+    compare_node_ir("PDGNode.VarNode.StaticModule", "IRGlobal.Internal.Module", pdg_varnode_function, ir_global_function, pdg, writer);
+
+}
+
 fn pdg_bag(pdg: &Pdg) -> (Bag<SetID, &Node>, Bag<SetID, &Edge>) {
     let mut node_bag = Bag::new();
     for id in node_ids() {
@@ -489,10 +528,13 @@ fn write_validation_csv(ir_bag: Bag<SetID, LLValue>, pdg_bags: (Bag<SetID, &Node
     write_inst_ret_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
     write_inst_br_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
     write_param_in_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
-    // write_varnode_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
+    write_anno_var_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
+    write_anno_global_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
+    write_varnode_csv(&ir_bag, pdg, &node_bag, &mut validation_writer);
     write_controldep_callinv_csv(&ir_bag, pdg, &edge_bag, &mut validation_writer);
 
 }
+
 
 
 

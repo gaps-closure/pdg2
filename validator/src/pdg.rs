@@ -77,7 +77,7 @@ impl Node {
         self.ir.contains(name)
     } 
     pub fn ir_name(&self) -> Option<String> {
-        let reg = Regex::new(r"@((\w|_)+)").unwrap();
+        let reg = Regex::new(r"@((\w|_|\.)+)").unwrap();
         let op = reg.captures_iter(&self.ir).next();
         op.map(|cap| cap[1].to_string())
     }
@@ -224,7 +224,7 @@ impl Pdg {
             let func = &self.nodes[(node.has_fn - 1) as usize];
             return func.ir_name().map(|func_name| LLID::GlobalName { global_name: func_name.clone() })
         }
-        node.ir_name().map(|name| LLID::GlobalName { global_name: name.clone() })
+        node.ir_name().map(|name| LLID::GlobalName { global_name: name })
     }
 
     
