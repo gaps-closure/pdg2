@@ -1,0 +1,161 @@
+Node,1,Inst_FunCall,4,'  %3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([8 x i8], [8 x i8]* @.str, i64 0, i64 0))',39,,,,-1,-1,2,-1
+Node,2,Inst_FunCall,12,'  %1 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([7 x i8], [7 x i8]* @.str.1, i64 0, i64 0))',40,,,,-1,-1,0,-1
+Node,3,Inst_FunCall,23,'  %6 = call i32 (i32*)* (...) %5()',41,,,,-1,-1,6,-1
+Node,4,Inst_FunCall,24,'  %7 = call i32 %6(i32* @thread_helper.x)',41,,,,-1,-1,7,-1
+Node,5,Inst_FunCall,25,'  %8 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str.2, i64 0, i64 0), i32 %7)',41,,,,-1,-1,8,-1
+Node,6,Inst_FunCall,32,'  call void @thread_helper()',42,,,,-1,-1,2,-1
+Node,7,Inst_FunCall,46,'  %8 = call i32 @pthread_create(i64* %7, %union.pthread_attr_t* null, i8* (i8*)* @thread1_fun, i8* null) #4',43,,,,-1,-1,9,-1
+Node,8,Inst_FunCall,49,'  %10 = call i32 @pthread_join(i64 %9, i8** null)',43,,,,-1,-1,12,-1
+Node,9,Inst_FunCall,50,'  call void @exit(i32 0) #5',43,,,,-1,-1,13,-1
+Node,10,Inst_Ret,8,'  ret i32 %6',39,,,,-1,-1,6,-1
+Node,11,Inst_Ret,13,'  ret i32 (i32*)* @worldfun',40,,,,-1,-1,1,-1
+Node,12,Inst_Ret,26,'  ret void',41,,,,-1,-1,9,-1
+Node,13,Inst_Ret,33,'  ret i8* null',42,,,,-1,-1,3,-1
+Node,14,Inst_Other,2,'  %2 = alloca i32*, align 8',39,,,,-1,-1,0,-1
+Node,15,Inst_Other,3,'  store i32* %0, i32** %2, align 8',39,,,,-1,-1,1,-1
+Node,16,Inst_Other,5,'  %4 = load i32*, i32** %2, align 8',39,,,,-1,-1,3,-1
+Node,17,Inst_Other,6,'  %5 = load i32, i32* %4, align 4',39,,,,-1,-1,4,-1
+Node,18,Inst_Other,7,'  %6 = add nsw i32 %5, 10',39,,,,-1,-1,5,-1
+Node,19,Inst_Other,17,'  %1 = alloca [1 x i32 (i32*)* (...)*], align 8',41,,,,-1,-1,0,-1
+Node,20,Inst_Other,18,'  %2 = getelementptr inbounds [1 x i32 (i32*)* (...)*], [1 x i32 (i32*)* (...)*]* %1, i64 0, i64 0',41,,,,-1,-1,1,-1
+Node,21,Inst_Other,19,'  %3 = load i32 (i32*)* (...)*, i32 (i32*)* (...)** @globpm, align 8',41,,,,-1,-1,2,-1
+Node,22,Inst_Other,20,'  store i32 (i32*)* (...)* %3, i32 (i32*)* (...)** %2, align 8',41,,,,-1,-1,3,-1
+Node,23,Inst_Other,21,'  %4 = getelementptr inbounds [1 x i32 (i32*)* (...)*], [1 x i32 (i32*)* (...)*]* %1, i64 0, i64 0',41,,,,-1,-1,4,-1
+Node,24,Inst_Other,22,'  %5 = load i32 (i32*)* (...)*, i32 (i32*)* (...)** %4, align 8',41,,,,-1,-1,5,-1
+Node,25,Inst_Other,30,'  %2 = alloca i8*, align 8',42,,,,-1,-1,0,-1
+Node,26,Inst_Other,31,'  store i8* %0, i8** %2, align 8',42,,,,-1,-1,1,-1
+Node,27,Inst_Other,37,'  %3 = alloca i32, align 4',43,,,,-1,-1,0,-1
+Node,28,Inst_Other,38,'  %4 = alloca i32, align 4',43,,,,-1,-1,1,-1
+Node,29,Inst_Other,39,'  %5 = alloca i8**, align 8',43,,,,-1,-1,2,-1
+Node,30,Inst_Other,40,'  %6 = alloca i32, align 4',43,,,,-1,-1,3,-1
+Node,31,Inst_Other,41,'  %7 = alloca i64, align 8',43,,,,-1,-1,4,-1
+Node,32,Inst_Other,42,'  store i32 0, i32* %3, align 4',43,,,,-1,-1,5,-1
+Node,33,Inst_Other,43,'  store i32 %0, i32* %4, align 4',43,,,,-1,-1,6,-1
+Node,34,Inst_Other,44,'  store i8** %1, i8*** %5, align 8',43,,,,-1,-1,7,-1
+Node,35,Inst_Other,45,'  store i32 (i32*)* (...)* bitcast (i32 (i32*)* ()* @hellofun to i32 (i32*)* (...)*), i32 (i32*)* (...)** @globpm, align 8',43,,,,-1,-1,8,-1
+Node,36,Inst_Other,47,'  store i32 %8, i32* %6, align 4',43,,,,-1,-1,10,-1
+Node,37,Inst_Other,48,'  %9 = load i64, i64* %7, align 8',43,,,,-1,-1,11,-1
+Node,38,Inst_Other,51,'  unreachable',43,,,,-1,-1,14,-1
+Node,39,FunctionEntry,1,'; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @worldfun(i32* %0) #0 {
+  %2 = alloca i32*, align 8
+  store i32* %0, i32** %2, align 8
+  %3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([8 x i8], [8 x i8]* @.str, i64 0, i64 0))
+  %4 = load i32*, i32** %2, align 8
+  %5 = load i32, i32* %4, align 4
+  %6 = add nsw i32 %5, 10
+  ret i32 %6
+}
+',39,,,,-1,-1,-1,-1
+Node,40,FunctionEntry,11,'; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 (i32*)* @hellofun() #0 {
+  %1 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([7 x i8], [7 x i8]* @.str.1, i64 0, i64 0))
+  ret i32 (i32*)* @worldfun
+}
+',40,,,,-1,-1,-1,-1
+Node,41,FunctionEntry,16,'; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @thread_helper() #0 {
+  %1 = alloca [1 x i32 (i32*)* (...)*], align 8
+  %2 = getelementptr inbounds [1 x i32 (i32*)* (...)*], [1 x i32 (i32*)* (...)*]* %1, i64 0, i64 0
+  %3 = load i32 (i32*)* (...)*, i32 (i32*)* (...)** @globpm, align 8
+  store i32 (i32*)* (...)* %3, i32 (i32*)* (...)** %2, align 8
+  %4 = getelementptr inbounds [1 x i32 (i32*)* (...)*], [1 x i32 (i32*)* (...)*]* %1, i64 0, i64 0
+  %5 = load i32 (i32*)* (...)*, i32 (i32*)* (...)** %4, align 8
+  %6 = call i32 (i32*)* (...) %5()
+  %7 = call i32 %6(i32* @thread_helper.x)
+  %8 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str.2, i64 0, i64 0), i32 %7)
+  ret void
+}
+',41,,,,-1,-1,-1,-1
+Node,42,FunctionEntry,29,'; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i8* @thread1_fun(i8* %0) #0 {
+  %2 = alloca i8*, align 8
+  store i8* %0, i8** %2, align 8
+  call void @thread_helper()
+  ret i8* null
+}
+',42,,,,-1,-1,-1,-1
+Node,43,FunctionEntry,36,'; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @main(i32 %0, i8** %1) #0 {
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  %5 = alloca i8**, align 8
+  %6 = alloca i32, align 4
+  %7 = alloca i64, align 8
+  store i32 0, i32* %3, align 4
+  store i32 %0, i32* %4, align 4
+  store i8** %1, i8*** %5, align 8
+  store i32 (i32*)* (...)* bitcast (i32 (i32*)* ()* @hellofun to i32 (i32*)* (...)*), i32 (i32*)* (...)** @globpm, align 8
+  %8 = call i32 @pthread_create(i64* %7, %union.pthread_attr_t* null, i8* (i8*)* @thread1_fun, i8* null) #4
+  store i32 %8, i32* %6, align 4
+  %9 = load i64, i64* %7, align 8
+  %10 = call i32 @pthread_join(i64 %9, i8** null)
+  call void @exit(i32 0) #5
+  unreachable
+}
+',43,,,,-1,-1,-1,-1
+Edge,1,ControlDep_CallInv,4294967241,,,6,41,,,,,
+Edge,2,ControlDep_CallRet,4294967240,,,12,6,,,,,
+Edge,3,ControlDep_Entry,4294967266,,,39,15,,,,,
+Edge,4,ControlDep_Entry,4294967265,,,39,1,,,,,
+Edge,5,ControlDep_Entry,4294967264,,,39,16,,,,,
+Edge,6,ControlDep_Entry,4294967263,,,39,17,,,,,
+Edge,7,ControlDep_Entry,4294967262,,,39,18,,,,,
+Edge,8,ControlDep_Entry,4294967261,,,39,10,,,,,
+Edge,9,ControlDep_Entry,4294967267,,,39,14,,,,,
+Edge,10,ControlDep_Entry,4294967260,,,40,2,,,,,
+Edge,11,ControlDep_Entry,4294967259,,,40,11,,,,,
+Edge,12,ControlDep_Entry,4294967257,,,41,19,,,,,
+Edge,13,ControlDep_Entry,4294967256,,,41,20,,,,,
+Edge,14,ControlDep_Entry,4294967255,,,41,21,,,,,
+Edge,15,ControlDep_Entry,4294967254,,,41,22,,,,,
+Edge,16,ControlDep_Entry,4294967253,,,41,23,,,,,
+Edge,17,ControlDep_Entry,4294967252,,,41,24,,,,,
+Edge,18,ControlDep_Entry,4294967251,,,41,3,,,,,
+Edge,19,ControlDep_Entry,4294967250,,,41,4,,,,,
+Edge,20,ControlDep_Entry,4294967249,,,41,5,,,,,
+Edge,21,ControlDep_Entry,4294967248,,,41,12,,,,,
+Edge,22,ControlDep_Entry,4294967247,,,42,25,,,,,
+Edge,23,ControlDep_Entry,4294967246,,,42,26,,,,,
+Edge,24,ControlDep_Entry,4294967245,,,42,6,,,,,
+Edge,25,ControlDep_Entry,4294967244,,,42,13,,,,,
+Edge,26,ControlDep_Entry,4294967236,,,43,27,,,,,
+Edge,27,ControlDep_Entry,4294967235,,,43,28,,,,,
+Edge,28,ControlDep_Entry,4294967234,,,43,29,,,,,
+Edge,29,ControlDep_Entry,4294967233,,,43,30,,,,,
+Edge,30,ControlDep_Entry,4294967232,,,43,31,,,,,
+Edge,31,ControlDep_Entry,4294967231,,,43,32,,,,,
+Edge,32,ControlDep_Entry,4294967230,,,43,33,,,,,
+Edge,33,ControlDep_Entry,4294967229,,,43,34,,,,,
+Edge,34,ControlDep_Entry,4294967228,,,43,35,,,,,
+Edge,35,ControlDep_Entry,4294967227,,,43,7,,,,,
+Edge,36,ControlDep_Entry,4294967226,,,43,36,,,,,
+Edge,37,ControlDep_Entry,4294967225,,,43,37,,,,,
+Edge,38,ControlDep_Entry,4294967224,,,43,8,,,,,
+Edge,39,ControlDep_Entry,4294967223,,,43,9,,,,,
+Edge,40,ControlDep_Entry,4294967222,,,43,38,,,,,
+Edge,41,DataDepEdge_DefUse,4294967294,,,14,16,,,,,
+Edge,42,DataDepEdge_DefUse,4294967293,,,14,15,,,,,
+Edge,43,DataDepEdge_DefUse,4294967292,,,16,17,,,,,
+Edge,44,DataDepEdge_DefUse,4294967290,,,17,18,,,,,
+Edge,45,DataDepEdge_DefUse,4294967289,,,18,10,,,,,
+Edge,46,DataDepEdge_DefUse,4294967288,,,19,23,,,,,
+Edge,47,DataDepEdge_DefUse,4294967287,,,19,20,,,,,
+Edge,48,DataDepEdge_DefUse,4294967286,,,20,22,,,,,
+Edge,49,DataDepEdge_DefUse,4294967285,,,21,22,,,,,
+Edge,50,DataDepEdge_DefUse,4294967284,,,23,24,,,,,
+Edge,51,DataDepEdge_DefUse,4294967283,,,24,3,,,,,
+Edge,52,DataDepEdge_DefUse,4294967281,,,3,4,,,,,
+Edge,53,DataDepEdge_DefUse,4294967280,,,4,5,,,,,
+Edge,54,DataDepEdge_DefUse,4294967279,,,25,26,,,,,
+Edge,55,DataDepEdge_DefUse,4294967278,,,27,32,,,,,
+Edge,56,DataDepEdge_DefUse,4294967277,,,28,33,,,,,
+Edge,57,DataDepEdge_DefUse,4294967276,,,29,34,,,,,
+Edge,58,DataDepEdge_DefUse,4294967275,,,30,36,,,,,
+Edge,59,DataDepEdge_DefUse,4294967274,,,31,37,,,,,
+Edge,60,DataDepEdge_DefUse,4294967273,,,31,7,,,,,
+Edge,61,DataDepEdge_DefUse,4294967272,,,7,36,,,,,
+Edge,62,DataDepEdge_DefUse,4294967271,,,37,8,,,,,
+Edge,63,DataDepEdge_RAW,4294967291,,,15,16,,,,,
+Edge,64,DataDepEdge_RAW,4294967282,,,22,24,,,,,
+Edge,65,DataDepEdge_Ret,4294967239,,,12,6,,,,,

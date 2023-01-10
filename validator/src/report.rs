@@ -1,6 +1,7 @@
 use std::{collections::{HashMap, HashSet}, fs::File};
-use llvm_ir::{Module, Constant, Operand, Function, instruction::{Call, Store}, DebugLoc, Instruction, Terminator, module::{GlobalVariable, Linkage}, Name, function::Parameter, HasDebugLoc, types::Typed};
-use crate::{pdg::{Pdg, Node, Edge}, llvm::{call_sites, LLID, LLValue, LLItem, instr_name, term_name, FunctionUsedAsPointer}, bag::Bag};
+use llvm_ir::{Module, Operand, Function, Instruction, module::{GlobalVariable, Linkage}, function::Parameter, types::Typed, Name, Type};
+use petgraph::{prelude::UnGraph, graph::NodeIndex, visit::{NodeCompactIndexable, IntoEdgeReferences, EdgeRef, NodeIndexable}, unionfind::UnionFind, dot::{Dot, Config}, algo::floyd_warshall, Graph};
+use crate::{pdg::{Pdg, Node, Edge}, llvm::{LLID, LLValue, LLItem, instr_name, term_name, FunctionUsedAsPointer}, bag::Bag};
 use csv::Writer;
 use std::hash::Hash;
 
@@ -347,35 +348,35 @@ pub fn ir_bag(module: &Module) -> Bag<SetID, LLValue> {
 
 fn write_inst_funcall_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, node_bag: &Bag<SetID, &Node>, writer: &mut Writer<File>) {
     let node_fun_calls = 
-        node_iter_to_map(node_bag.get(&id!(PDGNode.Inst.FunCall)).unwrap().iter().map(|f| *f), pdg);
+        node_iter_to_map(node_bag.get(&id!(PDGNode.Inst.FunCall)).iter().map(|f| *f), pdg);
     let ir_fun_calls =
-        ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Call)).unwrap());
+        ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Call)));
     let ir_fun_call_annotations =
-        ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Call.Annotation)).unwrap());
+        ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Call.Annotation)));
     let ir_subtraction = map_difference_owned(&ir_fun_calls, &ir_fun_call_annotations);
     compare_a_b("PDGNode.Inst.FunCall", "IRInstruction.Call - IRInstruction.Call.Annotation", &node_fun_calls, &ir_subtraction, writer);
 }
 
 fn write_fns_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, node_bag: &Bag<SetID, &Node>, writer: &mut Writer<File>) {
-    let function_entries = node_bag.get(&id!(PDGNode.FunctionEntry)).unwrap()
+    let function_entries = node_bag.get(&id!(PDGNode.FunctionEntry))
         .iter().map(|f| *f);
-    let ir_fns = ir_bag.get(&id!(IRFunction)).unwrap();
+    let ir_fns = ir_bag.get(&id!(IRFunction));
     compare_node_ir("PDGNode.FunctionEntry", "IRFunction", function_entries, ir_fns, pdg, writer);
 }
 
 fn write_inst_other_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, node_bag: &Bag<SetID, &Node>, writer: &mut Writer<File>) {
     let node_inst_other
-        = node_iter_to_map(node_bag.get(&id!(PDGNode.Inst.Other)).unwrap().iter().map(|n| *n), pdg);
+        = node_iter_to_map(node_bag.get(&id!(PDGNode.Inst.Other)).iter().map(|n| *n), pdg);
     let ir_insts
-        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction)).unwrap());
+        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction)));
     let ir_fun_calls
-        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Call)).unwrap());
+        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Call)));
     let ir_rets
-        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Ret)).unwrap());
+        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Ret)));
     let ir_brs
-        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Br)).unwrap());
+        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Br)));
     let ir_cond_brs
-        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.CondBr)).unwrap());
+        = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.CondBr)));
     let union = 
         iter_union!(ir_fun_calls, ir_rets, ir_brs, ir_cond_brs).collect();
     let ir_subtraction
@@ -387,66 +388,65 @@ fn write_inst_other_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, node_bag: &Bag<
 
 fn write_inst_ret_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
     let pdg_ret
-        = node_bag.get(&id!(PDGNode.Inst.Ret)).unwrap().iter().map(|n| *n);
+        = node_bag.get(&id!(PDGNode.Inst.Ret)).iter().map(|n| *n);
     let ir_ret
-        = ir_bag.get(&id!(IRInstruction.Ret)).unwrap();
+        = ir_bag.get(&id!(IRInstruction.Ret));
     compare_node_ir("PDGNode.Inst.Ret", "IRInstruction.Ret", pdg_ret, ir_ret, pdg, writer);
 }
 
 fn write_inst_br_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
     let ir_br =
-        ir_bag.hashmap.get(&id!(IRInstruction.Br)).unwrap();
+        ir_bag.get(&id!(IRInstruction.Br));
     let ir_cond_br =
-        ir_bag.hashmap.get(&id!(IRInstruction.CondBr)).unwrap();
+        ir_bag.get(&id!(IRInstruction.CondBr));
     let ir_br = iter_union!(ir_br, ir_cond_br);
     let pdg_br =
-        node_bag.hashmap.get(&id!(PDGNode.Inst.Br)).unwrap().iter().map(|n| *n);
+        node_bag.get(&id!(PDGNode.Inst.Br)).iter().map(|n| *n);
     compare_node_ir("PDGNode.Inst.Br", "IRInstruction.Br + IRInstruction.CondBr", pdg_br, ir_br, pdg, writer);    
 }
 
 fn write_param_in_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
     let ir_params = 
-        ir_bag.hashmap.get(&id!(IRParameter)).unwrap();
+        ir_bag.get(&id!(IRParameter));
 
     let proper_param_in =  
-        node_bag.hashmap.get(&id!(PDGNode.Param.FormalIn.Proper)).unwrap().iter().map(|n| *n);
+        node_bag.get(&id!(PDGNode.Param.FormalIn.Proper)).iter().map(|n| *n);
 
     compare_node_ir("PDGNode.Param.FormalIn.Proper", "IRParameter", proper_param_in, ir_params, pdg, writer);
 }
 
 fn write_anno_var_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
     let ir_anno_var
-        = ir_bag.get(&id!(IRInstruction.Call.Annotation)).unwrap();
+        = ir_bag.get(&id!(IRInstruction.Call.Annotation));
     let pdg_anno_var
-        = node_bag.get(&id!(PDGNode.Annotation.Var)).unwrap().iter().map(|n| *n);
+        = node_bag.get(&id!(PDGNode.Annotation.Var)).iter().map(|n| *n);
     compare_node_ir("PDGNode.Annotation.Var", "IRInstruction.Call.Annotation", pdg_anno_var, ir_anno_var, pdg, writer);
 }
 fn write_anno_global_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
     let ir_anno_var
-        = ir_bag.get(&id!(IRGlobal.Internal.Annotation)).unwrap();
+        = ir_bag.get(&id!(IRGlobal.Internal.Annotation));
     let pdg_anno_var
-        = node_bag.get(&id!(PDGNode.Annotation.Global)).unwrap().iter().map(|n| *n);
+        = node_bag.get(&id!(PDGNode.Annotation.Global)).iter().map(|n| *n);
     compare_node_ir("PDGNode.Annotation.Global", "IRGlobal.Annotation", pdg_anno_var, ir_anno_var, pdg, writer);
 }
 
 fn write_varnode_csv(ir_bag: &Bag<Vec<String>, LLValue>, pdg: &Pdg, node_bag: &Bag<Vec<String>, &Node>, writer: &mut Writer<File>) {
     let ir_global_omni
-        = ir_bag.get(&id!(IRGlobal.Internal.Omni)).unwrap();
+        = ir_bag.get(&id!(IRGlobal.Internal.Omni));
     let pdg_varnode_global
-        = node_bag.get(&id!(PDGNode.VarNode.StaticGlobal)).unwrap().iter().map(|n| *n);
+        = node_bag.get(&id!(PDGNode.VarNode.StaticGlobal)).iter().map(|n| *n);
     compare_node_ir("PDGNode.VarNode.StaticGlobal", "IRGlobal.Internal.Omni", pdg_varnode_global, ir_global_omni, pdg, writer);
 
     let ir_global_function
-        = ir_bag.get(&id!(IRGlobal.Internal.Function)).unwrap();
+        = ir_bag.get(&id!(IRGlobal.Internal.Function));
     let pdg_varnode_function
-        = node_bag.get(&id!(PDGNode.VarNode.StaticFunction)).unwrap().iter().map(|n| *n);
+        = node_bag.get(&id!(PDGNode.VarNode.StaticFunction)).iter().map(|n| *n);
     compare_node_ir("PDGNode.VarNode.StaticFunction", "IRGlobal.Internal.Function", pdg_varnode_function, ir_global_function, pdg, writer);
 
-    let empty = Vec::new();
     let ir_global_function
-        = ir_bag.get(&id!(IRGlobal.Internal.Module)).unwrap_or(&empty);
+        = ir_bag.get(&id!(IRGlobal.Internal.Module));
     let pdg_varnode_function
-        = node_bag.get(&id!(PDGNode.VarNode.StaticModule)).unwrap().iter().map(|n| *n);
+        = node_bag.get(&id!(PDGNode.VarNode.StaticModule)).iter().map(|n| *n);
     compare_node_ir("PDGNode.VarNode.StaticModule", "IRGlobal.Internal.Module", pdg_varnode_function, ir_global_function, pdg, writer);
 
 }
@@ -540,12 +540,12 @@ fn write_validation_csv(ir_bag: Bag<SetID, LLValue>, pdg_bags: (Bag<SetID, &Node
 
 fn write_controldep_callinv_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, edge_bag: &Bag<SetID, &Edge>, writer: &mut Writer<File>) {
     let ir_internal_calls = 
-        ir_bag.hashmap.get(&id!(IRInstruction.Call.Internal)).unwrap()
+        ir_bag.get(&id!(IRInstruction.Call.Internal))
             .iter()
             .map(|v| (v.id.clone(), v))
             .collect::<HashMap<_,_>>();
     let callinv_edges = 
-        edge_bag.hashmap.get(&id!(PDGEdge.ControlDep.CallInv)).unwrap()
+        edge_bag.get(&id!(PDGEdge.ControlDep.CallInv))
             .iter()
             .map(|e| {
                 let (src, _) = pdg.from_edge(e);
@@ -570,7 +570,7 @@ fn write_controldep_callinv_csv(ir_bag: &Bag<SetID, LLValue>, pdg: &Pdg, edge_ba
     
 }
 fn proper_param_nodes<'a>(node_bag: &Bag<SetID, &'a Node>) -> Vec<&'a Node> {
-    node_bag.hashmap.get(&id!(PDGNode.Param.FormalIn)).unwrap()
+    node_bag.get(&id!(PDGNode.Param.FormalIn))
         .iter()
         .filter(|n| n.param_idx.is_some())
         .map(|n| (*n))
@@ -578,7 +578,7 @@ fn proper_param_nodes<'a>(node_bag: &Bag<SetID, &'a Node>) -> Vec<&'a Node> {
 }
 
 fn proper_param_edges<'a>(pdg: &Pdg, edge_bag: &Bag<SetID, &'a Edge>) -> Vec<&'a Edge> {
-    edge_bag.hashmap.get(&id!(PDGEdge.Parameter.In)).unwrap()
+    edge_bag.get(&id!(PDGEdge.Parameter.In))
         .iter()
         .filter(|e| {
             let (src, dst) = pdg.from_edge(e);
@@ -604,6 +604,136 @@ fn write_funcs_used_as_ptr(module: &Module, writer: &mut Writer<File>) {
     writer.write_record(id!{"IRDistinctFunctionsUsedAsPointer", fns.len()}).unwrap();
 }
 
+fn callgraph_reachability(ir_bag: &Bag<SetID, LLValue>, pdg_bags: (&Bag<SetID, &Node>, &Bag<SetID, &Edge>), module: &Module, pdg: &Pdg, writer: &mut Writer<File>) {
+    let edges = 
+        pdg.edges_of_type("ControlDep_CallInv")
+            .map(|e| pdg.from_edge(e))
+            .map(|(src, dest)| (pdg.has_function(src), dest));
+    
+    let mut graph = Graph::new();
+    let mut map = HashMap::<u64, NodeIndex<u32>>::new();
+    for node in pdg.function_entries() {
+        let idx = graph.add_node(node);
+        map.insert(node.id, idx);
+    }
+
+    for (src, dest) in edges {
+        let idx_src = map
+            .get(&src.id)
+            .map(|i| i.to_owned())
+            .unwrap();
+         let idx_dest = map
+            .get(&dest.id)
+            .map(|i| i.to_owned())
+            .unwrap();
+        graph.update_edge(idx_src, idx_dest, ());
+    }
+       
+    let costs = floyd_warshall(&graph, |_| 0 as u32).unwrap();
+
+    let main = pdg.function_entries()
+        .find(|n| n.ir_name() == Some("main".to_string())).unwrap();
+    
+    let main_idx = map.get(&main.id).unwrap();
+    
+    let connected_to_main = 
+        costs.iter()
+            .filter(|((src, _), cost)| src == main_idx && **cost != u32::MAX)
+            .map(|((_, idx), _)| graph.node_weight(*idx).unwrap())
+            .collect::<Vec<_>>();
+
+    let not_connected_to_main = 
+        costs.iter()
+            .filter(|((src, _), cost)| src == main_idx && **cost == u32::MAX)
+            .map(|((_, idx), _)| graph.node_weight(*idx).unwrap())
+            .collect::<Vec<_>>();
+
+    writer.write_record(id!{"PDGCallGraphConnectedToMain", connected_to_main.len()}).unwrap();
+    writer.write_record(id!{"PDGCallGraphNotConnectedToMain", not_connected_to_main.len()}).unwrap();
+
+    let fn_map = 
+        module.functions.iter()
+            .map(|f| (LLID::GlobalName { global_name: f.name.clone() }, f))
+            .collect::<HashMap<_,_>>(); 
+    let type_bag = 
+        module.funcs_used_as_pointer()
+            .iter()
+            .map(|name| LLID::GlobalName { global_name: name.to_string()[1..].to_string() })
+            .filter_map(|name| {
+                fn_map.get(&name).map(|f| {
+                    (Type::PointerType { pointee_type: f.get_type(&module.types), addr_space: 0 }, name)
+                })
+            })
+            .collect::<Bag<_,_>>();
+    
+    let ir_pointer_calls = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Call.Pointer)));
+    let (node_bag, _) = pdg_bags;
+    let inst_fun_calls = node_bag.get(&id!(PDGNode.Inst.FunCall));
+    let function_entry_map = node_iter_to_map(node_bag.get(&id!(PDGNode.FunctionEntry)).iter().map(|n| *n), pdg);
+    for node in inst_fun_calls {
+        let id = pdg.llid(node).unwrap();
+        let ir_call = match ir_pointer_calls.get(&id) {
+            Some(v) => v,
+            None => continue,
+        };
+        if let LLItem::Instruction(Instruction::Call(c)) = &ir_call.item {
+            let callee_type = c.function.clone().right().map(|o| 
+                match &o {
+                    Operand::LocalOperand { name: _, ty } => {
+                        ty.clone()
+                    }
+                    _ => unreachable!(),
+                }).unwrap(); 
+            let candidates = type_bag.get(&callee_type);
+            let idx_src = map
+                .get(&node.has_fn)
+                .map(|i| i.to_owned())
+                .unwrap();
+            for candidate in candidates {
+                let dest = function_entry_map.get(candidate).unwrap();
+                let idx_dest = map
+                    .get(&dest.id)
+                    .map(|i| i.to_owned())
+                    .unwrap();
+                graph.update_edge(idx_src, idx_dest, ()); 
+            }
+        } else {
+            unreachable!()
+        }
+    }
+
+
+    let costs = floyd_warshall(&graph, |_| 0 as u32).unwrap();
+    let connected_to_main = 
+        costs.iter()
+            .filter(|((src, _), cost)| src == main_idx && **cost != u32::MAX)
+            .map(|((_, idx), _)| graph.node_weight(*idx).unwrap())
+            .collect::<Vec<_>>();
+
+    let not_connected_to_main = 
+        costs.iter()
+            .filter(|((src, _), cost)| src == main_idx && **cost == u32::MAX)
+            .map(|((_, idx), _)| graph.node_weight(*idx).unwrap())
+            .collect::<Vec<_>>();
+
+    
+    // for node in &connected_to_main {
+    //     println!("{}", pdg.llid(node).unwrap());
+    // }
+
+    // println!("");
+
+    // for node in &not_connected_to_main {
+    //     println!("{}", pdg.llid(node).unwrap());
+    // }
+
+
+
+    writer.write_record(id!{"EPDGCallGraphConnectedToMain", connected_to_main.len()}).unwrap();
+    writer.write_record(id!{"EPDGCallGraphNotConnectedToMain", not_connected_to_main.len()}).unwrap();
+
+
+} 
 
 pub fn report(bc_file: &str, pdg_data_file: &str, counts_csv: &str, validation_csv: &str) {
 
@@ -636,5 +766,6 @@ pub fn report(bc_file: &str, pdg_data_file: &str, counts_csv: &str, validation_c
     let ir_bag = ir_bag(&module);
     let (node_bag, edge_bag) = pdg_bag(&pdg);
     write_counts_csv(&ir_bag, (&node_bag, &edge_bag), &mut counts_writer);
+    callgraph_reachability(&ir_bag, (&node_bag, &edge_bag), &module, &pdg, &mut counts_writer);
     write_validation_csv(ir_bag, (node_bag, edge_bag), validation_writer, &pdg);
 }

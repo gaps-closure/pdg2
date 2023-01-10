@@ -1,9 +1,7 @@
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::iter::FromIterator;
-use std::ops::Add;
 
-use llvm_ir::constant::ConstUnaryOp;
 use llvm_ir::{Module, Instruction, Function, Operand, HasDebugLoc, Name, Terminator};
 use llvm_ir::instruction::Call;
 

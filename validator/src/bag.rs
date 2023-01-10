@@ -1,12 +1,13 @@
 use std::{collections::HashMap, iter::FromIterator};
 
 pub struct Bag<K, V> {
-    pub hashmap: HashMap<K, Vec<V>> 
+    pub hashmap: HashMap<K, Vec<V>>,
+    empty: Vec<V>,
 }
 
 impl<K: std::hash::Hash + Eq, V> Bag<K, V> {
     pub fn new() -> Bag<K, V> {
-        Bag { hashmap: HashMap::new() }
+        Bag { hashmap: HashMap::new(), empty: Vec::new() }
     }
     pub fn sizes(&self) -> HashMap<&K, usize> {
         self
@@ -37,8 +38,8 @@ impl<K: std::hash::Hash + Eq, V> Bag<K, V> {
             }
         }
     }
-    pub fn get(&self, key: &K) -> Option<&Vec<V>> {
-       self.hashmap.get(key) 
+    pub fn get(&self, key: &K) -> &Vec<V> {
+       self.hashmap.get(key).unwrap_or(&self.empty) 
     }
 }
 
