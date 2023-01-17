@@ -1,0 +1,18 @@
+IRParameter,IRParameter.In,2473,2473,0,0
+IRGlobal,IRGlobal.External + IRGlobal.Internal,38,37,0,0
+IRInstruction,IRInstruction.Switch + IRInstruction.Alloca + IRInstruction.GetElementPtr + IRInstruction.FPExt + IRInstruction.Or + IRInstruction.PtrToInt + IRInstruction.Xor + IRInstruction.FMul + IRInstruction.ZExt + IRInstruction.Unreachable + IRInstruction.SRem + IRInstruction.BitCast + IRInstruction.LShr + IRInstruction.Store + IRInstruction.FCmp + IRInstruction.FNeg + IRInstruction.Add + IRInstruction.Select + IRInstruction.Trunc + IRInstruction.Shl + IRInstruction.FPToUI + IRInstruction.URem + IRInstruction.SExt + IRInstruction.SDiv + IRInstruction.FPTrunc + IRInstruction.Br + IRInstruction.ICmp + IRInstruction.FPToSI + IRInstruction.UIToFP + IRInstruction.Load + IRInstruction.FDiv + IRInstruction.And + IRInstruction.UDiv + IRInstruction.Call + IRInstruction.CondBr + IRInstruction.Sub + IRInstruction.AShr + IRInstruction.ExtractValue + IRInstruction.FSub + IRInstruction.Phi + IRInstruction.Ret + IRInstruction.SIToFP + IRInstruction.IntToPtr + IRInstruction.FAdd + IRInstruction.Mul,75484,75484,0,0
+IRGlobal.Internal,IRGlobal.Internal.Annotation + IRGlobal.Internal.Omni + IRGlobal.Internal.Function,36,37,0,0
+IRInstruction.Call,IRInstruction.Call.Intrinsic + IRInstruction.Call.Annotation + IRInstruction.Call.Pointer + IRInstruction.Call.Internal,7659,7181,0,0
+IRInstruction.Call.Internal,IRInstruction.Call.Internal.VarArg + IRInstruction.Call.Internal.NonVarArg,2487,2487,0,0
+PDGNode.Inst.FunCall,IRInstruction.Call - IRInstruction.Call.Annotation,7644,7644,0,0
+PDGNode.FunctionEntry,IRFunction,975,975,0,0
+PDGNode.Inst.Other,IRInstruction - IRInstruction.Call - IRInstruction.Ret - IRInstruction.Br - IRInstruction.CondBr,60770,60770,0,0
+PDGNode.Inst.Ret,IRInstruction.Ret,973,973,0,0
+PDGNode.Inst.Br,IRInstruction.Br + IRInstruction.CondBr,6082,6082,0,0
+PDGNode.Param.FormalIn.Proper,IRParameter,2438,2473,0,35
+PDGNode.Annotation.Var,IRInstruction.Call.Annotation,15,15,0,0
+PDGNode.Annotation.Global,IRGlobal.Annotation,1,1,0,0
+PDGNode.VarNode.StaticGlobal,IRGlobal.Internal.Omni,19,19,0,0
+PDGNode.VarNode.StaticFunction,IRGlobal.Internal.Function,17,17,0,0
+PDGNode.VarNode.StaticModule,IRGlobal.Internal.Module,0,0,0,0
+PDGEdge.ControlDep.CallInv,IRInstruction.Call.Internal,2487,2487,0,0

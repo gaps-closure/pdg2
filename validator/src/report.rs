@@ -1,7 +1,7 @@
 use std::{collections::{HashMap, HashSet}, fs::File};
-use llvm_ir::{Module, Operand, Function, Instruction, module::{GlobalVariable, Linkage}, function::Parameter, types::Typed, Name, Type};
-use petgraph::{prelude::UnGraph, graph::NodeIndex, visit::{NodeCompactIndexable, IntoEdgeReferences, EdgeRef, NodeIndexable}, unionfind::UnionFind, dot::{Dot, Config}, algo::floyd_warshall, Graph};
-use crate::{pdg::{Pdg, Node, Edge}, llvm::{LLID, LLValue, LLItem, instr_name, term_name, FunctionUsedAsPointer}, bag::Bag};
+use llvm_ir::{Module, Operand, Function, Instruction, module::{GlobalVariable, Linkage}, function::Parameter, types::Typed, Type};
+use petgraph::{graph::NodeIndex, algo::floyd_warshall, Graph};
+use crate::{pdg::{Pdg, Node, Edge}, llvm::{LLID, LLValue, LLItem, instr_name, term_name, FunctionUsedAsPointer}, bag::Bag, union};
 use csv::Writer;
 use std::hash::Hash;
 
@@ -604,57 +604,60 @@ fn write_funcs_used_as_ptr(module: &Module, writer: &mut Writer<File>) {
     writer.write_record(id!{"IRDistinctFunctionsUsedAsPointer", fns.len()}).unwrap();
 }
 
-fn callgraph_reachability(ir_bag: &Bag<SetID, LLValue>, pdg_bags: (&Bag<SetID, &Node>, &Bag<SetID, &Edge>), module: &Module, pdg: &Pdg, writer: &mut Writer<File>) {
+fn predicate_cost<'a>(costs: &'a HashMap<(NodeIndex, NodeIndex), u32>, index: NodeIndex, pred: impl Fn(u32) -> bool + 'a) -> impl Iterator<Item = ((NodeIndex, NodeIndex), u32)> + 'a {
+    costs.iter()
+        .filter(move |((src, _), cost)| *src == index && pred(**cost))
+        .map(|(pair, cost)| (*pair, *cost))
+}
+
+fn reachable_from(costs: &HashMap<(NodeIndex, NodeIndex), u32>, index: NodeIndex) -> impl Iterator<Item = ((NodeIndex, NodeIndex), u32)> + '_ {
+    predicate_cost(costs, index, |cost| cost != u32::MAX)    
+}
+fn not_reachable_from(costs: &HashMap<(NodeIndex, NodeIndex), u32>, index: NodeIndex) -> impl Iterator<Item = ((NodeIndex, NodeIndex), u32)> + '_ {
+    predicate_cost(costs, index, |cost| cost == u32::MAX)    
+}
+
+
+
+fn direct_callgraph<'a>(pdg: &'a Pdg) -> (HashMap<u64, NodeIndex>, Graph<&'a Node, ()>) {
     let edges = 
         pdg.edges_of_type("ControlDep_CallInv")
             .map(|e| pdg.from_edge(e))
             .map(|(src, dest)| (pdg.has_function(src), dest));
-    
+
+    let mut node_index_map = HashMap::<u64, NodeIndex>::new();
     let mut graph = Graph::new();
-    let mut map = HashMap::<u64, NodeIndex<u32>>::new();
+
     for node in pdg.function_entries() {
         let idx = graph.add_node(node);
-        map.insert(node.id, idx);
+        node_index_map.insert(node.id, idx);
     }
 
     for (src, dest) in edges {
-        let idx_src = map
+        let idx_src = node_index_map
             .get(&src.id)
             .map(|i| i.to_owned())
             .unwrap();
-         let idx_dest = map
+         let idx_dest = node_index_map
             .get(&dest.id)
             .map(|i| i.to_owned())
             .unwrap();
         graph.update_edge(idx_src, idx_dest, ());
     }
-       
-    let costs = floyd_warshall(&graph, |_| 0 as u32).unwrap();
+    (node_index_map, graph)
+}
 
-    let main = pdg.function_entries()
-        .find(|n| n.ir_name() == Some("main".to_string())).unwrap();
-    
-    let main_idx = map.get(&main.id).unwrap();
-    
-    let connected_to_main = 
-        costs.iter()
-            .filter(|((src, _), cost)| src == main_idx && **cost != u32::MAX)
-            .map(|((_, idx), _)| graph.node_weight(*idx).unwrap())
-            .collect::<Vec<_>>();
-
-    let not_connected_to_main = 
-        costs.iter()
-            .filter(|((src, _), cost)| src == main_idx && **cost == u32::MAX)
-            .map(|((_, idx), _)| graph.node_weight(*idx).unwrap())
-            .collect::<Vec<_>>();
-
-    writer.write_record(id!{"PDGCallGraphConnectedToMain", connected_to_main.len()}).unwrap();
-    writer.write_record(id!{"PDGCallGraphNotConnectedToMain", not_connected_to_main.len()}).unwrap();
-
+fn full_callgraph<'a>(node_index_map: &HashMap<u64, NodeIndex>, mut direct_graph: Graph<&'a Node, ()>, pdg: &'a Pdg, module: &Module, ir_bag: &Bag<SetID, LLValue>, node_bag: &'a Bag<SetID, &Node>) 
+    -> (Graph<&'a Node, ()>, HashMap<LLID, Function>) {
+     
     let fn_map = 
-        module.functions.iter()
-            .map(|f| (LLID::GlobalName { global_name: f.name.clone() }, f))
-            .collect::<HashMap<_,_>>(); 
+        ir_bag.get(&id!(IRFunction))
+            .iter()
+            .map(|llval| 
+                (llval.id.clone(), llval.item.function().unwrap())
+            )
+            .collect::<HashMap<_,_>>();
+    
     let type_bag = 
         module.funcs_used_as_pointer()
             .iter()
@@ -665,73 +668,146 @@ fn callgraph_reachability(ir_bag: &Bag<SetID, LLValue>, pdg_bags: (&Bag<SetID, &
                 })
             })
             .collect::<Bag<_,_>>();
-    
+
+
     let ir_pointer_calls = ir_iter_to_map(ir_bag.get(&id!(IRInstruction.Call.Pointer)));
-    let (node_bag, _) = pdg_bags;
+
     let inst_fun_calls = node_bag.get(&id!(PDGNode.Inst.FunCall));
     let function_entry_map = node_iter_to_map(node_bag.get(&id!(PDGNode.FunctionEntry)).iter().map(|n| *n), pdg);
+
     for node in inst_fun_calls {
         let id = pdg.llid(node).unwrap();
         let ir_call = match ir_pointer_calls.get(&id) {
             Some(v) => v,
             None => continue,
         };
-        if let LLItem::Instruction(Instruction::Call(c)) = &ir_call.item {
-            let callee_type = c.function.clone().right().map(|o| 
-                match &o {
-                    Operand::LocalOperand { name: _, ty } => {
-                        ty.clone()
-                    }
-                    _ => unreachable!(),
-                }).unwrap(); 
-            let candidates = type_bag.get(&callee_type);
-            let idx_src = map
-                .get(&node.has_fn)
+        let call = ir_call.item.call().unwrap(); 
+        let callee_type = call.function.clone().right().map(|o| 
+            match &o {
+                Operand::LocalOperand { name: _, ty } => {
+                    ty.clone()
+                }
+                _ => unreachable!(),
+            }).unwrap(); 
+        let candidates = type_bag.get(&callee_type);
+        let idx_src = node_index_map
+            .get(&node.has_fn)
+            .map(|i| i.to_owned())
+            .unwrap();
+        for candidate in candidates {
+            let dest = function_entry_map.get(candidate).unwrap();
+            let idx_dest = node_index_map
+                .get(&dest.id)
                 .map(|i| i.to_owned())
                 .unwrap();
-            for candidate in candidates {
-                let dest = function_entry_map.get(candidate).unwrap();
-                let idx_dest = map
-                    .get(&dest.id)
-                    .map(|i| i.to_owned())
-                    .unwrap();
-                graph.update_edge(idx_src, idx_dest, ()); 
-            }
-        } else {
-            unreachable!()
+            direct_graph.update_edge(idx_src, idx_dest, ()); 
         }
     }
 
+    (direct_graph, fn_map)
+}
 
-    let costs = floyd_warshall(&graph, |_| 0 as u32).unwrap();
+fn callgraph_reachability(ir_bag: &Bag<SetID, LLValue>, node_bag: &Bag<SetID, &Node>, module: &Module, pdg: &Pdg, writer: &mut Writer<File>) {
+    let (node_index_map, direct_graph ) = direct_callgraph(pdg);
+       
+    let costs = floyd_warshall(&direct_graph, |_| 0 as u32).unwrap();
+
+    let main = pdg.function_entries()
+        .find(|n| n.ir_name() == Some("main".to_string())).unwrap();
+    
+    let main_idx = *node_index_map.get(&main.id).unwrap();
+   
+    let get_dest_index = |((_, idx), _)| idx;
     let connected_to_main = 
-        costs.iter()
-            .filter(|((src, _), cost)| src == main_idx && **cost != u32::MAX)
-            .map(|((_, idx), _)| graph.node_weight(*idx).unwrap())
+        reachable_from(&costs, main_idx)
+            .map(get_dest_index);
+    let not_connected_to_main = 
+        not_reachable_from(&costs, main_idx)
+            .map(get_dest_index);
+
+    writer.write_record(id!{"PDGCallGraphConnectedToMain", connected_to_main.count()}).unwrap();
+    writer.write_record(id!{"PDGCallGraphNotConnectedToMain", not_connected_to_main.count()}).unwrap();
+
+    let (mut full_graph, fn_map) = full_callgraph(&node_index_map, direct_graph, pdg, module, ir_bag, node_bag);
+
+    let costs = floyd_warshall(&full_graph, |_| 0 as u32).unwrap();
+    let connected_to_main = 
+        reachable_from(&costs, main_idx)
+            .map(get_dest_index)
             .collect::<Vec<_>>();
 
     let not_connected_to_main = 
-        costs.iter()
-            .filter(|((src, _), cost)| src == main_idx && **cost == u32::MAX)
-            .map(|((_, idx), _)| graph.node_weight(*idx).unwrap())
-            .collect::<Vec<_>>();
+        not_reachable_from(&costs, main_idx)
+            .map(get_dest_index);
 
     
-    // for node in &connected_to_main {
-    //     println!("{}", pdg.llid(node).unwrap());
-    // }
-
-    // println!("");
-
-    // for node in &not_connected_to_main {
-    //     println!("{}", pdg.llid(node).unwrap());
-    // }
-
-
-
     writer.write_record(id!{"EPDGCallGraphConnectedToMain", connected_to_main.len()}).unwrap();
-    writer.write_record(id!{"EPDGCallGraphNotConnectedToMain", not_connected_to_main.len()}).unwrap();
+    writer.write_record(id!{"EPDGCallGraphNotConnectedToMain", not_connected_to_main.count()}).unwrap();
 
+    let fn_entry_map =
+        node_bag.get(&id!(PDGNode.FunctionEntry))
+            .iter()
+            .map(|n| (pdg.llid(n).unwrap(), *n))
+            .collect::<HashMap<_, _>>();
+
+    let mut full_graph = full_graph.map(|_, x| Some(*x), |_, _| ());
+
+    let fakeroot_idx = full_graph.add_node(None);
+    let _fakeroot_edge_idx = full_graph.add_edge(fakeroot_idx, main_idx, ());
+
+    let costs = floyd_warshall(&full_graph, |_| 0 as u32).unwrap();
+
+    let connected_to_fakeroot =
+        reachable_from(&costs, fakeroot_idx)
+            .map(get_dest_index)
+            .collect::<Vec<_>>();
+
+    let function_names_in_main_component = 
+        connected_to_fakeroot
+            .iter()
+            .filter_map(|idx| full_graph[*idx])
+            .map(|n| pdg.llid(n).unwrap())
+            .map(|id| fn_map.get(&id).unwrap())
+            .map(|f| LLID::global_name_from_string(f.name.clone()))
+            .collect::<HashSet<_>>();
+    
+
+    let mut xc = function_names_in_main_component.clone(); 
+    
+    let referenced_in_globals =   
+        module.global_vars.iter()
+            .flat_map(|g| g.funcs_used_as_pointer())
+            .map(|name| LLID::global_name_from_name(&name));
+
+
+    let referenced_in = |xc: &HashSet<LLID>| 
+        xc.iter()
+            .map(|n| fn_map.get(n).unwrap())
+            .flat_map(|f| f.funcs_used_as_pointer())
+            .map(|n| LLID::global_name_from_name(&n))
+            .filter(|id| fn_entry_map.contains_key(id))
+            .collect::<HashSet<LLID>>();
+    
+    let mut difference = union!(referenced_in(&xc), referenced_in_globals).difference(&xc).map(|l| l.clone()).collect::<Vec<_>>();
+    
+    while difference.len() > 0 {
+        for id in difference {
+            let node = *fn_entry_map.get(&id).unwrap();
+            let src_idx = node_index_map.get(&node.id).unwrap();
+            xc.extend(reachable_from(&costs, *src_idx)
+                .map(get_dest_index)
+                .map(|idx| full_graph[idx].unwrap())
+                .map(|n| pdg.llid(n).unwrap()))
+        }
+        difference = referenced_in(&xc).difference(&xc).map(|l| l.clone()).collect::<Vec<_>>();
+    }
+
+    let fn_ids = fn_map.keys().map(|l| l.clone()).collect::<HashSet<LLID>>();
+    let not_xc = fn_ids.difference(&xc);
+    // let extension = xc.difference(&function_names_in_main_component);
+    writer.write_record(id!{"EPDGExtendedComponent", xc.len()});
+    writer.write_record(id!{"EPDGNotExtendedComponent", not_xc.count()});
+   
 
 } 
 
@@ -766,6 +842,6 @@ pub fn report(bc_file: &str, pdg_data_file: &str, counts_csv: &str, validation_c
     let ir_bag = ir_bag(&module);
     let (node_bag, edge_bag) = pdg_bag(&pdg);
     write_counts_csv(&ir_bag, (&node_bag, &edge_bag), &mut counts_writer);
-    callgraph_reachability(&ir_bag, (&node_bag, &edge_bag), &module, &pdg, &mut counts_writer);
+    callgraph_reachability(&ir_bag, &node_bag, &module, &pdg, &mut counts_writer);
     write_validation_csv(ir_bag, (node_bag, edge_bag), validation_writer, &pdg);
 }

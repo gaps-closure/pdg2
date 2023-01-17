@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::fmt::Display;
 use std::iter::FromIterator;
 
-use llvm_ir::{Module, Instruction, Function, Operand, HasDebugLoc, Name, Terminator};
+use llvm_ir::{Module, Instruction, Function, Operand, HasDebugLoc, Name, Terminator, Type, TypeRef};
 use llvm_ir::instruction::Call;
 
 pub fn call_sites(module: &Module) -> Vec<(Function, Call)> {
@@ -87,6 +87,18 @@ impl LLItem {
             LLItem::Terminator(t) => t.to_string(),
         }
     }
+    pub fn function(&self) -> Option<Function> {
+        match self {
+            LLItem::Function(f) => Some(f.clone()),
+            _ => None
+        }
+    }
+    pub fn call(&self) -> Option<Call> {
+        match self {
+            LLItem::Instruction(Instruction::Call(c)) => Some(c.clone()),
+            _ => None
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -135,7 +147,13 @@ impl LLID {
             _ => None,
         }
     }
+    pub fn global_name_from_name(name: &Name) -> Self {
+        Self::GlobalName { global_name: name.to_string()[1..].to_string() }
+    }
 
+    pub fn global_name_from_string(str: String) -> Self {
+        Self::GlobalName { global_name: str }
+    }
 }
 
 
@@ -244,7 +262,7 @@ impl<T: FunctionUsedAsPointer> FunctionUsedAsPointer for Vec<T> {
 //         self.to_owned().funcs_used_as_pointer()
 //     }
 // }
-
+#[macro_export]
 macro_rules! union {
     ($e:expr, $($f:expr),+) => {
         {
@@ -365,7 +383,7 @@ impl FunctionUsedAsPointer for llvm_ir::Instruction {
             Instruction::Load(x) => 
                 x.address.funcs_used_as_pointer(),
             Instruction::Store(x) => 
-                union!(x.value.funcs_used_as_pointer(), x.address.funcs_used_as_pointer()),
+                union!(x.address.funcs_used_as_pointer(), x.value.funcs_used_as_pointer()),
             // Instruction::Fence(_) => empty,
             // Instruction::CmpXchg(x) => union!(x.address.funcs_used_as_pointer(), x.expected.funcs_used_as_pointer()),
             // Instruction::AtomicRMW(x) => 
@@ -432,15 +450,29 @@ impl FunctionUsedAsPointer for llvm_ir::Operand {
     }
 }
 
-
+fn is_fn_pointer(ty: &TypeRef) -> bool {
+    match ty.as_ref() {
+        Type::PointerType { pointee_type, addr_space: _ } => is_fn_pointer(pointee_type),
+        Type::FuncType { result_type: _, param_types: _, is_var_arg: _ } => true,
+        _ => false,
+    }
+}
 
 impl FunctionUsedAsPointer for llvm_ir::Constant {
     fn funcs_used_as_pointer(&self) -> HashSet<Name> {
         let empty = HashSet::new();
-        if let llvm_ir::Constant::GlobalReference { name, ty: _ } = self {
-            return HashSet::from_iter([name.to_owned()])
+        match self {
+            llvm_ir::Constant::GlobalReference { name, ty } => {
+                if is_fn_pointer(ty) {
+                    HashSet::from_iter([name.to_owned()])
+                } else {
+                    empty
+                }
+            },
+            llvm_ir::Constant::BitCast(x) => 
+                x.operand.funcs_used_as_pointer(),
+            _ => empty
         }
-        empty
         // match self {
         //     llvm_ir::Constant::Int { bits, value } => empty,
         //     llvm_ir::Constant::Float(_) => empty,
