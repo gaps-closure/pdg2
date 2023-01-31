@@ -469,6 +469,12 @@ impl FunctionUsedAsPointer for llvm_ir::Constant {
                     empty
                 }
             },
+            llvm_ir::Constant::Struct { name: _, values, is_packed: _ } => 
+                values.iter().flat_map(|c| c.funcs_used_as_pointer()).collect::<HashSet<_>>(),
+            llvm_ir::Constant::Array { element_type: _, elements } => 
+                elements.iter().flat_map(|c| c.funcs_used_as_pointer()).collect::<HashSet<_>>(),
+            llvm_ir::Constant::Vector(elements) =>
+                elements.iter().flat_map(|c| c.funcs_used_as_pointer()).collect::<HashSet<_>>(),
             llvm_ir::Constant::BitCast(x) => 
                 x.operand.funcs_used_as_pointer(),
             _ => empty
@@ -478,8 +484,8 @@ impl FunctionUsedAsPointer for llvm_ir::Constant {
         //     llvm_ir::Constant::Float(_) => empty,
         //     llvm_ir::Constant::Null(_) => empty,
         //     llvm_ir::Constant::AggregateZero(_) => empty,
-        //     llvm_ir::Constant::Struct { name: _, values, is_packed: _ } => 
-        //         values.funcs_used_as_pointer(),
+            // llvm_ir::Constant::Struct { name: _, values, is_packed: _ } => 
+                // values.funcs_used_as_pointer(),
         //     llvm_ir::Constant::Array { element_type: _, elements } => 
         //         elements.funcs_used_as_pointer(),
         //     llvm_ir::Constant::Vector(elements) =>

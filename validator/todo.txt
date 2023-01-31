@@ -23,3 +23,21 @@ PDGEdge.ControlDep.Call.Ind =
    functions which match that signature
 
 missing pdg edge dependency on a global constant
+
+
+
+
+
+
+Edge counts:
+- [ x ] direct call invocation edges (same as node count)
+- [ x ] indirect call invocation edges (same as node count)
+- [ x ] external call invocation edges 
+
+Node counts:
+- PDGMainComponentDirect
+- PDGNonMainComponentsDirect
+- EPDGMainComponentDirectIndirect
+- EPDGNonMainComponentsDirectIndirect
+- EPDGExtendedComponent
+- EPDGNonExtendedComponents
