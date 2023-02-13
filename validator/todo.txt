@@ -41,3 +41,15 @@ Node counts:
 - EPDGNonMainComponentsDirectIndirect
 - EPDGExtendedComponent
 - EPDGNonExtendedComponents
+
+
+DefUse:
+- Anno 
+    - Var: pdg: 0, ir: ?
+    - Global: pdg: 0, ir: ? 
+- VarNode: connects globals to their uses within functions (? which type)
+    - Intrinsic: pdg: ?, ir: ?
+    - Non-Intrinsic: pdg: ?, ir: ? 
+- Intra: 
+    - Intrinsic: pdg: 0, ir: ?
+    - Non-Intrinsic: reconcile but pdg: ?, ir: ?   

@@ -2,7 +2,8 @@ use std::collections::HashSet;
 use std::fmt::Display;
 use std::iter::FromIterator;
 
-use llvm_ir::{Module, Instruction, Function, Operand, HasDebugLoc, Name, Terminator, Type, TypeRef};
+use llvm_ir::module::GlobalVariable;
+use llvm_ir::{Module, Instruction, Function, Operand, HasDebugLoc, Name, Terminator, Type, TypeRef, Constant};
 use llvm_ir::instruction::Call;
 
 pub fn call_sites(module: &Module) -> Vec<(Function, Call)> {
@@ -66,6 +67,11 @@ impl Display for LLID {
         }
     }
 } 
+
+impl LLID {
+
+}
+
 #[derive(Debug, Clone)]
 pub enum LLItem {
     Global(llvm_ir::module::GlobalVariable),
@@ -77,6 +83,7 @@ pub enum LLItem {
 }
 
 impl LLItem {
+
     pub fn to_string(&self) -> String {
         match self {
             LLItem::Global(g) => g.name.to_string(),
@@ -93,11 +100,35 @@ impl LLItem {
             _ => None
         }
     }
+    pub fn global(&self) -> Option<GlobalVariable> {
+        match self {
+            LLItem::Global(g) => Some(g.clone()),
+            _ => None
+        }
+    }
     pub fn call(&self) -> Option<Call> {
         match self {
             LLItem::Instruction(Instruction::Call(c)) => Some(c.clone()),
             _ => None
         }
+    }
+    pub fn instruction(&self) -> Option<Instruction> {
+        match self {
+            LLItem::Instruction(i) => Some(i.clone()),
+            _ => None
+        }
+    }
+    pub fn call_name_predicate(&self, f: impl Fn(&str) -> bool) -> bool {
+        self.call().and_then(|c| 
+            c.function.right())
+            .map(|o| match o {
+                Operand::ConstantOperand(g) => 
+                    match g.as_ref() {
+                        Constant::GlobalReference { name, ty: _ } => f(&name.to_string()),
+                        _ => false
+                    },
+                    _ => false,
+            }).unwrap_or(false)
     }
 }
 
@@ -127,7 +158,21 @@ impl std::hash::Hash for LLValue {
 }
 
 impl LLID {
+    pub fn global(&self) -> Option<&String> {
+        if let LLID::GlobalName { global_name } = self {
+            Some(global_name)
+        } else {
+            None
+        }
+    }
 
+    pub fn instruction(&self) -> Option<(&String, usize)> {
+        if let LLID::InstructionID { global_name, index } = self {
+            Some((global_name, *index))
+        } else {
+            None
+        }
+    }
     pub fn global_name(&self) -> &str {
         match self {
             Self::GlobalName { global_name } => global_name,
@@ -577,3 +622,225 @@ impl FunctionUsedAsPointer for llvm_ir::Constant {
         // }
     }
 } 
+
+pub trait Names {
+    fn names(&self) -> HashSet<Name>;
+} 
+
+impl Names for Name {
+    fn names(&self) -> HashSet<Name> {
+        HashSet::from_iter([self.to_owned()])
+    }
+}
+
+impl Names for Constant {
+    fn names(&self) -> HashSet<Name> {
+        let empty = HashSet::new();
+        match self {
+            Constant::Int { bits: _, value: _ } => empty,
+            Constant::Float(_) => empty,
+            Constant::Null(_) => empty,
+            Constant::AggregateZero(_) => empty,
+            Constant::Struct { name: _, values, is_packed: _ } => values.iter().flat_map(|x| x.names()).collect(),
+            Constant::Array { element_type: _, elements } => elements.iter().flat_map(|x| x.names()).collect(),
+            Constant::Vector(v) => v.iter().flat_map(|x| x.names()).collect(),
+            Constant::Undef(_) => empty,
+            Constant::BlockAddress => empty,
+            Constant::GlobalReference { name, ty: _ } => HashSet::from_iter([name.to_owned()]),
+            Constant::TokenNone => empty,
+            Constant::Add(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::Sub(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::Mul(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::UDiv(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::SDiv(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::URem(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::SRem(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::And(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::Or(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::Xor(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::Shl(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::LShr(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::AShr(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::FAdd(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::FSub(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::FMul(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::FDiv(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::FRem(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::ExtractElement(x) => union!(x.vector.names(), x.index.names()),
+            Constant::InsertElement(x) => union!(x.vector.names(), x.element.names(), x.index.names()),
+            Constant::ShuffleVector(x) => union!(x.mask.names(), x.operand0.names(), x.operand1.names()),
+            Constant::ExtractValue(x) => x.aggregate.names(),
+            Constant::InsertValue(x) => union!(x.element.names(), x.aggregate.names()),
+            Constant::GetElementPtr(x) => union!(x.address.names(), x.indices.iter().flat_map(|x| x.names())),
+            Constant::Trunc(x) => x.operand.names(),
+            Constant::ZExt(x) => x.operand.names(),
+            Constant::SExt(x) => x.operand.names(),
+            Constant::FPTrunc(x) => x.operand.names(),
+            Constant::FPExt(x) => x.operand.names(),
+            Constant::FPToUI(x) => x.operand.names(),
+            Constant::FPToSI(x) => x.operand.names(),
+            Constant::UIToFP(x) => x.operand.names(),
+            Constant::SIToFP(x) => x.operand.names(),
+            Constant::PtrToInt(x) => x.operand.names(),
+            Constant::IntToPtr(x) => x.operand.names(),
+            Constant::BitCast(x) => x.operand.names(),
+            Constant::AddrSpaceCast(x) => x.operand.names(),
+            Constant::ICmp(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::FCmp(x) => union!(x.operand0.names(), x.operand1.names()),
+            Constant::Select(x) => union!(x.condition.names(), x.false_value.names(), x.true_value.names()),
+        } 
+    }
+}
+
+impl Names for Operand {
+    fn names(&self) -> HashSet<Name> {
+        match self {
+            Operand::LocalOperand { name, ty: _ } => HashSet::from_iter([name.to_owned()]),
+            Operand::ConstantOperand(c) => c.names(),
+            Operand::MetadataOperand => HashSet::new(),
+        }
+    }
+}
+
+impl Names for Instruction {
+    fn names(&self) -> HashSet<Name> {
+        let empty: HashSet<Name> = HashSet::new();
+        match self {
+            Instruction::Add(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::Sub(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::Mul(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::UDiv(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::SDiv(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::URem(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::SRem(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::And(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::Or(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::Xor(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::Shl(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::LShr(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::AShr(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::FAdd(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::FSub(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::FMul(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::FDiv(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::FRem(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::FNeg(x) => x.operand.names(),
+            Instruction::ExtractElement(x) => union!(x.vector.names(), x.index.names()),
+            Instruction::InsertElement(x) => union!(x.vector.names(), x.element.names(), x.index.names()),
+            Instruction::ShuffleVector(x) => union!(x.mask.names(), x.operand0.names(), x.operand1.names()),
+            Instruction::ExtractValue(x) => x.aggregate.names(),
+            Instruction::InsertValue(x) => union!(x.element.names(), x.aggregate.names()),
+            Instruction::Alloca(x) => HashSet::from_iter([x.dest.to_owned()]),
+            Instruction::Load(x) => union!(x.address.names(), HashSet::<Name>::from_iter([x.dest.to_owned()])),
+            Instruction::Store(x) => union!(x.value.names(), x.address.names()),
+            Instruction::Fence(_) => empty,
+            Instruction::CmpXchg(x) => union!(x.address.names(), x.expected.names(), x.replacement.names(), x.dest.names()),
+            Instruction::AtomicRMW(x) => union!(x.address.names(), x.value.names(), x.dest.names()), 
+            Instruction::GetElementPtr(x) => union!(x.address.names(), x.indices.iter().flat_map(|x| x.names()), x.dest.names()),
+            Instruction::Trunc(x) => union!(x.dest.names(), x.operand.names()), 
+            Instruction::ZExt(x) => union!(x.dest.names(), x.operand.names()), 
+            Instruction::SExt(x) => union!(x.dest.names(), x.operand.names()), 
+            Instruction::FPTrunc(x) => union!(x.dest.names(), x.operand.names()), 
+            Instruction::FPExt(x) => union!(x.dest.names(), x.operand.names()),
+            Instruction::FPToUI(x) => union!(x.dest.names(), x.operand.names()),
+            Instruction::FPToSI(x) => union!(x.dest.names(), x.operand.names()),
+            Instruction::UIToFP(x) => union!(x.dest.names(), x.operand.names()),
+            Instruction::SIToFP(x) => union!(x.dest.names(), x.operand.names()),
+            Instruction::PtrToInt(x) => union!(x.dest.names(), x.operand.names()),
+            Instruction::IntToPtr(x) => union!(x.dest.names(), x.operand.names()),
+            Instruction::BitCast(x) => union!(x.dest.names(), x.operand.names()),
+            Instruction::AddrSpaceCast(x) => x.operand.names(),
+            Instruction::ICmp(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::FCmp(x) => union!(x.operand0.names(), x.operand1.names()),
+            Instruction::Phi(x) => union!(x.dest.names(), x.incoming_values.iter().flat_map(|(op, n)| union!(op.names(), n.names()))),
+            Instruction::Select(x) => union!(x.condition.names(), x.false_value.names(), x.true_value.names()),
+            Instruction::Freeze(x) => union!(x.dest.names(), x.operand.names()),
+            Instruction::Call(x) => union!(x.dest.as_ref().map(|x| x.names()).unwrap_or(empty), x.arguments.iter().flat_map(|(op, _)| op.names()), x.function.as_ref().right().map(|x| x.names()).unwrap_or(HashSet::new())),
+            Instruction::VAArg(x) => union!(x.dest.names(), x.arg_list.names()),
+            Instruction::LandingPad(x) => x.dest.names(),
+            Instruction::CatchPad(x) => union!(x.dest.names(), x.args.iter().flat_map(|x| x.names()), x.catch_switch.names()),
+            Instruction::CleanupPad(x) => union!(x.dest.names(), x.args.iter().flat_map(|x| x.names()), x.parent_pad.names()),
+        }
+    }
+} 
+
+impl Names for Terminator {
+    fn names(&self) -> HashSet<Name> {
+        match self {
+            Terminator::Ret(x) => x.return_operand.as_ref().map(|x| x.names()).unwrap_or_default(),
+            Terminator::Br(x) => x.dest.names(),
+            Terminator::CondBr(x) => union!(x.condition.names(), x.false_dest.names(), x.true_dest.names()),
+            Terminator::Switch(x) => union!(x.operand.names(), x.default_dest.names(), x.dests.iter().flat_map(|(c, n)| union!(c.names(), n.names()))),
+            Terminator::IndirectBr(x) => union!(x.operand.names(), x.possible_dests.iter().map(|x| x.clone())),
+            Terminator::Invoke(x) => x.function.as_ref().right().map(|x| x.names()).unwrap_or_default(),
+            Terminator::Resume(x) => x.operand.names(),
+            Terminator::Unreachable(_) => Default::default(),
+            Terminator::CleanupRet(x) => union!(x.cleanup_pad.names(), x.unwind_dest.as_ref().map(|x| x.names()).unwrap_or_default()),
+            Terminator::CatchRet(x) => union!(x.catch_pad.names(), x.successor.names()),
+            Terminator::CatchSwitch(x) => union!(x.result.names(), x.parent_pad.names(), x.catch_handlers.clone(), x.default_unwind_dest.as_ref().map(|x| x.names()).unwrap_or_default()),
+            Terminator::CallBr(x) => union!{
+                x.function.as_ref().right().map(|x| x.names()).unwrap_or_default(),
+                x.arguments.iter().flat_map(|(op, _)| op.names()),
+                x.result.names(),
+                x.return_label.names()
+            },
+        }
+    }
+} 
+
+pub trait Users {
+    fn users(&self, func: &Function, global: bool) -> Vec<LLValue>;
+} 
+
+impl Users for Name {
+    fn users(&self, func: &Function, global: bool) -> Vec<LLValue> {
+        let mut assigned = HashSet::<&Name>::from_iter(func.parameters.iter().map(|p| &p.name)).contains(self) || global;
+        let mut users = Vec::new();
+        enum Either<A, B> {
+            Left(A),
+            Right(B)
+        }
+        let all_instructions_terminators = 
+            func.basic_blocks
+                .iter()
+                .flat_map(|b| 
+                    b.instrs.iter().map(|x| Either::Left(x)).chain([Either::Right(&b.term)]));
+        let mut count = 0;
+        for inst in all_instructions_terminators {
+            let id = LLID::InstructionID { global_name: func.name.clone(), index: count };
+            match inst {
+                Either::Left(inst) => {
+                    if assigned {
+                        let used = inst.names().contains(self);
+                        if used {
+                            let item = LLItem::Instruction(inst.clone());
+                            users.push(LLValue { id, item });
+                        }
+                    }
+                    assigned = assigned || match inst.try_get_result() {
+                        Some(n) => self == n,
+                        None => false
+                    };
+                },
+                Either::Right(term) => {
+                    if assigned {
+                        let used = term.names().contains(self);
+                        if used {
+                            let item = LLItem::Terminator(term.clone());
+                            users.push(LLValue { id, item });
+                        }
+                    }
+
+                }
+            }
+            count += 1;
+        }
+        users
+    }
+} 
+
+impl Users for Instruction {
+    fn users(&self, func: &Function, global: bool) -> Vec<LLValue> {
+        self.try_get_result().map(|x| x.users(func, global)).unwrap_or_default()
+    }
+}
