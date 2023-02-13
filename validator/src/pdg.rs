@@ -15,7 +15,8 @@ pub struct Node {
     pub line: Option<u64>, 
     pub col: Option<u64>,
     pub inst_index: Option<u64>,
-    pub param_idx: Option<u64> 
+    pub param_idx: Option<u64>,
+    llid: Option<Option<LLID>>,
 }
 
 impl PartialEq for Node {
@@ -70,7 +71,8 @@ impl Node {
             line,
             col,
             inst_index,
-            param_idx
+            param_idx,
+            llid: Default::default(),
         })
     }
     pub fn in_ir(&self, name: &str) -> bool {
@@ -212,19 +214,26 @@ impl Pdg {
             .collect()
     }
     pub fn llid(&self, node: &Node) -> Option<LLID> {
-        if let Some(idx) = node.inst_index {
-            let func = &self.nodes[(node.has_fn - 1) as usize];
-            return func.ir_name().map(|func_name| LLID::InstructionID { global_name: func_name.clone(), index: idx as usize })
+        let get_id = || {
+            if let Some(idx) = node.inst_index {
+                let func = &self.nodes[(node.has_fn - 1) as usize];
+                return func.ir_name().map(|func_name| LLID::InstructionID { global_name: func_name.clone(), index: idx as usize })
+            }
+            if let Some(idx) = node.param_idx {
+                let func = &self.nodes[(node.has_fn - 1) as usize];
+                return func.ir_name().map(|func_name| LLID::LocalName { global_name: func_name.clone(), local_name: Name::Number(idx as usize) })
+            }
+            if node.has_fn != 0 {
+                let func = &self.nodes[(node.has_fn - 1) as usize];
+                return func.ir_name().map(|func_name| LLID::GlobalName { global_name: func_name.clone() })
+            }
+            node.ir_name().map(|name| LLID::GlobalName { global_name: name })
+        };
+        match &node.llid {
+            Some(id) => id.clone(),
+            None => get_id(),
         }
-        if let Some(idx) = node.param_idx {
-            let func = &self.nodes[(node.has_fn - 1) as usize];
-            return func.ir_name().map(|func_name| LLID::LocalName { global_name: func_name.clone(), local_name: Name::Number(idx as usize) })
-        }
-        if node.has_fn != 0 {
-            let func = &self.nodes[(node.has_fn - 1) as usize];
-            return func.ir_name().map(|func_name| LLID::GlobalName { global_name: func_name.clone() })
-        }
-        node.ir_name().map(|name| LLID::GlobalName { global_name: name })
+     
     }
 
     
