@@ -153,6 +153,7 @@ name = "pdg-validator"
 version = "0.1.0"
 dependencies = [
  "csv",
+ "lazy_static",
  "llvm-ir",
  "petgraph",
  "regex",

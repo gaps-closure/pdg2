@@ -53,3 +53,6 @@ DefUse:
 - Intra: 
     - Intrinsic: pdg: 0, ir: ?
     - Non-Intrinsic: reconcile but pdg: ?, ir: ?   
+
+
+- Node accountings

@@ -2,7 +2,7 @@ use crate::{
     bag::Bag,
     llvm::{instr_name, term_name, FunctionUsedAsPointer, LLItem, LLValue, Users, LLID},
     pdg::{Edge, Node, Pdg},
-    union,
+    union, report::Report, counts::IndexedSets, indexed_set::ISet, id::ID, validator,
 };
 use csv::Writer;
 use llvm_ir::{
@@ -1471,4 +1471,36 @@ pub fn report(bc_file: &str, pdg_data_file: &str, counts_csv: &str, validation_c
     write_counts_csv(&ir_bag, (&node_bag, &edge_bag), &mut counts_writer);
     callgraph_reachability(&ir_bag, &node_bag, &module, &pdg, &mut counts_writer);
     write_validation_csv(ir_bag, (node_bag, edge_bag), validation_writer, &pdg);
+}
+
+pub fn report2(bc_file: &str, pdg_data_file: &str, counts_csv: &str, validation_csv: &str) {
+    let module = Module::from_bc_path(bc_file).unwrap();
+    let pdg = {
+        let file = File::open(pdg_data_file).unwrap();
+        let rdr = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .quote(b'\'')
+            .trim(csv::Trim::All)
+            .from_reader(std::io::BufReader::new(file));
+
+        Pdg::from_csv_reader(rdr).unwrap()
+    };
+    let mut report = Report::new(counts_csv, validation_csv).unwrap();
+    let node_iset: ISet<ID, Node> = pdg.indexed_sets();
+    let edge_iset: ISet<ID, Edge> = pdg.indexed_sets();
+    let ir_iset = module.indexed_sets();
+
+    node_iset.report_counts(&mut report);
+    edge_iset.report_counts(&mut report);
+    ir_iset.report_counts(&mut report);
+
+    node_iset.report_rollups(&mut report);
+    edge_iset.report_rollups(&mut report);
+    ir_iset.report_rollups(&mut report);
+
+    validator::node::report_all_accounts(&mut report, &pdg, &node_iset, &ir_iset);
+    validator::edge::report_all_accounts(&mut report, &pdg, &edge_iset, &ir_iset);
+
+    report.write().unwrap();
+
 }

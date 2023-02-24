@@ -5,7 +5,7 @@ use regex::Regex;
 
 use crate::llvm::LLID;
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Hash)]
 pub struct Node {
     pub id: u64, 
     pub r#type: String, 
@@ -27,7 +27,7 @@ impl PartialEq for Node {
 impl Eq for Node {} 
 
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Hash)]
 pub struct Edge {
     pub id: u64, 
     pub r#type: String, 

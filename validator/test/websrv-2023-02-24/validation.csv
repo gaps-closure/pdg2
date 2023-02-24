@@ -1,0 +1,30 @@
+IRGlobal,IRGlobal.External + IRGlobal.Internal,38,38,0,0
+IRGlobal.Internal,IRGlobal.Internal.Function + IRGlobal.Internal.Annotation + IRGlobal.Internal.Omni,37,37,0,0
+IRInstruction,IRInstruction.And + IRInstruction.FCmp + IRInstruction.FPTrunc + IRInstruction.Sub + IRInstruction.ExtractValue + IRInstruction.ICmp + IRInstruction.SDiv + IRInstruction.FPToUI + IRInstruction.Phi + IRInstruction.Xor + IRInstruction.Load + IRInstruction.IntToPtr + IRInstruction.AShr + IRInstruction.Switch + IRInstruction.Store + IRInstruction.Br + IRInstruction.Shl + IRInstruction.BitCast + IRInstruction.UIToFP + IRInstruction.Mul + IRInstruction.CondBr + IRInstruction.Ret + IRInstruction.Select + IRInstruction.ZExt + IRInstruction.SIToFP + IRInstruction.UDiv + IRInstruction.Trunc + IRInstruction.SExt + IRInstruction.Call + IRInstruction.Add + IRInstruction.Or + IRInstruction.Alloca + IRInstruction.SRem + IRInstruction.FMul + IRInstruction.GetElementPtr + IRInstruction.URem + IRInstruction.FSub + IRInstruction.PtrToInt + IRInstruction.FPToSI + IRInstruction.FAdd + IRInstruction.Unreachable + IRInstruction.FNeg + IRInstruction.LShr + IRInstruction.FDiv + IRInstruction.FPExt,75484,75484,0,0
+IRInstruction.Call,IRInstruction.Call.Pointer + IRInstruction.Call.Intrinsic + IRInstruction.Call.Internal + IRInstruction.Call.External + IRInstruction.Call.Annotation,7659,7659,0,0
+IRInstruction.Call.External,IRInstruction.Call.External.NonVarArg,478,478,0,0
+IRInstruction.Call.Internal,IRInstruction.Call.Internal.NonVarArg + IRInstruction.Call.Internal.VarArg,2487,2487,0,0
+IRParameter,IRParameter.In,2473,2473,0,0
+PDGEdge,PDGEdge.Parameter + PDGEdge.ControlDep + PDGEdge.DataDepEdge + PDGEdge.Anno,368410,368410,0,0
+PDGEdge.Anno,PDGEdge.Anno.Var + PDGEdge.Anno.Other + PDGEdge.Anno.Global,51,51,0,0
+PDGEdge.Anno.Global,IRAnnoGlobal,21,21,0,0
+PDGEdge.Anno.Var,IRAnnoVar,30,30,0,0
+PDGEdge.ControlDep,PDGEdge.ControlDep.CallRet + PDGEdge.ControlDep.CallInv + PDGEdge.ControlDep.Br + PDGEdge.ControlDep.Entry + PDGEdge.ControlDep.Other,109337,109337,0,0
+PDGEdge.DataDepEdge,PDGEdge.DataDepEdge.Ret + PDGEdge.DataDepEdge.DefUse + PDGEdge.DataDepEdge.RAW + PDGEdge.DataDepEdge.Alias,89281,89281,0,0
+PDGEdge.Parameter,PDGEdge.Parameter.In + PDGEdge.Parameter.Out + PDGEdge.Parameter.Field,169741,169741,0,0
+PDGNode,PDGNode.Param + PDGNode.Inst + PDGNode.Annotation + PDGNode.VarNode + PDGNode.FunctionEntry,181896,181896,0,0
+PDGNode.Annotation,PDGNode.Annotation.Global + PDGNode.Annotation.Var + PDGNode.Annotation.Other,16,16,0,0
+PDGNode.Annotation.Global,IRGlobal.Annotation,1,1,0,0
+PDGNode.Annotation.Var,IRInstruction.Call.Annotation,15,15,0,0
+PDGNode.FunctionEntry,IRFunction,975,975,0,0
+PDGNode.Inst,PDGNode.Inst.Br + PDGNode.Inst.Ret + PDGNode.Inst.FunCall + PDGNode.Inst.Other,75469,75469,0,0
+PDGNode.Inst.Br,IRInstruction.Br + IRInstruction.CondBr,6082,6082,0,0
+PDGNode.Inst.FunCall,IRInstruction.Call - IRInstruction.Call.Annotation,7644,7644,0,0
+PDGNode.Inst.Other,IRInstruction - IRInstruction.Call - IRInstruction.Ret - IRInstruction.Br - IRInstruction.CondBr,60770,60770,0,0
+PDGNode.Inst.Ret,IRInstruction.Ret,973,973,0,0
+PDGNode.Param,PDGNode.Param.ActualIn + PDGNode.Param.FormalOut + PDGNode.Param.FormalIn + PDGNode.Param.ActualOut,105400,105400,0,0
+PDGNode.Param.FormalIn.Root,IRParameter,2438,2473,0,35
+PDGNode.VarNode,PDGNode.VarNode.StaticModule + PDGNode.VarNode.StaticGlobal + PDGNode.VarNode.StaticOther + PDGNode.VarNode.StaticFunction,36,36,0,0
+PDGNode.VarNode.StaticFunction,IRGlobal.Internal.Function,17,17,0,0
+PDGNode.VarNode.StaticGlobal,IRGlobal.Internal.Omni,0,0,0,0
+PDGNode.VarNode.StaticModule,IRGlobal.Internal.Module,19,19,0,0
