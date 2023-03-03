@@ -1498,8 +1498,8 @@ pub fn report2(bc_file: &str, pdg_data_file: &str, counts_csv: &str, validation_
     edge_iset.report_rollups(&mut report);
     ir_iset.report_rollups(&mut report);
 
-    validator::node::report_all_accounts(&mut report, &pdg, &node_iset, &ir_iset);
     validator::edge::report_all_accounts(&mut report, &pdg, &edge_iset, &ir_iset);
+    validator::node::report_all_accounts(&mut report, &pdg, &node_iset, &ir_iset);
 
     report.write().unwrap();
 

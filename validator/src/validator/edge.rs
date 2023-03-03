@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use llvm_ir::{constant::{BitCast, GetElementPtr}, Constant};
+use llvm_ir::{
+    constant::{BitCast, GetElementPtr},
+    Constant, Instruction,
+};
 use serde::de::value::CowStrDeserializer;
 
 use crate::{
@@ -219,6 +222,79 @@ fn account_anno_global(
     }
 }
 
+fn account_for_raw(
+    pdg: &Pdg,
+    edge_iset: &ISet<ID, Edge>,
+    ir_iset: &ISet<ID, LLValue>,
+) -> Account<(LLID, LLID)> {
+    let pdg_raw = edge_ids(edge_iset.get(&id!(PDGEdge.DataDepEdge.RAW)), pdg);
+    enum Either<A, B> {
+        Left(A),
+        Right(B),
+    }
+    let ir_raw = ir_iset
+        .get(&id!(IRFunction))
+        .iter()
+        .flat_map(|v| {
+            let f = v.item.function().unwrap();
+            let instrs = f
+                .basic_blocks
+                .iter()
+                .flat_map(|b| {
+                    b.instrs
+                        .iter()
+                        .map(|x| Either::Left(x))
+                        .chain([Either::Right(&b.term)])
+                })
+                .enumerate()
+                .collect::<Vec<_>>();
+            let stores = instrs
+                .iter()
+                .filter_map(|(idx, inst)| match inst {
+                    Either::Left(Instruction::Store(s)) => {
+                        let addr = s.address.names().into_iter().next().unwrap();
+                        Some((
+                            addr,
+                            LLID::InstructionID {
+                                global_name: v.id.global_name().to_string(),
+                                index: *idx,
+                            },
+                        ))
+                    }
+                    _ => None,
+                })
+                .collect::<ISet<_, _>>();
+            instrs
+                .iter()
+                .flat_map(|(idx, inst)| match inst {
+                    Either::Left(Instruction::Load(l)) => {
+                        let addr = l.address.names().into_iter().next().unwrap();
+                        stores.get(&addr).iter().filter_map(|store| {
+                            if store.index().unwrap() < *idx {
+                                Some((
+                                    store.clone(),
+                                    LLID::InstructionID {
+                                        global_name: v.id.global_name().to_string(),
+                                        index: *idx,
+                                    },
+                                ))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                    }
+                    _ => Vec::new(),
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<HashSet<_>>();
+    Account {
+        a: pdg_raw,
+        b: ir_raw,
+    }
+}
+
 pub fn report_all_accounts(
     report: &mut Report,
     pdg: &Pdg,
@@ -235,5 +311,15 @@ pub fn report_all_accounts(
         "PDGEdge.Anno.Global",
         "IRAnnoGlobal",
         account_anno_global(pdg, &edge_iset, &ir_iset),
+    );
+
+    let acct = account_for_raw(pdg, edge_iset, ir_iset);
+    for (src, dst) in acct.b_minus_a().take(10) {
+        println!("{} --> {}", src, dst);
+    }
+    report.report_account(
+        "PDGEdge.DataDepEdge.RAW",
+        "IRRAW",
+        acct 
     );
 }
