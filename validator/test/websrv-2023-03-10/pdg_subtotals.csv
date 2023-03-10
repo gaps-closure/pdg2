@@ -1,0 +1,11 @@
+A,B,|A|,|B|,|A-B|,|B-A|
+PDGEdge,PDGEdge.ControlDep + PDGEdge.Anno + PDGEdge.Parameter + PDGEdge.DataDepEdge,368410,368410,0,0
+PDGEdge.Anno,PDGEdge.Anno.Var + PDGEdge.Anno.Global + PDGEdge.Anno.Other,51,51,0,0
+PDGEdge.ControlDep,PDGEdge.ControlDep.CallRet + PDGEdge.ControlDep.CallInv + PDGEdge.ControlDep.Br + PDGEdge.ControlDep.Entry + PDGEdge.ControlDep.Other,109337,109337,0,0
+PDGEdge.DataDepEdge,PDGEdge.DataDepEdge.RAW + PDGEdge.DataDepEdge.DefUse + PDGEdge.DataDepEdge.Ret + PDGEdge.DataDepEdge.Alias,89281,89281,0,0
+PDGEdge.Parameter,PDGEdge.Parameter.In + PDGEdge.Parameter.Out + PDGEdge.Parameter.Field,169741,169741,0,0
+PDGNode,PDGNode.Inst + PDGNode.Param + PDGNode.FunctionEntry + PDGNode.VarNode + PDGNode.Annotation,181896,181896,0,0
+PDGNode.Annotation,PDGNode.Annotation.Other + PDGNode.Annotation.Var + PDGNode.Annotation.Global,16,16,0,0
+PDGNode.Inst,PDGNode.Inst.Br + PDGNode.Inst.Other + PDGNode.Inst.Ret + PDGNode.Inst.FunCall,75469,75469,0,0
+PDGNode.Param,PDGNode.Param.FormalOut + PDGNode.Param.ActualOut + PDGNode.Param.FormalIn + PDGNode.Param.ActualIn,105400,105400,0,0
+PDGNode.VarNode,PDGNode.VarNode.StaticModule + PDGNode.VarNode.StaticOther + PDGNode.VarNode.StaticGlobal + PDGNode.VarNode.StaticFunction,36,36,0,0

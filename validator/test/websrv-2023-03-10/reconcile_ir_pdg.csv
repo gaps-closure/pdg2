@@ -1,0 +1,15 @@
+A,B,|A|,|B|,|A-B|,|B-A|
+PDGEdge.Anno.Global,IRAnnoGlobal,21,21,0,0
+PDGEdge.Anno.Var,IRAnnoVar,30,30,0,0
+PDGEdge.DataDepEdge.RAW,IRRAW,5318,52345,1849,48876
+PDGNode.Annotation.Global,IRGlobal.Annotation,1,1,0,0
+PDGNode.Annotation.Var,IRInstruction.Call.Annotation,15,15,0,0
+PDGNode.FunctionEntry,IRFunction,975,975,0,0
+PDGNode.Inst.Br,IRInstruction.Br + IRInstruction.CondBr,6082,6082,0,0
+PDGNode.Inst.FunCall,IRInstruction.Call - IRInstruction.Call.Annotation,7644,7644,0,0
+PDGNode.Inst.Other,IRInstruction - IRInstruction.Call - IRInstruction.Ret - IRInstruction.Br - IRInstruction.CondBr,60770,60770,0,0
+PDGNode.Inst.Ret,IRInstruction.Ret,973,973,0,0
+PDGNode.Param.FormalIn.Root,IRParameter,2438,2473,0,35
+PDGNode.VarNode.StaticFunction,IRGlobal.Internal.Function,17,17,0,0
+PDGNode.VarNode.StaticGlobal,IRGlobal.Internal.Omni,0,0,0,0
+PDGNode.VarNode.StaticModule,IRGlobal.Internal.Module,19,19,0,0

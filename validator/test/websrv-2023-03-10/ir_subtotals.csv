@@ -1,0 +1,8 @@
+A,B,|A|,|B|,|A-B|,|B-A|
+IRGlobal,IRGlobal.Internal + IRGlobal.External,38,38,0,0
+IRGlobal.Internal,IRGlobal.Internal.Annotation + IRGlobal.Internal.Omni + IRGlobal.Internal.Function,37,37,0,0
+IRInstruction,IRInstruction.ExtractValue + IRInstruction.FPToSI + IRInstruction.FAdd + IRInstruction.AShr + IRInstruction.UDiv + IRInstruction.FSub + IRInstruction.ICmp + IRInstruction.LShr + IRInstruction.Call + IRInstruction.Xor + IRInstruction.BitCast + IRInstruction.FMul + IRInstruction.SRem + IRInstruction.FPTrunc + IRInstruction.Br + IRInstruction.GetElementPtr + IRInstruction.SDiv + IRInstruction.ZExt + IRInstruction.PtrToInt + IRInstruction.Load + IRInstruction.SIToFP + IRInstruction.Add + IRInstruction.And + IRInstruction.Shl + IRInstruction.FPExt + IRInstruction.URem + IRInstruction.Or + IRInstruction.SExt + IRInstruction.IntToPtr + IRInstruction.Sub + IRInstruction.UIToFP + IRInstruction.Store + IRInstruction.FDiv + IRInstruction.FNeg + IRInstruction.Ret + IRInstruction.Mul + IRInstruction.FPToUI + IRInstruction.Unreachable + IRInstruction.Phi + IRInstruction.Trunc + IRInstruction.Select + IRInstruction.CondBr + IRInstruction.Alloca + IRInstruction.Switch + IRInstruction.FCmp,75484,75484,0,0
+IRInstruction.Call,IRInstruction.Call.External + IRInstruction.Call.Intrinsic + IRInstruction.Call.Internal + IRInstruction.Call.Pointer + IRInstruction.Call.Annotation,7659,7659,0,0
+IRInstruction.Call.External,IRInstruction.Call.External.NonVarArg,478,478,0,0
+IRInstruction.Call.Internal,IRInstruction.Call.Internal.NonVarArg + IRInstruction.Call.Internal.VarArg,2487,2487,0,0
+IRParameter,IRParameter.In,2473,2473,0,0

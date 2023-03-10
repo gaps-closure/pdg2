@@ -3,30 +3,44 @@ use std::hash::Hash;
 use std::{collections::HashMap, fs::File};
 
 pub struct Report {
-    counts_writer: csv::Writer<File>,
+    counts_writer: Option<csv::Writer<File>>,
     counts: HashMap<String, usize>,
     validation_writer: csv::Writer<File>,
     validations: HashMap<(String, String), (usize, usize, usize, usize)>,
+    counts_ordering: HashMap<String, usize>,
+    validation_ordering: HashMap<(String, String), usize>,
     written: bool,
 }
 
 impl Report {
-    pub fn new(counts_file: &str, validation_file: &str) -> csv::Result<Self> {
+    pub fn new(counts_file: Option<&str>, validation_file: &str) -> csv::Result<Self> {
         let validation_writer = csv::WriterBuilder::new()
             .flexible(true)
             .from_path(validation_file)?;
 
-        let counts_writer = csv::WriterBuilder::new()
-            .flexible(true)
-            .from_path(counts_file)?;
-
+        let counts_writer =
+            match counts_file.map(|f| csv::WriterBuilder::new().flexible(true).from_path(f)) {
+                Some(x) => Some(x?),
+                None => None,
+            };
         Ok(Self {
             counts_writer,
             counts: Default::default(),
             validation_writer,
             validations: Default::default(),
+            counts_ordering: Default::default(),
+            validation_ordering: Default::default(),
             written: false,
         })
+    }
+
+    fn write_headers(&mut self) -> csv::Result<()> {
+        match &mut self.counts_writer {
+            Some(writer) => writer.write_record(["Category", "Count"])?,
+            None => ()
+        };
+        self.validation_writer.write_record(["A", "B", "|A|", "|B|", "|A-B|", "|B-A|"])?;
+        Ok(())
     }
     pub fn report_count(&mut self, name: impl ToString, count: usize) {
         self.counts.insert(name.to_string(), count);
@@ -56,24 +70,50 @@ impl Report {
             ),
         );
     }
-    pub fn write(&mut self) -> csv::Result<()> {
 
-        if self.written {
-            return Ok(())
+    pub fn set_counts_ordering(&mut self, ordering: HashMap<String, usize>) {
+        self.counts_ordering = ordering;
+
+        for (entry, _) in &self.counts_ordering {
+            if !self.counts.contains_key(entry) {
+                self.counts.insert(entry.clone(), 0);
+            }
         }
+    } 
+
+    pub fn set_validations_ordering(&mut self, ordering: HashMap<(String, String), usize>) {
+        self.validation_ordering = ordering;
+
+        for (entry, _) in &self.validation_ordering {
+            if !self.validations.contains_key(&entry) {
+                self.validations.insert(entry.clone(), (0, 0, 0, 0));
+            }
+        }
+    } 
+
+
+    pub fn write(&mut self) -> csv::Result<()> {
+        if self.written {
+            return Ok(());
+        }
+        self.write_headers()?;
         let mut sorted_counts = self.counts.iter().collect::<Vec<_>>();
         sorted_counts.sort_by(|(id1, _), (id2, _)| (&*id1.to_string()).cmp(&*id2.to_string()));
 
-
-        for (name, count) in sorted_counts {
-            self.counts_writer
-                .write_record(&[name, &*count.to_string()])?;
+        match &mut self.counts_writer {
+            Some(writer) => {
+                for (name, count) in sorted_counts {
+                    writer.write_record(&[name, &*count.to_string()])?;
+                }
+            }
+            None => (),
         }
 
-        let mut sorted_validations = self.validations.iter().collect::<Vec<_>>(); 
+        let mut sorted_validations = self.validations.iter().collect::<Vec<_>>();
         sorted_validations.sort_by(|(k1, _), (k2, _)| k1.cmp(&k2));
 
-        for ((a_name, b_name), (a_size, b_size, a_minus_b_size, b_minus_a_size)) in sorted_validations 
+        for ((a_name, b_name), (a_size, b_size, a_minus_b_size, b_minus_a_size)) in
+            sorted_validations
         {
             self.validation_writer.write_record(&[
                 a_name,
@@ -88,10 +128,11 @@ impl Report {
         Ok(())
     }
     pub fn flush(&mut self) -> csv::Result<()> {
-        self.counts_writer.flush()?;
+        match &mut self.counts_writer {
+            Some(writer) => writer.flush()?,
+            None => (),
+        }
         self.validation_writer.flush()?;
         Ok(())
     }
 }
-
-

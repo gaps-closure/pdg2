@@ -10,14 +10,12 @@ use llvm_ir::{
 };
 
 use crate::{
-    bag::Bag,
     id,
     id::ID,
     ids,
     indexed_set::ISet,
     llvm::{call_to_function_pointer, instr_name, term_name, LLItem, LLValue, LLID},
     pdg::{Edge, Node, Pdg},
-    report::Report,
 };
 
 fn edge_ids() -> Vec<ID> {

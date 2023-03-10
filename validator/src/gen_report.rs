@@ -1,19 +1,22 @@
 use crate::{
     bag::Bag,
+    counts::IndexedSets,
+    id::ID,
+    indexed_set::ISet,
     llvm::{instr_name, term_name, FunctionUsedAsPointer, LLItem, LLValue, Users, LLID},
     pdg::{Edge, Node, Pdg},
-    union, report::Report, counts::IndexedSets, indexed_set::ISet, id::ID, validator,
+    report::Report,
+    union, validator,
 };
 use csv::Writer;
 use llvm_ir::{
     function::Parameter,
     module::{GlobalVariable, Linkage},
     types::Typed,
-    Function, Instruction, Module, Name, Operand, Type,
+    Function, Instruction, Module, Operand, Type,
 };
 use petgraph::{
     algo::floyd_warshall,
-    dot::{Config, Dot},
     graph::NodeIndex,
     Graph,
 };
@@ -1473,7 +1476,15 @@ pub fn report(bc_file: &str, pdg_data_file: &str, counts_csv: &str, validation_c
     write_validation_csv(ir_bag, (node_bag, edge_bag), validation_writer, &pdg);
 }
 
-pub fn report2(bc_file: &str, pdg_data_file: &str, counts_csv: &str, validation_csv: &str) {
+pub fn report2(
+    bc_file: &str,
+    pdg_data_file: &str,
+    pdg_counts_csv: &str,
+    pdg_rollups_csv: &str,
+    ir_counts_csv: &str,
+    ir_rollups_csv: &str,
+    validation_csv: &str,
+) {
     let module = Module::from_bc_path(bc_file).unwrap();
     let pdg = {
         let file = File::open(pdg_data_file).unwrap();
@@ -1485,22 +1496,26 @@ pub fn report2(bc_file: &str, pdg_data_file: &str, counts_csv: &str, validation_
 
         Pdg::from_csv_reader(rdr).unwrap()
     };
-    let mut report = Report::new(counts_csv, validation_csv).unwrap();
+    let mut pdg_report = Report::new(Some(pdg_counts_csv), pdg_rollups_csv).unwrap();
+    let mut ir_report = Report::new(Some(ir_counts_csv), ir_rollups_csv).unwrap();
+    let mut reconciliations_report = Report::new(None, validation_csv).unwrap();
     let node_iset: ISet<ID, Node> = pdg.indexed_sets();
     let edge_iset: ISet<ID, Edge> = pdg.indexed_sets();
     let ir_iset = module.indexed_sets();
 
-    node_iset.report_counts(&mut report);
-    edge_iset.report_counts(&mut report);
-    ir_iset.report_counts(&mut report);
+    node_iset.report_counts(&mut pdg_report);
+    edge_iset.report_counts(&mut pdg_report);
+    ir_iset.report_counts(&mut ir_report);
 
-    node_iset.report_rollups(&mut report);
-    edge_iset.report_rollups(&mut report);
-    ir_iset.report_rollups(&mut report);
+    node_iset.report_rollups(&mut pdg_report);
+    edge_iset.report_rollups(&mut pdg_report);
+    ir_iset.report_rollups(&mut ir_report);
 
-    validator::edge::report_all_accounts(&mut report, &pdg, &edge_iset, &ir_iset);
-    validator::node::report_all_accounts(&mut report, &pdg, &node_iset, &ir_iset);
+    pdg_report.write().unwrap();
+    ir_report.write().unwrap();
 
-    report.write().unwrap();
+    validator::edge::report_all_accounts(&mut reconciliations_report, &pdg, &edge_iset, &ir_iset);
+    validator::node::report_all_accounts(&mut reconciliations_report, &pdg, &node_iset, &ir_iset);
 
+    reconciliations_report.write().unwrap();
 }
