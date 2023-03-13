@@ -9,6 +9,8 @@ use llvm_ir::{
     Function, Instruction, Module, Operand, Terminator,
 };
 
+use lazy_static::lazy_static;
+
 use crate::{
     id,
     id::ID,
@@ -18,8 +20,8 @@ use crate::{
     pdg::{Edge, Node, Pdg},
 };
 
-fn edge_ids() -> Vec<ID> {
-    ids! {
+lazy_static! {
+    pub static ref EDGE_IDS: Vec<ID> = ids! {
         PDGEdge,
         PDGEdge.ControlDep,
         PDGEdge.ControlDep.CallInv,
@@ -39,11 +41,9 @@ fn edge_ids() -> Vec<ID> {
         PDGEdge.Anno.Global,
         PDGEdge.Anno.Var,
         PDGEdge.Anno.Other
-    }
-}
+    };
 
-fn node_ids() -> Vec<ID> {
-    ids! {
+    pub static ref NODE_IDS: Vec<ID> = ids! {
         PDGNode,
         PDGNode.Inst,
         PDGNode.Inst.FunCall,
@@ -58,14 +58,22 @@ fn node_ids() -> Vec<ID> {
         PDGNode.FunctionEntry,
         PDGNode.Param,
         PDGNode.Param.FormalIn,
+        PDGNode.Param.FormalIn.Root,
+        PDGNode.Param.FormalIn.NonRoot,
         PDGNode.Param.FormalOut,
+        PDGNode.Param.FormalOut.Root,
+        PDGNode.Param.FormalOut.NonRoot,
         PDGNode.Param.ActualIn,
+        PDGNode.Param.ActualIn.Root,
+        PDGNode.Param.ActualIn.NonRoot,
         PDGNode.Param.ActualOut,
+        PDGNode.Param.ActualOut.Root,
+        PDGNode.Param.ActualOut.NonRoot,
         PDGNode.Annotation,
         PDGNode.Annotation.Var,
         PDGNode.Annotation.Global,
         PDGNode.Annotation.Other
-    }
+    };
 }
 
 fn global_tags(global: &GlobalVariable, fn_names: &HashSet<String>) -> Option<ID> {
@@ -246,6 +254,30 @@ fn parameters(module: &Module) -> ISet<ID, LLValue> {
         .collect()
 }
 
+fn add_extra_node_subtypes(iset: &mut ISet<ID, Node>) {
+    let mut split_by_param_idx = |name: ID| {
+        let set = iset.get(&name);
+        let set_with_param_idx = 
+            set 
+                .iter()
+                .filter(|n| n.param_idx.is_some())
+                .cloned()
+                .collect::<HashSet<_>>();
+        let set_without_param_idx = 
+            set 
+                .iter()
+                .filter(|n| n.param_idx.is_none())
+                .cloned()
+                .collect::<HashSet<_>>();
+        iset.insert_all(name.right_extend("Root".to_string()), set_with_param_idx);
+        iset.insert_all(name.right_extend("NonRoot".to_string()), set_without_param_idx);
+    };
+    split_by_param_idx(id!(PDGNode.Param.FormalIn));
+    split_by_param_idx(id!(PDGNode.Param.FormalOut));
+    split_by_param_idx(id!(PDGNode.Param.ActualIn));
+    split_by_param_idx(id!(PDGNode.Param.ActualOut));
+}
+
 pub trait IndexedSets<A> {
     fn indexed_sets(&self) -> ISet<ID, A>;
 }
@@ -266,7 +298,7 @@ impl IndexedSets<LLValue> for Module {
 impl IndexedSets<Node> for Pdg {
     fn indexed_sets(&self) -> ISet<ID, Node> {
         let mut iset = ISet::new();
-        for id in node_ids() {
+        for id in NODE_IDS.clone().into_iter() {
             iset.insert_empty(id);
         }
         for node in &self.nodes {
@@ -279,14 +311,16 @@ impl IndexedSets<Node> for Pdg {
             iset.insert(ID(name), node.clone());
         }
         iset.rollup_prefixes();
+        add_extra_node_subtypes(&mut iset);
         iset
     }
 }
 
+
 impl IndexedSets<Edge> for Pdg {
     fn indexed_sets(&self) -> ISet<ID, Edge> {
         let mut iset = ISet::new();
-        for id in edge_ids() {
+        for id in EDGE_IDS.clone().into_iter() {
             iset.insert_empty(id);
         }
         for edge in &self.edges {

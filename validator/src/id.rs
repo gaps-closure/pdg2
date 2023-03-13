@@ -14,7 +14,6 @@ macro_rules! id {
 #[macro_export]
 macro_rules! ids {
     ($($($x:ident).+),+) => {
-        use crate::id;
         vec![$(id!($($x).+)),+]
     };
 }
@@ -25,6 +24,9 @@ impl ID {
     } 
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+    pub fn right_extend(&self, ext: String) -> Self {
+        ID([self.0.clone(), vec![ext]].concat())
     }
 }
 
