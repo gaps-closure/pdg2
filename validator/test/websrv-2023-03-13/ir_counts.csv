@@ -1,31 +1,36 @@
 Category,Count
+IRAnnoGlobal,0
+IRAnnoVar,0
 IRFunction,975
-IRGlobal,38
+IRGlobal.Annotation,0
 IRGlobal.External,1
-IRGlobal.External + IRGlobal.Internal,38
-IRGlobal.Internal,37
 IRGlobal.Internal.Annotation,1
 IRGlobal.Internal.Function,17
-IRGlobal.Internal.Function + IRGlobal.Internal.Omni + IRGlobal.Internal.Annotation,37
+IRGlobal.Internal.Module,0
 IRGlobal.Internal.Omni,19
-IRInstruction,75484
+IRGlobal.Internal.Annotation + IRGlobal.Internal.Function + IRGlobal.Internal.Module + IRGlobal.Internal.Omni,37
+IRGlobal.Internal,37
+IRGlobal.Annotation + IRGlobal.External + IRGlobal.Internal,38
+IRGlobal,38
 IRInstruction.AShr,128
 IRInstruction.Add,1811
 IRInstruction.Alloca,4493
 IRInstruction.And,567
 IRInstruction.BitCast,1258
 IRInstruction.Br,3714
-IRInstruction.Call,7659
 IRInstruction.Call.Annotation,15
-IRInstruction.Call.External,478
+IRInstruction.Call.External.VarArg,0
 IRInstruction.Call.External.NonVarArg,478
-IRInstruction.Call.Internal,2487
+IRInstruction.Call.External.NonVarArg + IRInstruction.Call.External.VarArg,478
+IRInstruction.Call.External,478
 IRInstruction.Call.Internal.NonVarArg,2347
-IRInstruction.Call.Internal.NonVarArg + IRInstruction.Call.Internal.VarArg,2487
 IRInstruction.Call.Internal.VarArg,140
+IRInstruction.Call.Internal.NonVarArg + IRInstruction.Call.Internal.VarArg,2487
+IRInstruction.Call.Internal,2487
 IRInstruction.Call.Intrinsic,4650
 IRInstruction.Call.Pointer,29
-IRInstruction.Call.Pointer + IRInstruction.Call.Annotation + IRInstruction.Call.Intrinsic + IRInstruction.Call.External + IRInstruction.Call.Internal,7659
+IRInstruction.Call.Annotation + IRInstruction.Call.External + IRInstruction.Call.Internal + IRInstruction.Call.Intrinsic + IRInstruction.Call.Pointer,7659
+IRInstruction.Call,7659
 IRInstruction.CondBr,2368
 IRInstruction.ExtractValue,116
 IRInstruction.FAdd,683
@@ -52,7 +57,6 @@ IRInstruction.SDiv,9
 IRInstruction.SExt,856
 IRInstruction.SIToFP,38
 IRInstruction.SRem,7
-IRInstruction.SRem + IRInstruction.UDiv + IRInstruction.URem + IRInstruction.FPToSI + IRInstruction.ZExt + IRInstruction.AShr + IRInstruction.FPTrunc + IRInstruction.FPToUI + IRInstruction.Shl + IRInstruction.Trunc + IRInstruction.CondBr + IRInstruction.SExt + IRInstruction.Or + IRInstruction.FNeg + IRInstruction.PtrToInt + IRInstruction.Xor + IRInstruction.Call + IRInstruction.Mul + IRInstruction.FPExt + IRInstruction.Ret + IRInstruction.FAdd + IRInstruction.Br + IRInstruction.Sub + IRInstruction.FCmp + IRInstruction.Switch + IRInstruction.Load + IRInstruction.IntToPtr + IRInstruction.SDiv + IRInstruction.Add + IRInstruction.Store + IRInstruction.And + IRInstruction.Select + IRInstruction.Unreachable + IRInstruction.FSub + IRInstruction.FDiv + IRInstruction.Alloca + IRInstruction.LShr + IRInstruction.FMul + IRInstruction.SIToFP + IRInstruction.BitCast + IRInstruction.Phi + IRInstruction.ExtractValue + IRInstruction.UIToFP + IRInstruction.ICmp + IRInstruction.GetElementPtr,75484
 IRInstruction.Select,34
 IRInstruction.Shl,561
 IRInstruction.Store,9555
@@ -65,5 +69,6 @@ IRInstruction.URem,6
 IRInstruction.Unreachable,1
 IRInstruction.Xor,648
 IRInstruction.ZExt,1257
+IRInstruction.AShr + IRInstruction.Add + IRInstruction.Alloca + IRInstruction.And + IRInstruction.BitCast + IRInstruction.Br + IRInstruction.Call + IRInstruction.CondBr + IRInstruction.ExtractValue + IRInstruction.FAdd + IRInstruction.FCmp + IRInstruction.FDiv + IRInstruction.FMul + IRInstruction.FNeg + IRInstruction.FPExt + IRInstruction.FPToSI + IRInstruction.FPToUI + IRInstruction.FPTrunc + IRInstruction.FSub + IRInstruction.GetElementPtr + IRInstruction.ICmp + IRInstruction.IntToPtr + IRInstruction.LShr + IRInstruction.Load + IRInstruction.Mul + IRInstruction.Or + IRInstruction.Phi + IRInstruction.PtrToInt + IRInstruction.Ret + IRInstruction.SDiv + IRInstruction.SExt + IRInstruction.SIToFP + IRInstruction.SRem + IRInstruction.Select + IRInstruction.Shl + IRInstruction.Store + IRInstruction.Sub + IRInstruction.Switch + IRInstruction.Trunc + IRInstruction.UDiv + IRInstruction.UIToFP + IRInstruction.URem + IRInstruction.Unreachable + IRInstruction.Xor + IRInstruction.ZExt,75484
+IRInstruction,75484
 IRParameter,2473
-IRParameter.In,2473

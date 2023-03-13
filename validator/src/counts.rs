@@ -1,12 +1,11 @@
 use std::{
     collections::{HashMap, HashSet},
-    iter::{empty, Cloned, Empty},
 };
 
 use llvm_ir::{
     function::Parameter,
     module::{GlobalVariable, Linkage},
-    Function, Instruction, Module, Operand, Terminator,
+    Function, Instruction, Module, Terminator,
 };
 
 use lazy_static::lazy_static;
@@ -22,57 +21,148 @@ use crate::{
 
 lazy_static! {
     pub static ref EDGE_IDS: Vec<ID> = ids! {
-        PDGEdge,
-        PDGEdge.ControlDep,
+        PDGEdge.Anno.Global,
+        PDGEdge.Anno.Other,
+        PDGEdge.Anno.Var,
+        "PDGEdge.Anno.Global + PDGEdge.Anno.Other + PDGEdge.Anno.Var",
+        PDGEdge.Anno,
+        PDGEdge.ControlDep.Br,
         PDGEdge.ControlDep.CallInv,
         PDGEdge.ControlDep.CallRet,
         PDGEdge.ControlDep.Entry,
-        PDGEdge.ControlDep.Br,
         PDGEdge.ControlDep.Other,
-        PDGEdge.DataDepEdge,
+        "PDGEdge.ControlDep.Br + PDGEdge.ControlDep.CallInv + PDGEdge.ControlDep.CallRet + PDGEdge.ControlDep.Entry + PDGEdge.ControlDep.Other",
+        PDGEdge.ControlDep,
+        PDGEdge.DataDepEdge.Alias,
         PDGEdge.DataDepEdge.DefUse,
         PDGEdge.DataDepEdge.RAW,
-        PDGEdge.DataDepEdge.Alias,
-        PDGEdge.Parameter,
+        PDGEdge.DataDepEdge.Ret,
+        "PDGEdge.DataDepEdge.Alias + PDGEdge.DataDepEdge.DefUse + PDGEdge.DataDepEdge.RAW + PDGEdge.DataDepEdge.Ret",
+        PDGEdge.DataDepEdge,
+        PDGEdge.Parameter.Field,
         PDGEdge.Parameter.In,
         PDGEdge.Parameter.Out,
-        PDGEdge.Parameter.Field,
-        PDGEdge.Anno,
-        PDGEdge.Anno.Global,
-        PDGEdge.Anno.Var,
-        PDGEdge.Anno.Other
+        "PDGEdge.Parameter.Field + PDGEdge.Parameter.In + PDGEdge.Parameter.Out",
+        PDGEdge.Parameter,
+        "PDGEdge.Anno + PDGEdge.ControlDep + PDGEdge.DataDepEdge + PDGEdge.Parameter",
+        PDGEdge
     };
 
     pub static ref NODE_IDS: Vec<ID> = ids! {
-        PDGNode,
-        PDGNode.Inst,
-        PDGNode.Inst.FunCall,
-        PDGNode.Inst.Ret,
-        PDGNode.Inst.Br,
-        PDGNode.Inst.Other,
-        PDGNode.VarNode,
-        PDGNode.VarNode.StaticGlobal,
-        PDGNode.VarNode.StaticModule,
-        PDGNode.VarNode.StaticFunction,
-        PDGNode.VarNode.StaticOther,
+        PDGNode.Annotation.Global,
+        PDGNode.Annotation.Other,
+        PDGNode.Annotation.Var,
+        "PDGNode.Annotation.Global + PDGNode.Annotation.Other + PDGNode.Annotation.Var",
+        PDGNode.Annotation,
         PDGNode.FunctionEntry,
-        PDGNode.Param,
-        PDGNode.Param.FormalIn,
-        PDGNode.Param.FormalIn.Root,
-        PDGNode.Param.FormalIn.NonRoot,
-        PDGNode.Param.FormalOut,
-        PDGNode.Param.FormalOut.Root,
-        PDGNode.Param.FormalOut.NonRoot,
-        PDGNode.Param.ActualIn,
+        PDGNode.Inst.Br,
+        PDGNode.Inst.FunCall,
+        PDGNode.Inst.Other,
+        PDGNode.Inst.Ret,
+        "PDGNode.Inst.Br + PDGNode.Inst.FunCall + PDGNode.Inst.Other + PDGNode.Inst.Ret",
+        PDGNode.Inst,
         PDGNode.Param.ActualIn.Root,
         PDGNode.Param.ActualIn.NonRoot,
-        PDGNode.Param.ActualOut,
+        "PDGNode.Param.ActualIn.NonRoot + PDGNode.Param.ActualIn.Root",
+        PDGNode.Param.ActualIn,
         PDGNode.Param.ActualOut.Root,
         PDGNode.Param.ActualOut.NonRoot,
-        PDGNode.Annotation,
-        PDGNode.Annotation.Var,
-        PDGNode.Annotation.Global,
-        PDGNode.Annotation.Other
+        "PDGNode.Param.ActualOut.NonRoot + PDGNode.Param.ActualOut.Root",
+        PDGNode.Param.ActualOut,
+        PDGNode.Param.FormalIn.Root,
+        PDGNode.Param.FormalIn.NonRoot,
+        "PDGNode.Param.FormalIn.NonRoot + PDGNode.Param.FormalIn.Root",
+        PDGNode.Param.FormalIn,
+        PDGNode.Param.FormalOut.Root,
+        PDGNode.Param.FormalOut.NonRoot,
+        "PDGNode.Param.FormalOut.NonRoot + PDGNode.Param.FormalOut.Root",
+        PDGNode.Param.FormalOut,
+        "PDGNode.Param.ActualIn + PDGNode.Param.ActualOut + PDGNode.Param.FormalIn + PDGNode.Param.FormalOut",
+        PDGNode.Param,
+        PDGNode.VarNode.StaticFunction,
+        PDGNode.VarNode.StaticGlobal,
+        PDGNode.VarNode.StaticModule,
+        PDGNode.VarNode.StaticOther,
+        "PDGNode.VarNode.StaticFunction + PDGNode.VarNode.StaticGlobal + PDGNode.VarNode.StaticModule + PDGNode.VarNode.StaticOther",
+        PDGNode.VarNode,
+        "PDGNode.Annotation + PDGNode.FunctionEntry + PDGNode.Inst + PDGNode.Param + PDGNode.VarNode",
+        PDGNode
+    };
+
+    pub static ref IR_IDS: Vec<ID> = ids! {
+        IRAnnoGlobal,
+        IRAnnoVar,
+        IRFunction,
+        IRGlobal.Annotation,
+        IRGlobal.External,
+        IRGlobal.Internal.Annotation,
+        IRGlobal.Internal.Function,
+        IRGlobal.Internal.Module,
+        IRGlobal.Internal.Omni,
+        "IRGlobal.Internal.Annotation + IRGlobal.Internal.Function + IRGlobal.Internal.Module + IRGlobal.Internal.Omni",
+        IRGlobal.Internal,
+        "IRGlobal.Annotation + IRGlobal.External + IRGlobal.Internal",
+        IRGlobal,
+        IRInstruction.AShr,
+        IRInstruction.Add,
+        IRInstruction.Alloca,
+        IRInstruction.And,
+        IRInstruction.BitCast,
+        IRInstruction.Br,
+        IRInstruction.Call.Annotation,
+        IRInstruction.Call.External.VarArg,
+        IRInstruction.Call.External.NonVarArg,
+        "IRInstruction.Call.External.NonVarArg + IRInstruction.Call.External.VarArg",
+        IRInstruction.Call.External,
+        IRInstruction.Call.Internal.NonVarArg,
+        IRInstruction.Call.Internal.VarArg,
+        "IRInstruction.Call.Internal.NonVarArg + IRInstruction.Call.Internal.VarArg",
+        IRInstruction.Call.Internal,
+        IRInstruction.Call.Intrinsic,
+        IRInstruction.Call.Pointer,
+        "IRInstruction.Call.Annotation + IRInstruction.Call.External + IRInstruction.Call.Internal + IRInstruction.Call.Intrinsic + IRInstruction.Call.Pointer",
+        IRInstruction.Call,
+        IRInstruction.CondBr,
+        IRInstruction.ExtractValue,
+        IRInstruction.FAdd,
+        IRInstruction.FCmp,
+        IRInstruction.FDiv,
+        IRInstruction.FMul,
+        IRInstruction.FNeg,
+        IRInstruction.FPExt,
+        IRInstruction.FPToSI,
+        IRInstruction.FPToUI,
+        IRInstruction.FPTrunc,
+        IRInstruction.FSub,
+        IRInstruction.GetElementPtr,
+        IRInstruction.ICmp,
+        IRInstruction.IntToPtr,
+        IRInstruction.LShr,
+        IRInstruction.Load,
+        IRInstruction.Mul,
+        IRInstruction.Or,
+        IRInstruction.Phi,
+        IRInstruction.PtrToInt,
+        IRInstruction.Ret,
+        IRInstruction.SDiv,
+        IRInstruction.SExt,
+        IRInstruction.SIToFP,
+        IRInstruction.SRem,
+        IRInstruction.Select,
+        IRInstruction.Shl,
+        IRInstruction.Store,
+        IRInstruction.Sub,
+        IRInstruction.Switch,
+        IRInstruction.Trunc,
+        IRInstruction.UDiv,
+        IRInstruction.UIToFP,
+        IRInstruction.URem,
+        IRInstruction.Unreachable,
+        IRInstruction.Xor,
+        IRInstruction.ZExt,
+        "IRInstruction.AShr + IRInstruction.Add + IRInstruction.Alloca + IRInstruction.And + IRInstruction.BitCast + IRInstruction.Br + IRInstruction.Call + IRInstruction.CondBr + IRInstruction.ExtractValue + IRInstruction.FAdd + IRInstruction.FCmp + IRInstruction.FDiv + IRInstruction.FMul + IRInstruction.FNeg + IRInstruction.FPExt + IRInstruction.FPToSI + IRInstruction.FPToUI + IRInstruction.FPTrunc + IRInstruction.FSub + IRInstruction.GetElementPtr + IRInstruction.ICmp + IRInstruction.IntToPtr + IRInstruction.LShr + IRInstruction.Load + IRInstruction.Mul + IRInstruction.Or + IRInstruction.Phi + IRInstruction.PtrToInt + IRInstruction.Ret + IRInstruction.SDiv + IRInstruction.SExt + IRInstruction.SIToFP + IRInstruction.SRem + IRInstruction.Select + IRInstruction.Shl + IRInstruction.Store + IRInstruction.Sub + IRInstruction.Switch + IRInstruction.Trunc + IRInstruction.UDiv + IRInstruction.UIToFP + IRInstruction.URem + IRInstruction.Unreachable + IRInstruction.Xor + IRInstruction.ZExt",
+        IRInstruction,
+        IRParameter
     };
 }
 
@@ -107,7 +197,7 @@ fn global_tags(global: &GlobalVariable, fn_names: &HashSet<String>) -> Option<ID
 
 fn parameter_tag(_function: &Function, _parameter: &Parameter) -> ID {
     // temporary, will need to discriminate between in / out parameters
-    id!(IRParameter.In)
+    id!(IRParameter)
 }
 
 fn functions(module: &Module) -> HashSet<LLValue> {
@@ -285,6 +375,9 @@ pub trait IndexedSets<A> {
 impl IndexedSets<LLValue> for Module {
     fn indexed_sets(&self) -> ISet<ID, LLValue> {
         let mut iset = ISet::new();
+        for id in IR_IDS.clone().into_iter() {
+            iset.insert_empty(id);
+        }
         let fn_map = function_names(self);
         iset.insert_all(id!(IRFunction), functions(self));
         iset.extend(globals(self, &fn_map.keys().cloned().collect()));

@@ -1,4 +1,4 @@
-#[derive(Debug,PartialEq,Eq,Hash,Clone)]
+#[derive(Debug,PartialEq,Eq,Hash,Clone,PartialOrd,Ord)]
 pub struct ID(pub Vec<String>);
 
 #[macro_export]
@@ -13,7 +13,7 @@ macro_rules! id {
 
 #[macro_export]
 macro_rules! ids {
-    ($($($x:ident).+),+) => {
+    ($($($x:tt).+),+) => {
         vec![$(id!($($x).+)),+]
     };
 }

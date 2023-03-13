@@ -1,6 +1,6 @@
 use crate::{
     bag::Bag,
-    counts::IndexedSets,
+    counts::{IndexedSets, EDGE_IDS, IR_IDS, NODE_IDS},
     id::ID,
     indexed_set::ISet,
     llvm::{instr_name, term_name, FunctionUsedAsPointer, LLItem, LLValue, Users, LLID},
@@ -15,11 +15,7 @@ use llvm_ir::{
     types::Typed,
     Function, Instruction, Module, Operand, Type,
 };
-use petgraph::{
-    algo::floyd_warshall,
-    graph::NodeIndex,
-    Graph,
-};
+use petgraph::{algo::floyd_warshall, graph::NodeIndex, Graph};
 use std::hash::Hash;
 use std::{
     collections::{HashMap, HashSet},
@@ -1505,7 +1501,24 @@ pub fn report2(
 
     node_iset.report_counts(&mut pdg_report);
     edge_iset.report_counts(&mut pdg_report);
+    pdg_report.set_counts_ordering(
+        [NODE_IDS.clone(), EDGE_IDS.clone()]
+            .concat()
+            .into_iter()
+            .enumerate()
+            .map(|(i, x)| (x.to_string(), i))
+            .collect(),
+    );
     ir_iset.report_counts(&mut ir_report);
+
+    ir_report.set_counts_ordering(
+        IR_IDS
+            .clone()
+            .into_iter()
+            .enumerate()
+            .map(|(i, x)| (x.to_string(), i))
+            .collect(),
+    );
 
     node_iset.report_rollups(&mut pdg_report);
     edge_iset.report_rollups(&mut pdg_report);

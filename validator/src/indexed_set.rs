@@ -138,13 +138,12 @@ impl<V: Hash + Eq + Clone> ISet<ID, V> {
             if rollup.len() == 0 {
                 continue;
             }
-            let rollup_calculated_name = rollup
+            let mut rollup_calculated_name = rollup
                 .iter()
                 .map(|(k, _)| k.to_string())
-                .collect::<Vec<_>>()
-                .join(" + ");
-
-
+                .collect::<Vec<_>>();
+            rollup_calculated_name.sort(); 
+            let rollup_calculated_name = rollup_calculated_name.join(" + ");
             let rollup_calculated = rollup
                 .into_iter()
                 .map(|(_, v)| v.clone())
