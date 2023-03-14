@@ -16,7 +16,7 @@ pub mod validator;
 
 fn main() {
     let args = env::args().collect::<Vec<_>>();
-    // let sets = alias_sets("../basicaa.out");
+    // let sets = alias_sets(&args[8]);
     // for (id, alias_set) in sets.id_to_sets {
     //     let mut s = String::new();
     //     for binder in &alias_set.set {

@@ -14,7 +14,7 @@ use nom::{
     IResult,
 };
 use std::{
-    cmp::{max},
+    cmp::{max, min},
     collections::{HashMap, HashSet},
     fmt::Display,
     fs,
@@ -210,11 +210,9 @@ fn parse_alias_set(fn_name: String) -> impl Fn(&str) -> IResult<&str, AliasSet> 
 
 fn parse_alias_set_element(fn_name: String) -> impl Fn(&str) -> IResult<&str, Binder> {
     move |input: &str| {
-        let (input, _) = many_till(anychar, space1)(input)?;
-        let binder_prefix = alt((tag("%"), tag("@")));
-        let (input, (binder_type, binder_name)) =
-            tuple((binder_prefix, many_till(anychar, tuple((tag(","), space0)))))(input)?;
-        let binder_name = binder_name.0.iter().collect();
+        let (input, (_, (_, binder_type))) = many_till(anychar, tuple((space1, alt((tag("%"), tag("@"))))))(input)?;
+        let (input, (binder_name, _)) = many_till(anychar, tuple((tag(","), space0)))(input)?;
+        let binder_name = binder_name.iter().collect();
         let binder = match binder_type {
             "@" => Binder::Global(binder_name),
             _ => Binder::Local(fn_name.clone(), binder_name.to_string()),
