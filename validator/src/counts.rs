@@ -45,7 +45,20 @@ lazy_static! {
         "PDGEdge.Parameter.Field + PDGEdge.Parameter.In + PDGEdge.Parameter.Out",
         PDGEdge.Parameter,
         "PDGEdge.Anno + PDGEdge.ControlDep + PDGEdge.DataDepEdge + PDGEdge.Parameter",
-        PDGEdge
+        PDGEdge,
+        XPDGEdge.ControlDep.CallInv.ViaExternal,
+        XPDGEdge.ControlDep.CallInv.Indirect,
+        XPDGEdge.ControlDep.CallRet.Indirect,
+        XPDGEdge.DataDepEdge.ViaExternal,
+        XPDGEdge.DataDepEdge.Indirect.Ret,
+        XPDGEdge.DataDepEdge.Indirect.Raw,
+        XPDGEdge.DataDepEdge.Indirect.DefUse,
+        XPDGEdge.DataDepEdge.Indirect,
+        XPDGEdge.DataDepEdge.Parameter.Indirect.Actual.In,
+        XPDGEdge.DataDepEdge.Parameter.Indirect.Actual.Out,
+        XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.In,
+        XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.Out,
+        "Annotation Applications in MZN" 
     };
 
     pub static ref NODE_IDS: Vec<ID> = ids! {

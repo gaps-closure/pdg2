@@ -6,7 +6,7 @@ use crate::{
     llvm::{instr_name, term_name, FunctionUsedAsPointer, LLItem, LLValue, Users, LLID},
     pdg::{Edge, Node, Pdg},
     report::Report,
-    union, validator,
+    union, validator::{self, util::RECONCILIATIONS},
 };
 use csv::Writer;
 use llvm_ir::{
@@ -1527,8 +1527,17 @@ pub fn report2(
     pdg_report.write().unwrap();
     ir_report.write().unwrap();
 
+    reconciliations_report.set_validations_ordering(
+        RECONCILIATIONS
+            .clone()
+            .into_iter()
+            .enumerate()
+            .map(|(i, (a, b))| ((a.to_string(), b.to_string()), i))
+            .collect()
+    );
     validator::edge::report_all_accounts(&mut reconciliations_report, &pdg, &edge_iset, &ir_iset);
     validator::node::report_all_accounts(&mut reconciliations_report, &pdg, &node_iset, &ir_iset);
+
 
     reconciliations_report.write().unwrap();
 }

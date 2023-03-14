@@ -1,4 +1,21 @@
 Category,Count
+XPDGEdge.DataDepEdge.Parameter,0
+XPDGEdge.DataDepEdge.Parameter.Indirect.Actual,0
+XPDGEdge.DataDepEdge,0
+XPDGEdge.ControlDep.CallRet,0
+XPDGEdge.ControlDep + XPDGEdge.DataDepEdge,0
+XPDGEdge.DataDepEdge.Parameter.Indirect.Actual.In + XPDGEdge.DataDepEdge.Parameter.Indirect.Actual.Out,0
+XPDGEdge.DataDepEdge.Parameter.Indirect.Actual + XPDGEdge.DataDepEdge.Parameter.Indirect.Formal,0
+XPDGEdge.DataDepEdge.Indirect.DefUse + XPDGEdge.DataDepEdge.Indirect.Raw + XPDGEdge.DataDepEdge.Indirect.Ret,0
+XPDGEdge.DataDepEdge.Parameter.Indirect,0
+XPDGEdge.DataDepEdge.Parameter.Indirect.Formal,0
+XPDGEdge.ControlDep.CallInv.Indirect + XPDGEdge.ControlDep.CallInv.ViaExternal,0
+XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.In + XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.Out,0
+XPDGEdge.ControlDep.CallInv,0
+XPDGEdge.ControlDep,0
+XPDGEdge.DataDepEdge.Indirect + XPDGEdge.DataDepEdge.Parameter + XPDGEdge.DataDepEdge.ViaExternal,0
+XPDGEdge,0
+XPDGEdge.ControlDep.CallInv + XPDGEdge.ControlDep.CallRet,0
 PDGNode.Annotation.Global,1
 PDGNode.Annotation.Other,0
 PDGNode.Annotation.Var,15
@@ -62,3 +79,16 @@ PDGEdge.Parameter.Field + PDGEdge.Parameter.In + PDGEdge.Parameter.Out,169741
 PDGEdge.Parameter,169741
 PDGEdge.Anno + PDGEdge.ControlDep + PDGEdge.DataDepEdge + PDGEdge.Parameter,368410
 PDGEdge,368410
+XPDGEdge.ControlDep.CallInv.ViaExternal,0
+XPDGEdge.ControlDep.CallInv.Indirect,0
+XPDGEdge.ControlDep.CallRet.Indirect,0
+XPDGEdge.DataDepEdge.ViaExternal,0
+XPDGEdge.DataDepEdge.Indirect.Ret,0
+XPDGEdge.DataDepEdge.Indirect.Raw,0
+XPDGEdge.DataDepEdge.Indirect.DefUse,0
+XPDGEdge.DataDepEdge.Indirect,0
+XPDGEdge.DataDepEdge.Parameter.Indirect.Actual.In,0
+XPDGEdge.DataDepEdge.Parameter.Indirect.Actual.Out,0
+XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.In,0
+XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.Out,0
+Annotation Applications in MZN,0
