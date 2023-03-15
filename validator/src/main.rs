@@ -1,6 +1,4 @@
-use std::env;
-
-use alias::alias_sets;
+// use alias::alias_sets;
 
 pub mod accounting;
 pub mod alias;
@@ -14,8 +12,38 @@ pub mod pdg;
 pub mod report;
 pub mod validator;
 
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+   #[arg(short, long)]
+   bc: String,
+
+   #[arg(short, long)]
+   pdg_data: String,
+
+   #[arg(short, long)]
+   pdg_counts_csv: String,
+
+   #[arg(short, long)]
+   pdg_rollups_csv: String,
+
+   #[arg(short, long)]
+   ir_counts_csv: String,
+
+   #[arg(short, long)]
+   ir_rollups_csv: String,
+
+   #[arg(short, long)]
+   validation_csv: String,
+
+}
+
+
 fn main() {
-    let args = env::args().collect::<Vec<_>>();
+    let args = Args::parse();
+    // let args = env::args().collect::<Vec<_>>();
     // let sets = alias_sets(&args[8]);
     // for (id, alias_set) in sets.id_to_sets {
     //     let mut s = String::new();
@@ -33,6 +61,6 @@ fn main() {
     //     );
     // }
     gen_report::report2(
-        &args[1], &args[2], &args[3], &args[4], &args[5], &args[6], &args[7],
+        &args.bc, &args.pdg_data, &args.pdg_counts_csv, &args.pdg_rollups_csv, &args.ir_counts_csv, &args.ir_rollups_csv, &args.validation_csv
     );
 }

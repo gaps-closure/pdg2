@@ -255,7 +255,7 @@ pub fn report_all_accounts(
     report.report_account(
         "PDGNode.VarNode.StaticOther",
         "Empty",
-        account_for_annotation_other(pdg, node_iset, ir_iset),
+        account_for_static_other(pdg, node_iset, ir_iset),
     );
 }
 

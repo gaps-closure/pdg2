@@ -13,8 +13,6 @@ use crate::{
     union,
 };
 
-use super::util::ir_ids;
-
 fn edge_ids<'a>(iter: impl IntoIterator<Item = &'a Edge>, pdg: &'a Pdg) -> HashSet<(LLID, LLID)> {
     iter.into_iter()
         .map(|e| pdg.from_edge(&e))
@@ -22,6 +20,7 @@ fn edge_ids<'a>(iter: impl IntoIterator<Item = &'a Edge>, pdg: &'a Pdg) -> HashS
         .collect()
 }
 
+#[allow(dead_code)]
 struct DefUseEdges {
     anno_var: HashSet<(LLValue, LLValue)>,
     anno_global: HashSet<(LLValue, LLValue)>,

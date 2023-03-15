@@ -14,7 +14,7 @@ use nom::{
     IResult,
 };
 use std::{
-    cmp::{max, min},
+    cmp::{max},
     collections::{HashMap, HashSet},
     fmt::Display,
     fs,

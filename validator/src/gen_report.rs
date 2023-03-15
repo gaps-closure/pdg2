@@ -641,6 +641,7 @@ fn write_varnode_csv(
     );
 }
 
+#[allow(dead_code)]
 struct DefUseEdges {
     anno_var: HashSet<(LLValue, LLValue)>,
     anno_global: HashSet<(LLValue, LLValue)>,
