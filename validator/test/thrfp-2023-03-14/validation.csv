@@ -1,0 +1,18 @@
+IRInstruction,IRInstruction.Store + IRInstruction.Load + IRInstruction.Unreachable + IRInstruction.Ret + IRInstruction.Alloca + IRInstruction.GetElementPtr + IRInstruction.Add + IRInstruction.Call,38,38,0,0
+IRParameter,IRParameter.In,4,4,0,0
+IRGlobal,IRGlobal.Internal,2,2,0,0
+IRGlobal.Internal,IRGlobal.Internal.Omni + IRGlobal.Internal.Function,2,2,0,0
+IRInstruction.Call.Internal,IRInstruction.Call.Internal.NonVarArg,1,1,0,0
+IRInstruction.Call,IRInstruction.Call.Pointer + IRInstruction.Call.Internal,9,3,0,0
+PDGNode.Inst.FunCall,IRInstruction.Call - IRInstruction.Call.Annotation,9,9,0,0
+PDGNode.FunctionEntry,IRFunction,5,5,0,0
+PDGNode.Inst.Other,IRInstruction - IRInstruction.Call - IRInstruction.Ret - IRInstruction.Br - IRInstruction.CondBr,25,25,0,0
+PDGNode.Inst.Ret,IRInstruction.Ret,4,4,0,0
+PDGNode.Inst.Br,IRInstruction.Br + IRInstruction.CondBr,0,0,0,0
+PDGNode.Param.FormalIn.Proper,IRParameter,0,4,0,4
+PDGNode.Annotation.Var,IRInstruction.Call.Annotation,0,0,0,0
+PDGNode.Annotation.Global,IRGlobal.Annotation,0,0,0,0
+PDGNode.VarNode.StaticGlobal,IRGlobal.Internal.Omni,0,1,0,1
+PDGNode.VarNode.StaticFunction,IRGlobal.Internal.Function,0,1,0,1
+PDGNode.VarNode.StaticModule,IRGlobal.Internal.Module,0,0,0,0
+PDGEdge.ControlDep.CallInv,IRInstruction.Call.Internal,1,1,0,0

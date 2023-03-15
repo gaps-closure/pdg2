@@ -1525,7 +1525,6 @@ pub fn report2(
     ir_iset.report_rollups(&mut ir_report);
 
     pdg_report.write().unwrap();
-    ir_report.write().unwrap();
 
     reconciliations_report.set_validations_ordering(
         RECONCILIATIONS
@@ -1535,9 +1534,10 @@ pub fn report2(
             .map(|(i, (a, b))| ((a.to_string(), b.to_string()), i))
             .collect()
     );
-    validator::edge::report_all_accounts(&mut reconciliations_report, &pdg, &edge_iset, &ir_iset);
+    validator::edge::report_all_accounts(&mut reconciliations_report, &mut ir_report, &pdg, &edge_iset, &ir_iset);
     validator::node::report_all_accounts(&mut reconciliations_report, &pdg, &node_iset, &ir_iset);
 
+    ir_report.write().unwrap();
 
     reconciliations_report.write().unwrap();
 }

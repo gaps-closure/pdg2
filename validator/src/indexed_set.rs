@@ -32,8 +32,10 @@ impl<K: Hash + Eq, V: Hash + Eq> ISet<K, V> {
             None => self.hashmap.insert(key, HashSet::from_iter([value])),
         }
     }
-    pub fn insert_empty(&mut self, key: K) -> Option<HashSet<V>> {
-        self.hashmap.insert(key, HashSet::new())
+    pub fn insert_empty(&mut self, key: K) {
+        if !self.hashmap.contains_key(&key) {
+            self.hashmap.insert(key, HashSet::new());
+        }
     }
     pub fn insert_all<I: IntoIterator<Item = V>>(
         &mut self,

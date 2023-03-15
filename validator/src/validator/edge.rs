@@ -16,6 +16,8 @@ use crate::{
     union,
 };
 
+use super::util::ir_ids;
+
 fn edge_ids<'a>(iter: impl IntoIterator<Item = &'a Edge>, pdg: &'a Pdg) -> HashSet<(LLID, LLID)> {
     iter.into_iter()
         .map(|e| pdg.from_edge(&e))
@@ -221,6 +223,38 @@ fn account_anno_global(
     }
 }
 
+fn account_for_anno_other(
+    pdg: &Pdg,
+    edge_iset: &ISet<ID, Edge>,
+    _ir_iset: &ISet<ID, LLValue>,
+) -> Account<(LLID, LLID)> {
+    let pdg_varnode_global = edge_ids(edge_iset
+        .get(&id!(PDGNode.Anno.Other)), pdg);
+    Account {
+        a: pdg_varnode_global,
+        b: HashSet::new()
+    }
+}
+
+fn account_for_callinv(
+    pdg: &Pdg,
+    edge_iset: &ISet<ID, Edge>,
+    ir_iset: &ISet<ID, LLValue>,
+) -> Account<(LLID, LLID)> {
+    // let ir_funs = ir_iset.get(&id!(IRFunction)).iter().map(|v| (v.id.clone(), v)).collect::<HashMap<_,_>>();
+    let ir_internal_calls = ir_iset
+        .get(&id!(IRInstruction.Call.Internal))
+        .iter()
+        .filter_map(|v| v.item.constant_call_name().map(|x| (v.id.clone(), LLID::global_name_from_name(&x))))
+        .collect::<HashSet<(LLID, LLID)>>();
+    let callinv_edges = edge_ids(edge_iset
+        .get(&id!(PDGEdge.ControlDep.CallInv)), pdg);
+    Account {
+        a: callinv_edges, 
+        b: ir_internal_calls,
+    }
+} 
+
 fn account_for_raw(
     pdg: &Pdg,
     edge_iset: &ISet<ID, Edge>,
@@ -296,26 +330,41 @@ fn account_for_raw(
 
 pub fn report_all_accounts(
     report: &mut Report,
+    ir_report: &mut Report,
     pdg: &Pdg,
     edge_iset: &ISet<ID, Edge>,
     ir_iset: &ISet<ID, LLValue>,
 ) {
     let def_use_edges = ir_defuse_edges(ir_iset);
+    let acct_anno_var = account_anno_var(pdg, &edge_iset, &def_use_edges);
+    ir_report.report_count("IRAnnoVar", acct_anno_var.b.len());
     report.report_account(
         "PDGEdge.Anno.Var",
         "IRAnnoVar",
-        account_anno_var(pdg, &edge_iset, &def_use_edges),
+        acct_anno_var
     );
+    let acct_anno_global = account_anno_global(pdg, &edge_iset, &ir_iset);
+    ir_report.report_count("IRAnnoGlobal", acct_anno_global.b.len());
     report.report_account(
         "PDGEdge.Anno.Global",
         "IRAnnoGlobal",
-        account_anno_global(pdg, &edge_iset, &ir_iset),
+        acct_anno_global 
     );
-
+    report.report_account(
+        "PDGEdge.Anno.Other",
+        "Empty",
+        account_for_anno_other(pdg, &edge_iset, &ir_iset),
+    );
+    report.report_account(
+        "PDGEdge.ControlDep.CallInv",
+        "IRInstruction.Call.Internal",
+        account_for_callinv(pdg, &edge_iset, &ir_iset),
+    );
     let acct = account_for_raw(pdg, edge_iset, ir_iset);
     // for (src, dst) in acct.b_minus_a().take(10) {
     //     println!("{} --> {}", src, dst);
     // }
+    ir_report.report_count("IRRAW", acct.b.len());
     report.report_account(
         "PDGEdge.DataDepEdge.RAW",
         "IRRAW",

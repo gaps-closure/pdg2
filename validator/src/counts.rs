@@ -20,6 +20,35 @@ use crate::{
 };
 
 lazy_static! {
+
+    pub static ref KNOWN_EDGE_IDS: Vec<ID> = ids! {
+        PDGEdge.Anno.Global,
+        PDGEdge.Anno.Other,
+        PDGEdge.Anno.Var,
+        "PDGEdge.Anno.Global + PDGEdge.Anno.Other + PDGEdge.Anno.Var",
+        PDGEdge.Anno,
+        PDGEdge.ControlDep.Br,
+        PDGEdge.ControlDep.CallInv,
+        PDGEdge.ControlDep.CallRet,
+        PDGEdge.ControlDep.Entry,
+        PDGEdge.ControlDep.Other,
+        "PDGEdge.ControlDep.Br + PDGEdge.ControlDep.CallInv + PDGEdge.ControlDep.CallRet + PDGEdge.ControlDep.Entry + PDGEdge.ControlDep.Other",
+        PDGEdge.ControlDep,
+        PDGEdge.DataDepEdge.Alias,
+        PDGEdge.DataDepEdge.DefUse,
+        PDGEdge.DataDepEdge.RAW,
+        PDGEdge.DataDepEdge.Ret,
+        "PDGEdge.DataDepEdge.Alias + PDGEdge.DataDepEdge.DefUse + PDGEdge.DataDepEdge.RAW + PDGEdge.DataDepEdge.Ret",
+        PDGEdge.DataDepEdge,
+        PDGEdge.Parameter.Field,
+        PDGEdge.Parameter.In,
+        PDGEdge.Parameter.Out,
+        "PDGEdge.Parameter.Field + PDGEdge.Parameter.In + PDGEdge.Parameter.Out",
+        PDGEdge.Parameter,
+        "PDGEdge.Anno + PDGEdge.ControlDep + PDGEdge.DataDepEdge + PDGEdge.Parameter",
+        PDGEdge
+    };
+
     pub static ref EDGE_IDS: Vec<ID> = ids! {
         PDGEdge.Anno.Global,
         PDGEdge.Anno.Other,
@@ -59,6 +88,47 @@ lazy_static! {
         XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.In,
         XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.Out,
         "Annotation Applications in MZN" 
+    };
+
+    pub static ref KNOWN_NODE_IDS: Vec<ID> = ids! {
+        PDGNode.Annotation.Global,
+        PDGNode.Annotation.Other,
+        PDGNode.Annotation.Var,
+        "PDGNode.Annotation.Global + PDGNode.Annotation.Other + PDGNode.Annotation.Var",
+        PDGNode.Annotation,
+        PDGNode.FunctionEntry,
+        PDGNode.Inst.Br,
+        PDGNode.Inst.FunCall,
+        PDGNode.Inst.Other,
+        PDGNode.Inst.Ret,
+        "PDGNode.Inst.Br + PDGNode.Inst.FunCall + PDGNode.Inst.Other + PDGNode.Inst.Ret",
+        PDGNode.Inst,
+        PDGNode.Param.ActualIn.Root,
+        PDGNode.Param.ActualIn.NonRoot,
+        "PDGNode.Param.ActualIn.NonRoot + PDGNode.Param.ActualIn.Root",
+        PDGNode.Param.ActualIn,
+        PDGNode.Param.ActualOut.Root,
+        PDGNode.Param.ActualOut.NonRoot,
+        "PDGNode.Param.ActualOut.NonRoot + PDGNode.Param.ActualOut.Root",
+        PDGNode.Param.ActualOut,
+        PDGNode.Param.FormalIn.Root,
+        PDGNode.Param.FormalIn.NonRoot,
+        "PDGNode.Param.FormalIn.NonRoot + PDGNode.Param.FormalIn.Root",
+        PDGNode.Param.FormalIn,
+        PDGNode.Param.FormalOut.Root,
+        PDGNode.Param.FormalOut.NonRoot,
+        "PDGNode.Param.FormalOut.NonRoot + PDGNode.Param.FormalOut.Root",
+        PDGNode.Param.FormalOut,
+        "PDGNode.Param.ActualIn + PDGNode.Param.ActualOut + PDGNode.Param.FormalIn + PDGNode.Param.FormalOut",
+        PDGNode.Param,
+        PDGNode.VarNode.StaticFunction,
+        PDGNode.VarNode.StaticGlobal,
+        PDGNode.VarNode.StaticModule,
+        PDGNode.VarNode.StaticOther,
+        "PDGNode.VarNode.StaticFunction + PDGNode.VarNode.StaticGlobal + PDGNode.VarNode.StaticModule + PDGNode.VarNode.StaticOther",
+        PDGNode.VarNode,
+        "PDGNode.Annotation + PDGNode.FunctionEntry + PDGNode.Inst + PDGNode.Param + PDGNode.VarNode",
+        PDGNode
     };
 
     pub static ref NODE_IDS: Vec<ID> = ids! {
@@ -102,11 +172,8 @@ lazy_static! {
         PDGNode
     };
 
-    pub static ref IR_IDS: Vec<ID> = ids! {
-        IRAnnoGlobal,
-        IRAnnoVar,
+    pub static ref KNOWN_IR_IDS: Vec<ID> = ids! {
         IRFunction,
-        IRGlobal.Annotation,
         IRGlobal.External,
         IRGlobal.Internal.Annotation,
         IRGlobal.Internal.Function,
@@ -114,7 +181,7 @@ lazy_static! {
         IRGlobal.Internal.Omni,
         "IRGlobal.Internal.Annotation + IRGlobal.Internal.Function + IRGlobal.Internal.Module + IRGlobal.Internal.Omni",
         IRGlobal.Internal,
-        "IRGlobal.Annotation + IRGlobal.External + IRGlobal.Internal",
+        "IRGlobal.External + IRGlobal.Internal",
         IRGlobal,
         IRInstruction.AShr,
         IRInstruction.Add,
@@ -176,6 +243,91 @@ lazy_static! {
         "IRInstruction.AShr + IRInstruction.Add + IRInstruction.Alloca + IRInstruction.And + IRInstruction.BitCast + IRInstruction.Br + IRInstruction.Call + IRInstruction.CondBr + IRInstruction.ExtractValue + IRInstruction.FAdd + IRInstruction.FCmp + IRInstruction.FDiv + IRInstruction.FMul + IRInstruction.FNeg + IRInstruction.FPExt + IRInstruction.FPToSI + IRInstruction.FPToUI + IRInstruction.FPTrunc + IRInstruction.FSub + IRInstruction.GetElementPtr + IRInstruction.ICmp + IRInstruction.IntToPtr + IRInstruction.LShr + IRInstruction.Load + IRInstruction.Mul + IRInstruction.Or + IRInstruction.Phi + IRInstruction.PtrToInt + IRInstruction.Ret + IRInstruction.SDiv + IRInstruction.SExt + IRInstruction.SIToFP + IRInstruction.SRem + IRInstruction.Select + IRInstruction.Shl + IRInstruction.Store + IRInstruction.Sub + IRInstruction.Switch + IRInstruction.Trunc + IRInstruction.UDiv + IRInstruction.UIToFP + IRInstruction.URem + IRInstruction.Unreachable + IRInstruction.Xor + IRInstruction.ZExt",
         IRInstruction,
         IRParameter
+    };
+    pub static ref IR_IDS: Vec<ID> = ids! {
+        IRAnnoGlobal,
+        IRAnnoVar,
+        IRFunction,
+        IRGlobal.External,
+        IRGlobal.Internal.Annotation,
+        IRGlobal.Internal.Function,
+        IRGlobal.Internal.Module,
+        IRGlobal.Internal.Omni,
+        "IRGlobal.Internal.Annotation + IRGlobal.Internal.Function + IRGlobal.Internal.Module + IRGlobal.Internal.Omni",
+        IRGlobal.Internal,
+        "IRGlobal.External + IRGlobal.Internal",
+        IRGlobal,
+        IRInstruction.AShr,
+        IRInstruction.Add,
+        IRInstruction.Alloca,
+        IRInstruction.And,
+        IRInstruction.BitCast,
+        IRInstruction.Br,
+        IRInstruction.Call.Annotation,
+        IRInstruction.Call.External.VarArg,
+        IRInstruction.Call.External.NonVarArg,
+        "IRInstruction.Call.External.NonVarArg + IRInstruction.Call.External.VarArg",
+        IRInstruction.Call.External,
+        IRInstruction.Call.Internal.NonVarArg,
+        IRInstruction.Call.Internal.VarArg,
+        "IRInstruction.Call.Internal.NonVarArg + IRInstruction.Call.Internal.VarArg",
+        IRInstruction.Call.Internal,
+        IRInstruction.Call.Intrinsic,
+        IRInstruction.Call.Pointer,
+        "IRInstruction.Call.Annotation + IRInstruction.Call.External + IRInstruction.Call.Internal + IRInstruction.Call.Intrinsic + IRInstruction.Call.Pointer",
+        IRInstruction.Call,
+        IRInstruction.CondBr,
+        IRInstruction.ExtractValue,
+        IRInstruction.FAdd,
+        IRInstruction.FCmp,
+        IRInstruction.FDiv,
+        IRInstruction.FMul,
+        IRInstruction.FNeg,
+        IRInstruction.FPExt,
+        IRInstruction.FPToSI,
+        IRInstruction.FPToUI,
+        IRInstruction.FPTrunc,
+        IRInstruction.FSub,
+        IRInstruction.GetElementPtr,
+        IRInstruction.ICmp,
+        IRInstruction.IntToPtr,
+        IRInstruction.LShr,
+        IRInstruction.Load,
+        IRInstruction.Mul,
+        IRInstruction.Or,
+        IRInstruction.Phi,
+        IRInstruction.PtrToInt,
+        IRInstruction.Ret,
+        IRInstruction.SDiv,
+        IRInstruction.SExt,
+        IRInstruction.SIToFP,
+        IRInstruction.SRem,
+        IRInstruction.Select,
+        IRInstruction.Shl,
+        IRInstruction.Store,
+        IRInstruction.Sub,
+        IRInstruction.Switch,
+        IRInstruction.Trunc,
+        IRInstruction.UDiv,
+        IRInstruction.UIToFP,
+        IRInstruction.URem,
+        IRInstruction.Unreachable,
+        IRInstruction.Xor,
+        IRInstruction.ZExt,
+        "IRInstruction.AShr + IRInstruction.Add + IRInstruction.Alloca + IRInstruction.And + IRInstruction.BitCast + IRInstruction.Br + IRInstruction.Call + IRInstruction.CondBr + IRInstruction.ExtractValue + IRInstruction.FAdd + IRInstruction.FCmp + IRInstruction.FDiv + IRInstruction.FMul + IRInstruction.FNeg + IRInstruction.FPExt + IRInstruction.FPToSI + IRInstruction.FPToUI + IRInstruction.FPTrunc + IRInstruction.FSub + IRInstruction.GetElementPtr + IRInstruction.ICmp + IRInstruction.IntToPtr + IRInstruction.LShr + IRInstruction.Load + IRInstruction.Mul + IRInstruction.Or + IRInstruction.Phi + IRInstruction.PtrToInt + IRInstruction.Ret + IRInstruction.SDiv + IRInstruction.SExt + IRInstruction.SIToFP + IRInstruction.SRem + IRInstruction.Select + IRInstruction.Shl + IRInstruction.Store + IRInstruction.Sub + IRInstruction.Switch + IRInstruction.Trunc + IRInstruction.UDiv + IRInstruction.UIToFP + IRInstruction.URem + IRInstruction.Unreachable + IRInstruction.Xor + IRInstruction.ZExt",
+        IRInstruction,
+        IRParameter,
+        IRDEFUSE.Local,
+        IRDEFUSE.Global,
+        "IRDEFUSE.Local + IRDEFUSE.Global",
+        IRDEFUSE,
+        "IRAALIS_Basic_Subtypes...",
+        "IRALIAS_Basic Subtotal",
+        IRALIAS_Basic,
+        "IRALIAS_Steensgaard_Subtypes...",
+        "IRALIAS_Steensgaard Subtotal",
+        IRALIAS_Steensgaard,
+        IRRAW
     };
 }
 
@@ -388,7 +540,7 @@ pub trait IndexedSets<A> {
 impl IndexedSets<LLValue> for Module {
     fn indexed_sets(&self) -> ISet<ID, LLValue> {
         let mut iset = ISet::new();
-        for id in IR_IDS.clone().into_iter() {
+        for id in KNOWN_IR_IDS.clone().into_iter() {
             iset.insert_empty(id);
         }
         let fn_map = function_names(self);
@@ -404,7 +556,7 @@ impl IndexedSets<LLValue> for Module {
 impl IndexedSets<Node> for Pdg {
     fn indexed_sets(&self) -> ISet<ID, Node> {
         let mut iset = ISet::new();
-        for id in NODE_IDS.clone().into_iter() {
+        for id in KNOWN_NODE_IDS.clone().into_iter() {
             iset.insert_empty(id);
         }
         for node in &self.nodes {
@@ -426,7 +578,7 @@ impl IndexedSets<Node> for Pdg {
 impl IndexedSets<Edge> for Pdg {
     fn indexed_sets(&self) -> ISet<ID, Edge> {
         let mut iset = ISet::new();
-        for id in EDGE_IDS.clone().into_iter() {
+        for id in KNOWN_EDGE_IDS.clone().into_iter() {
             iset.insert_empty(id);
         }
         for edge in &self.edges {

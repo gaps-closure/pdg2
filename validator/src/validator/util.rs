@@ -1,6 +1,8 @@
+use std::collections::HashSet;
+
 use lazy_static::lazy_static;
 
-use crate::{id::ID, id};
+use crate::{id::ID, id, llvm::{LLValue, LLID}};
 
 #[macro_export]
 macro_rules! id_pairs {
@@ -12,7 +14,7 @@ macro_rules! id_pairs {
 lazy_static! {
     pub static ref RECONCILIATIONS: Vec<(ID, ID)> = id_pairs! {
         PDGNode.Annotation.Global & IRGlobal.Annotation,
-        PDGNode.Annotation.Other & "N/A",
+        PDGNode.Annotation.Other & "Empty",
         PDGNode.Annotation.Var & IRInstruction.Call.Annotation,
         PDGNode.Annotation & "N/A",
         PDGNode.FunctionEntry & IRFunction,
@@ -30,22 +32,22 @@ lazy_static! {
         PDGNode.Param.FormalIn.Root & IRParameter,
         PDGNode.Param.FormalIn.NonRoot & "N/A",
         PDGNode.Param.FormalIn & "N/A",
-        PDGNode.Param.FormalOut.Root & "N/A",
+        PDGNode.Param.FormalOut.Root & IRParameter,
         PDGNode.Param.FormalOut.NonRoot & "N/A",
         PDGNode.Param.FormalOut & "N/A",
         PDGNode.Param & "N/A",
         PDGNode.VarNode.StaticFunction & IRGlobal.Internal.Function,
         PDGNode.VarNode.StaticGlobal & IRGlobal.Internal.Omni,
         PDGNode.VarNode.StaticModule & IRGlobal.Internal.Module,
-        PDGNode.VarNode.StaticOther & "N/A",
+        PDGNode.VarNode.StaticOther & "Empty",
         PDGNode.VarNode & "N/A",
         PDGNode & "N/A",
         PDGEdge.Anno.Global & IRAnnoGlobal,
-        PDGEdge.Anno.Other & "N/A",
+        PDGEdge.Anno.Other & "Empty",
         PDGEdge.Anno.Var & IRAnnoVar,
         PDGEdge.Anno & "N/A",
         PDGEdge.ControlDep.Br & "N/A",
-        PDGEdge.ControlDep.CallInv & "N/A",
+        PDGEdge.ControlDep.CallInv & IRInstruction.Call.Internal,
         PDGEdge.ControlDep.CallRet & "N/A",
         PDGEdge.ControlDep.Entry & "N/A",
         PDGEdge.ControlDep.Other & "N/A",
@@ -76,3 +78,10 @@ lazy_static! {
     };
 }
 
+pub fn ir_ids<'a>(iter: impl IntoIterator<Item = &'a LLValue>) -> HashSet<LLID> {
+    iter
+        .into_iter()
+        .map(|x| &x.id)
+        .cloned()
+        .collect()
+}

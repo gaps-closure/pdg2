@@ -11,18 +11,12 @@ use crate::{
     union,
 };
 
+use super::util::ir_ids;
+
 fn node_ids<'a>(iter: impl IntoIterator<Item = &'a Node>, pdg: &Pdg) -> HashSet<LLID> {
     iter
         .into_iter()
         .map(|n| pdg.llid(n).unwrap())
-        .collect()
-}
-
-fn ir_ids<'a>(iter: impl IntoIterator<Item = &'a LLValue>) -> HashSet<LLID> {
-    iter
-        .into_iter()
-        .map(|x| &x.id)
-        .cloned()
         .collect()
 }
 
@@ -171,6 +165,24 @@ fn account_for_static_global_var(pdg: &Pdg, node_iset: &ISet<ID, Node>, ir_iset:
     }
 }
 
+fn account_for_annotation_other(pdg: &Pdg, node_iset: &ISet<ID, Node>, _ir_iset: &ISet<ID, LLValue>) -> Account<LLID> {
+    let annotation_other = node_iset
+        .get(&id!(PDGNode.Annotation.Other));
+    Account {
+        a: node_ids(annotation_other, pdg),
+        b: HashSet::new() 
+    }
+}
+fn account_for_static_other(pdg: &Pdg, node_iset: &ISet<ID, Node>, _ir_iset: &ISet<ID, LLValue>) -> Account<LLID> {
+    let annotation_other = node_iset
+        .get(&id!(PDGNode.VarNode.StaticOther));
+    Account {
+        a: node_ids(annotation_other, pdg),
+        b: HashSet::new() 
+    }
+}
+
+
 
 
 
@@ -217,8 +229,13 @@ pub fn report_all_accounts(
     );
     report.report_account(
         "PDGNode.Annotation.Global",
-        "IRGlobal.Annotation",
+        "IRGlobal.Internal.Annotation",
         account_for_annotation_global(pdg, node_iset, ir_iset),
+    );
+    report.report_account(
+        "PDGNode.Annotation.Other",
+        "Empty",
+        account_for_annotation_other(pdg, node_iset, ir_iset),
     );
     report.report_account(
         "PDGNode.VarNode.StaticGlobal",
@@ -234,6 +251,11 @@ pub fn report_all_accounts(
         "PDGNode.VarNode.StaticModule",
         "IRGlobal.Internal.Module",
         account_for_static_module_var(pdg, node_iset, ir_iset),
+    );
+    report.report_account(
+        "PDGNode.VarNode.StaticOther",
+        "Empty",
+        account_for_annotation_other(pdg, node_iset, ir_iset),
     );
 }
 
