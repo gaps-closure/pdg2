@@ -1478,9 +1478,12 @@ pub fn report2(
     pdg_data_file: &str,
     pdg_counts_csv: &str,
     pdg_rollups_csv: &str,
+    pdg_differences_csv: &str,
     ir_counts_csv: &str,
     ir_rollups_csv: &str,
+    ir_differences_csv: &str,
     validation_csv: &str,
+    validation_differences_csv: &str,
 ) {
     let module = Module::from_bc_path(bc_file).unwrap();
     let pdg = {
@@ -1493,9 +1496,9 @@ pub fn report2(
 
         Pdg::from_csv_reader(rdr).unwrap()
     };
-    let mut pdg_report = Report::new(Some(pdg_counts_csv), pdg_rollups_csv).unwrap();
-    let mut ir_report = Report::new(Some(ir_counts_csv), ir_rollups_csv).unwrap();
-    let mut reconciliations_report = Report::new(None, validation_csv).unwrap();
+    let mut pdg_report = Report::new(Some(pdg_counts_csv), pdg_rollups_csv, pdg_differences_csv).unwrap();
+    let mut ir_report = Report::new(Some(ir_counts_csv), ir_rollups_csv, ir_differences_csv).unwrap();
+    let mut reconciliations_report = Report::new(None, validation_csv, validation_differences_csv).unwrap();
     let node_iset: ISet<ID, Node> = pdg.indexed_sets();
     let edge_iset: ISet<ID, Edge> = pdg.indexed_sets();
     let ir_iset = module.indexed_sets();

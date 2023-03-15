@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use llvm_ir::Name;
 use regex::Regex;
@@ -26,6 +26,11 @@ impl PartialEq for Node {
 }
 impl Eq for Node {} 
 
+impl Display for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+       f.write_fmt(format_args!("{}", self.id))
+    }
+}
 
 #[derive(Debug,Clone,Hash)]
 pub struct Edge {
@@ -41,6 +46,11 @@ impl PartialEq for Edge {
 }
 impl Eq for Edge {} 
 
+impl Display for Edge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+       f.write_fmt(format_args!("{}", self.id))
+    }
+}
 
 
 #[derive(Debug)]

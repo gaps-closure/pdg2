@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, fmt::Display};
 
 use llvm_ir::{Constant, Instruction};
 
@@ -13,10 +13,19 @@ use crate::{
     union,
 };
 
-fn edge_ids<'a>(iter: impl IntoIterator<Item = &'a Edge>, pdg: &'a Pdg) -> HashSet<(LLID, LLID)> {
+#[derive(Debug,Clone,PartialEq,Eq,Hash,PartialOrd,Ord)]
+pub struct LLEdge(LLID, LLID);
+
+impl Display for LLEdge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{} --> {}", self.0, self.1))
+    }
+}
+
+fn edge_ids<'a>(iter: impl IntoIterator<Item = &'a Edge>, pdg: &'a Pdg) -> HashSet<LLEdge> {
     iter.into_iter()
         .map(|e| pdg.from_edge(&e))
-        .map(|(src, dst)| (pdg.llid(src).unwrap(), pdg.llid(dst).unwrap()))
+        .map(|(src, dst)| LLEdge(pdg.llid(src).unwrap(), pdg.llid(dst).unwrap()))
         .collect()
 }
 
@@ -149,13 +158,13 @@ fn account_anno_var(
     pdg: &Pdg,
     edge_iset: &ISet<ID, Edge>,
     def_use_edges: &DefUseEdges,
-) -> Account<(LLID, LLID)> {
+) -> Account<LLEdge> {
     let anno_var_def_use = def_use_edges
         .anno_var
         .iter()
-        .map(|(x, y)| (x.id.clone(), y.id.clone()));
+        .map(|(x, y)| LLEdge(x.id.clone(), y.id.clone()));
     let anno_var_fn = def_use_edges.anno_var.iter().map(|(_, dst)| {
-        (
+        LLEdge(
             LLID::GlobalName {
                 global_name: dst.id.global_name().to_owned(),
             },
@@ -174,7 +183,7 @@ fn account_anno_global(
     pdg: &Pdg,
     edge_iset: &ISet<ID, Edge>,
     ir_iset: &ISet<ID, LLValue>,
-) -> Account<(LLID, LLID)> {
+) -> Account<LLEdge> {
     let global_annotation = ir_iset
         .get(&id!(IRGlobal.Internal.Annotation))
         .iter()
@@ -207,7 +216,7 @@ fn account_anno_global(
         unreachable!()
     };
     let ir_derived_edges = srcs.map(|name| {
-        (
+        LLEdge(
             LLID::global_name_from_name(&name),
             global_annotation.id.clone(),
         )
@@ -223,7 +232,7 @@ fn account_for_anno_other(
     pdg: &Pdg,
     edge_iset: &ISet<ID, Edge>,
     _ir_iset: &ISet<ID, LLValue>,
-) -> Account<(LLID, LLID)> {
+) -> Account<LLEdge> {
     let pdg_varnode_global = edge_ids(edge_iset.get(&id!(PDGNode.Anno.Other)), pdg);
     Account {
         a: pdg_varnode_global,
@@ -235,7 +244,7 @@ fn account_for_callinv(
     pdg: &Pdg,
     edge_iset: &ISet<ID, Edge>,
     ir_iset: &ISet<ID, LLValue>,
-) -> Account<(LLID, LLID)> {
+) -> Account<LLEdge> {
     // let ir_funs = ir_iset.get(&id!(IRFunction)).iter().map(|v| (v.id.clone(), v)).collect::<HashMap<_,_>>();
     let ir_internal_calls = ir_iset
         .get(&id!(IRInstruction.Call.Internal))
@@ -243,9 +252,9 @@ fn account_for_callinv(
         .filter_map(|v| {
             v.item
                 .constant_call_name()
-                .map(|x| (v.id.clone(), LLID::global_name_from_name(&x)))
+                .map(|x| LLEdge(v.id.clone(), LLID::global_name_from_name(&x)))
         })
-        .collect::<HashSet<(LLID, LLID)>>();
+        .collect::<HashSet<LLEdge>>();
     let callinv_edges = edge_ids(edge_iset.get(&id!(PDGEdge.ControlDep.CallInv)), pdg);
     Account {
         a: callinv_edges,
@@ -257,7 +266,7 @@ fn account_for_ret_edges(
     pdg: &Pdg,
     edge_iset: &ISet<ID, Edge>,
     ir_iset: &ISet<ID, LLValue>,
-) -> Account<(LLID, LLID)> {
+) -> Account<LLEdge> {
     let ir_rets = ir_iset
         .get(&id!(IRInstruction.Ret))
         .iter()
@@ -273,7 +282,7 @@ fn account_for_ret_edges(
         .iter()
         .filter_map(|v| v.item.constant_call_name().map(|x| (v, x)))
         .flat_map(|(call, name)| 
-            ir_rets.get(&LLID::global_name_from_name(&name)).iter().map(move |x| (x.clone(), call.id.clone())))
+            ir_rets.get(&LLID::global_name_from_name(&name)).iter().map(move |x| LLEdge(x.clone(), call.id.clone())))
         .collect::<HashSet<_>>();
     let pdg_ret_edges = edge_iset.get(&id!(PDGEdge.ControlDep.CallRet));
     Account {
@@ -286,7 +295,7 @@ fn account_for_raw(
     pdg: &Pdg,
     edge_iset: &ISet<ID, Edge>,
     ir_iset: &ISet<ID, LLValue>,
-) -> Account<(LLID, LLID)> {
+) -> Account<LLEdge> {
     let pdg_raw = edge_ids(edge_iset.get(&id!(PDGEdge.DataDepEdge.RAW)), pdg);
     enum Either<A, B> {
         Left(A),
@@ -334,7 +343,7 @@ fn account_for_raw(
                             .iter()
                             .filter_map(|store| {
                                 if store.index().unwrap() < *idx {
-                                    Some((
+                                    Some(LLEdge(
                                         store.clone(),
                                         LLID::InstructionID {
                                             global_name: v.id.global_name().to_string(),

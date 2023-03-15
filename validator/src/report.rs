@@ -1,22 +1,32 @@
 use crate::accounting::Account;
+use crate::bag::Bag;
+use std::fmt::Display;
 use std::hash::Hash;
 use std::{collections::HashMap, fs::File};
+
 
 pub struct Report {
     counts_writer: Option<csv::Writer<File>>,
     counts: HashMap<String, Option<usize>>,
     validation_writer: csv::Writer<File>,
     validations: HashMap<(String, String), Option<(usize, usize, usize, usize)>>,
+    accounts_writer: csv::Writer<File>, 
+    accounts: Bag<(String, String), Box<dyn Display>>, 
     counts_ordering: HashMap<String, usize>,
     validation_ordering: HashMap<(String, String), usize>,
     written: bool,
 }
 
 impl Report {
-    pub fn new(counts_file: Option<&str>, validation_file: &str) -> csv::Result<Self> {
+    pub fn new(counts_file: Option<&str>, validation_file: &str, accounts_file: &str) -> csv::Result<Self> {
         let validation_writer = csv::WriterBuilder::new()
             .flexible(true)
             .from_path(validation_file)?;
+
+        let accounts_writer = csv::WriterBuilder::new()
+            .flexible(true)
+            .from_path(accounts_file)?;
+
 
         let counts_writer =
             match counts_file.map(|f| csv::WriterBuilder::new().flexible(true).from_path(f)) {
@@ -28,6 +38,8 @@ impl Report {
             counts: Default::default(),
             validation_writer,
             validations: Default::default(),
+            accounts_writer,
+            accounts: Bag::new(),
             counts_ordering: Default::default(),
             validation_ordering: Default::default(),
             written: false,
@@ -41,6 +53,9 @@ impl Report {
         };
         self.validation_writer
             .write_record(["A", "B", "|A|", "|B|", "|A-B|", "|B-A|"])?;
+    
+        self.accounts_writer
+            .write_record(["A", "B", "Element of A - B"])?;
         Ok(())
     }
     pub fn report_count(&mut self, name: impl ToString, count: usize) {
@@ -53,7 +68,7 @@ impl Report {
         }
     }
 
-    pub fn report_account<'a, A: Eq + Hash>(
+    pub fn report_account<'a, A: Eq + Hash + Display + Clone + 'static>(
         &mut self,
         a_name: impl ToString,
         b_name: impl ToString,
@@ -70,6 +85,15 @@ impl Report {
                 account.b_minus_a().count(),
             )),
         );
+
+        for x in account.a_minus_b() {
+            self.accounts.insert((a_name.to_string(), b_name.to_string()), Box::new(x.clone()));
+        }
+
+        for x in account.b_minus_a() {
+            self.accounts.insert((b_name.to_string(), a_name.to_string()), Box::new(x.clone()));
+        }
+
     }
 
     pub fn set_counts_ordering(&mut self, ordering: HashMap<String, usize>) {
@@ -131,6 +155,11 @@ impl Report {
                     .validation_writer
                     .write_record(&[a_name, b_name, "N/A", "N/A", "N/A", "N/A"])?,
             }
+        }
+
+        for ((a_name, b_name), b) in self.accounts.iter() {
+            let x = format!("{}", b);
+            self.accounts_writer.write_record([a_name, b_name, &x])?;
         }
         self.written = true;
         Ok(())

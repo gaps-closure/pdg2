@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::hash::Hash;
 use std::{
     collections::{HashMap, HashSet},
@@ -92,7 +93,7 @@ impl<K: Hash + Eq + Clone + 'static, V: Hash + Eq + 'static> IntoIterator for IS
     }
 }
 
-impl<V: Hash + Eq + Clone> ISet<ID, V> {
+impl<V: Hash + Eq + Clone + Display + 'static> ISet<ID, V> {
     pub fn rollup_prefixes(&mut self) {
         let mut k = self.hashmap.iter().map(|(k, _)| k.len()).max().unwrap();
         while k > 1 {

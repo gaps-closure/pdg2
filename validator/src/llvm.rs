@@ -210,6 +210,12 @@ impl std::hash::Hash for LLValue {
     }
 }
 
+impl Display for LLValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}", self.id))
+    } 
+}
+
 impl LLID {
     pub fn global(&self) -> Option<&String> {
         if let LLID::GlobalName { global_name } = self {

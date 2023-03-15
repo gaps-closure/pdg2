@@ -17,29 +17,36 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-   #[arg(short, long)]
-   bc: String,
+    #[arg(short, long)]
+    bc: String,
 
-   #[arg(short, long)]
-   pdg_data: String,
+    #[arg(short, long)]
+    pdg_data: String,
 
-   #[arg(short, long)]
-   pdg_counts_csv: String,
+    #[arg(short, long)]
+    pdg_counts_csv: String,
 
-   #[arg(short, long)]
-   pdg_rollups_csv: String,
+    #[arg(short, long)]
+    pdg_rollups_csv: String,
 
-   #[arg(short, long)]
-   ir_counts_csv: String,
+    #[arg(short, long)]
+    pdg_differences_csv: String,
 
-   #[arg(short, long)]
-   ir_rollups_csv: String,
+    #[arg(short, long)]
+    ir_counts_csv: String,
 
-   #[arg(short, long)]
-   validation_csv: String,
+    #[arg(short, long)]
+    ir_rollups_csv: String,
 
+    #[arg(short, long)]
+    ir_differences_csv: String,
+
+    #[arg(short, long)]
+    validation_csv: String,
+
+    #[arg(short, long)]
+    validation_differences_csv: String,
 }
-
 
 fn main() {
     let args = Args::parse();
@@ -61,6 +68,15 @@ fn main() {
     //     );
     // }
     gen_report::report2(
-        &args.bc, &args.pdg_data, &args.pdg_counts_csv, &args.pdg_rollups_csv, &args.ir_counts_csv, &args.ir_rollups_csv, &args.validation_csv
+        &args.bc,
+        &args.pdg_data,
+        &args.pdg_counts_csv,
+        &args.pdg_rollups_csv,
+        &args.pdg_differences_csv,
+        &args.ir_counts_csv,
+        &args.ir_rollups_csv,
+        &args.ir_differences_csv,
+        &args.validation_csv,
+        &args.validation_differences_csv,
     );
 }

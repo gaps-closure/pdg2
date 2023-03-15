@@ -1,5 +1,6 @@
 use std::{collections::HashMap, iter::FromIterator};
 
+#[derive(Default)]
 pub struct Bag<K, V> {
     pub hashmap: HashMap<K, Vec<V>>,
     empty: Vec<V>,
@@ -40,6 +41,11 @@ impl<K: std::hash::Hash + Eq, V> Bag<K, V> {
     }
     pub fn get(&self, key: &K) -> &Vec<V> {
        self.hashmap.get(key).unwrap_or(&self.empty) 
+    }
+    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
+        self.hashmap
+            .iter()
+            .flat_map(|(k, s)| s.iter().map(move |v| (k, v)))
     }
 }
 
