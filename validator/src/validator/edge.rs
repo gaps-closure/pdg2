@@ -1,9 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use llvm_ir::{
-    Constant, Instruction,
-};
-
+use llvm_ir::{Constant, Instruction};
 
 use crate::{
     accounting::Account,
@@ -228,11 +225,10 @@ fn account_for_anno_other(
     edge_iset: &ISet<ID, Edge>,
     _ir_iset: &ISet<ID, LLValue>,
 ) -> Account<(LLID, LLID)> {
-    let pdg_varnode_global = edge_ids(edge_iset
-        .get(&id!(PDGNode.Anno.Other)), pdg);
+    let pdg_varnode_global = edge_ids(edge_iset.get(&id!(PDGNode.Anno.Other)), pdg);
     Account {
         a: pdg_varnode_global,
-        b: HashSet::new()
+        b: HashSet::new(),
     }
 }
 
@@ -245,15 +241,47 @@ fn account_for_callinv(
     let ir_internal_calls = ir_iset
         .get(&id!(IRInstruction.Call.Internal))
         .iter()
-        .filter_map(|v| v.item.constant_call_name().map(|x| (v.id.clone(), LLID::global_name_from_name(&x))))
+        .filter_map(|v| {
+            v.item
+                .constant_call_name()
+                .map(|x| (v.id.clone(), LLID::global_name_from_name(&x)))
+        })
         .collect::<HashSet<(LLID, LLID)>>();
-    let callinv_edges = edge_ids(edge_iset
-        .get(&id!(PDGEdge.ControlDep.CallInv)), pdg);
+    let callinv_edges = edge_ids(edge_iset.get(&id!(PDGEdge.ControlDep.CallInv)), pdg);
     Account {
-        a: callinv_edges, 
+        a: callinv_edges,
         b: ir_internal_calls,
     }
-} 
+}
+
+fn account_for_ret_edges(
+    pdg: &Pdg,
+    edge_iset: &ISet<ID, Edge>,
+    ir_iset: &ISet<ID, LLValue>,
+) -> Account<(LLID, LLID)> {
+    let ir_rets = ir_iset
+        .get(&id!(IRInstruction.Ret))
+        .iter()
+        .map(|x| {
+            (
+                LLID::global_name_from_string(x.id.global_name().to_string()),
+                x.id.clone(),
+            )
+        })
+        .collect::<ISet<LLID, LLID>>();
+    let ir_calls = ir_iset.get(&id!(IRInstruction.Call.Internal));
+    let ir_ret_edges = ir_calls
+        .iter()
+        .filter_map(|v| v.item.constant_call_name().map(|x| (v, x)))
+        .flat_map(|(call, name)| 
+            ir_rets.get(&LLID::global_name_from_name(&name)).iter().map(move |x| (x.clone(), call.id.clone())))
+        .collect::<HashSet<_>>();
+    let pdg_ret_edges = edge_iset.get(&id!(PDGEdge.ControlDep.CallRet));
+    Account {
+        a: edge_ids(pdg_ret_edges, pdg),
+        b: ir_ret_edges,
+    }
+}
 
 fn account_for_raw(
     pdg: &Pdg,
@@ -302,20 +330,23 @@ fn account_for_raw(
                 .flat_map(|(idx, inst)| match inst {
                     Either::Left(Instruction::Load(l)) => {
                         let addr = l.address.names().into_iter().next().unwrap();
-                        stores.get(&addr).iter().filter_map(|store| {
-                            if store.index().unwrap() < *idx {
-                                Some((
-                                    store.clone(),
-                                    LLID::InstructionID {
-                                        global_name: v.id.global_name().to_string(),
-                                        index: *idx,
-                                    },
-                                ))
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>()
+                        stores
+                            .get(&addr)
+                            .iter()
+                            .filter_map(|store| {
+                                if store.index().unwrap() < *idx {
+                                    Some((
+                                        store.clone(),
+                                        LLID::InstructionID {
+                                            global_name: v.id.global_name().to_string(),
+                                            index: *idx,
+                                        },
+                                    ))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>()
                     }
                     _ => Vec::new(),
                 })
@@ -338,18 +369,10 @@ pub fn report_all_accounts(
     let def_use_edges = ir_defuse_edges(ir_iset);
     let acct_anno_var = account_anno_var(pdg, &edge_iset, &def_use_edges);
     ir_report.report_count("IRAnnoVar", acct_anno_var.b.len());
-    report.report_account(
-        "PDGEdge.Anno.Var",
-        "IRAnnoVar",
-        acct_anno_var
-    );
+    report.report_account("PDGEdge.Anno.Var", "IRAnnoVar", acct_anno_var);
     let acct_anno_global = account_anno_global(pdg, &edge_iset, &ir_iset);
     ir_report.report_count("IRAnnoGlobal", acct_anno_global.b.len());
-    report.report_account(
-        "PDGEdge.Anno.Global",
-        "IRAnnoGlobal",
-        acct_anno_global 
-    );
+    report.report_account("PDGEdge.Anno.Global", "IRAnnoGlobal", acct_anno_global);
     report.report_account(
         "PDGEdge.Anno.Other",
         "Empty",
@@ -360,14 +383,17 @@ pub fn report_all_accounts(
         "IRInstruction.Call.Internal",
         account_for_callinv(pdg, &edge_iset, &ir_iset),
     );
+    let acct_ret = account_for_ret_edges(pdg, &edge_iset, &ir_iset);
+    ir_report.report_count("IRRets", acct_ret.b.len());
+    report.report_account(
+        "PDGEdge.ControlDep.CallRet",
+        "IRRets",
+        acct_ret
+    );
     let acct = account_for_raw(pdg, edge_iset, ir_iset);
     // for (src, dst) in acct.b_minus_a().take(10) {
     //     println!("{} --> {}", src, dst);
     // }
     ir_report.report_count("IRRAW", acct.b.len());
-    report.report_account(
-        "PDGEdge.DataDepEdge.RAW",
-        "IRRAW",
-        acct 
-    );
+    report.report_account("PDGEdge.DataDepEdge.RAW", "IRRAW", acct);
 }

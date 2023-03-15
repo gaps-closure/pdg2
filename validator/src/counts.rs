@@ -173,6 +173,9 @@ lazy_static! {
     };
 
     pub static ref KNOWN_IR_IDS: Vec<ID> = ids! {
+        IRAnnoGlobal,
+        IRAnnoVar,
+        IRRets,
         IRFunction,
         IRGlobal.External,
         IRGlobal.Internal.Annotation,
@@ -247,6 +250,7 @@ lazy_static! {
     pub static ref IR_IDS: Vec<ID> = ids! {
         IRAnnoGlobal,
         IRAnnoVar,
+        IRRets,
         IRFunction,
         IRGlobal.External,
         IRGlobal.Internal.Annotation,

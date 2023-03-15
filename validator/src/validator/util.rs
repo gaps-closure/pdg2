@@ -48,7 +48,7 @@ lazy_static! {
         PDGEdge.Anno & "N/A",
         PDGEdge.ControlDep.Br & "N/A",
         PDGEdge.ControlDep.CallInv & IRInstruction.Call.Internal,
-        PDGEdge.ControlDep.CallRet & "N/A",
+        PDGEdge.ControlDep.CallRet & IRRets,
         PDGEdge.ControlDep.Entry & "N/A",
         PDGEdge.ControlDep.Other & "N/A",
         PDGEdge.ControlDep & "N/A",
