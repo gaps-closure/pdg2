@@ -30,7 +30,7 @@ struct Args {
     pdg_rollups_csv: String,
 
     #[arg(short, long)]
-    pdg_differences_csv: String,
+    pdg_differences_md: String,
 
     #[arg(short, long)]
     ir_counts_csv: String,
@@ -45,7 +45,7 @@ struct Args {
     validation_csv: String,
 
     #[arg(short, long)]
-    validation_differences_csv: String,
+    validation_differences_md: String,
 }
 
 fn main() {
@@ -72,11 +72,11 @@ fn main() {
         &args.pdg_data,
         &args.pdg_counts_csv,
         &args.pdg_rollups_csv,
-        &args.pdg_differences_csv,
+        &args.pdg_differences_md,
         &args.ir_counts_csv,
         &args.ir_rollups_csv,
         &args.ir_differences_csv,
         &args.validation_csv,
-        &args.validation_differences_csv,
+        &args.validation_differences_md,
     );
 }

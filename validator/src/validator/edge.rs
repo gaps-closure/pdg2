@@ -398,10 +398,10 @@ pub fn report_all_accounts(
         "IRRets",
         acct_ret
     );
-    let acct = account_for_raw(pdg, edge_iset, ir_iset);
-    // for (src, dst) in acct.b_minus_a().take(10) {
-    //     println!("{} --> {}", src, dst);
-    // }
-    ir_report.report_count("IRRAW", acct.b.len());
-    report.report_account("PDGEdge.DataDepEdge.RAW", "IRRAW", acct);
+    // let acct = account_for_raw(pdg, edge_iset, ir_iset);
+    // // for (src, dst) in acct.b_minus_a().take(10) {
+    // //     println!("{} --> {}", src, dst);
+    // // }
+    // ir_report.report_count("IRRAW", acct.b.len());
+    // report.report_account("PDGEdge.DataDepEdge.RAW", "IRRAW", acct);
 }

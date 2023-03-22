@@ -2,6 +2,7 @@ use crate::accounting::Account;
 use crate::bag::Bag;
 use std::fmt::Display;
 use std::hash::Hash;
+use std::io::Write;
 use std::{collections::HashMap, fs::File};
 
 
@@ -10,7 +11,7 @@ pub struct Report {
     counts: HashMap<String, Option<usize>>,
     validation_writer: csv::Writer<File>,
     validations: HashMap<(String, String), Option<(usize, usize, usize, usize)>>,
-    accounts_writer: csv::Writer<File>, 
+    accounts_writer: File,
     accounts: Bag<(String, String), Box<dyn Display>>, 
     counts_ordering: HashMap<String, usize>,
     validation_ordering: HashMap<(String, String), usize>,
@@ -23,7 +24,9 @@ impl Report {
             .flexible(true)
             .from_path(validation_file)?;
 
-        let accounts_writer = csv::WriterBuilder::new()
+        let accounts_writer = File::create(accounts_file)?;
+        
+        csv::WriterBuilder::new()
             .flexible(true)
             .from_path(accounts_file)?;
 
@@ -54,8 +57,7 @@ impl Report {
         self.validation_writer
             .write_record(["A", "B", "|A|", "|B|", "|A-B|", "|B-A|"])?;
     
-        self.accounts_writer
-            .write_record(["A", "B", "Element of A - B"])?;
+        self.accounts_writer.write_fmt(format_args!("# Accounts report\n"))?;
         Ok(())
     }
     pub fn report_count(&mut self, name: impl ToString, count: usize) {
@@ -157,9 +159,12 @@ impl Report {
             }
         }
 
-        for ((a_name, b_name), b) in self.accounts.iter() {
-            let x = format!("{}", b);
-            self.accounts_writer.write_record([a_name, b_name, &x])?;
+        for ((a_name, b_name), b) in self.accounts.hashmap.iter() {
+
+            self.accounts_writer.write_fmt(format_args!("\n## A: {} B: {}\n", a_name, b_name))?;
+            for x in b {
+                self.accounts_writer.write_fmt(format_args!("- `{}`\n", x))?;
+            }
         }
         self.written = true;
         Ok(())
