@@ -46,6 +46,9 @@ struct Args {
 
     #[arg(short, long)]
     validation_differences_md: String,
+
+    #[arg(short, long)]
+    svf_points_to_sets: String,
 }
 
 fn main() {
@@ -78,5 +81,6 @@ fn main() {
         &args.ir_differences_csv,
         &args.validation_csv,
         &args.validation_differences_md,
+        &args.svf_points_to_sets
     );
 }

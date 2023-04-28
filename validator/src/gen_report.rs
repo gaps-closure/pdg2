@@ -1484,6 +1484,7 @@ pub fn report2(
     ir_differences_csv: &str,
     validation_csv: &str,
     validation_differences_csv: &str,
+    _svf_points_to_sets: &str
 ) {
     let module = Module::from_bc_path(bc_file).unwrap();
     let pdg = {
