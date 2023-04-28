@@ -22,7 +22,7 @@ else()
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_FLAGS} -O3")
 endif()
 
-find_package(LLVM "10.0.1" REQUIRED CONFIG)
+find_package(LLVM 10 REQUIRED CONFIG)
 
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(AddLLVM)

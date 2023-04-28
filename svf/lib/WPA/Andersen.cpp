@@ -778,10 +778,27 @@ void Andersen::dumpTopLevelPtsTo()
             nIter != this->getAllValidPtrs().end(); ++nIter)
     {
         const PAGNode* node = getPAG()->getPAGNode(*nIter);
-        if (getPAG()->isValidTopLevelPtr(node))
+        // if (getPAG()->isValidTopLevelPtr(node))
         {
             const PointsTo& pts = this->getPts(node->getId());
             outs() << "\nNodeID " << node->getId() << " ";
+            if (node->hasValue()) {
+                auto val = node->getValue();
+                outs() << "(val: "; 
+
+                if (llvm::isa<Instruction>(val)) {
+                    auto inst = llvm::cast<Instruction>(val);
+                    auto name = inst->getFunction()->getName();
+                    outs() << name << "::";
+                } 
+                if (llvm::isa<Argument>(val)) {
+                    auto arg = llvm::cast<Argument>(val);
+                    auto name = arg->getParent()->getName();
+                    outs() << name << "::";
+                } 
+                node->getValue()->printAsOperand(outs(), false);
+                outs() << ")";
+            }
 
             if (pts.empty())
             {
@@ -798,7 +815,9 @@ void Andersen::dumpTopLevelPtsTo()
                     line.insert(*it);
                 }
                 for (multiset<Size_t>::const_iterator it = line.begin(); it != line.end(); ++it)
+                {
                     outs() << *it << " ";
+                }
                 outs() << "}\n\n";
             }
         }
@@ -806,4 +825,3 @@ void Andersen::dumpTopLevelPtsTo()
 
     outs().flush();
 }
-
