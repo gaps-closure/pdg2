@@ -12,6 +12,7 @@ pub mod pdg;
 pub mod report;
 pub mod validator;
 
+use alias::svf::parse_svf_sets;
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -48,11 +49,15 @@ struct Args {
     validation_differences_md: String,
 
     #[arg(short, long)]
-    svf_points_to_sets: String,
+    alias_sets: String,
 }
 
 fn main() {
     let args = Args::parse();
+
+    let contents = std::fs::read_to_string(&args.alias_sets).unwrap();
+    let (_, sets) = parse_svf_sets(&contents).unwrap();
+    println!("Parsed {} sets", sets.len());
     // let args = env::args().collect::<Vec<_>>();
     // let sets = alias_sets(&args[8]);
     // for (id, alias_set) in sets.id_to_sets {
@@ -81,6 +86,6 @@ fn main() {
         &args.ir_differences_csv,
         &args.validation_csv,
         &args.validation_differences_md,
-        &args.svf_points_to_sets
+        &args.alias_sets
     );
 }
