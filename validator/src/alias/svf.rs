@@ -3,7 +3,9 @@ use std::{collections::HashSet, iter::FromIterator};
 
 use nom::{IResult, bytes::complete::tag, multi::{separated_list0, fold_many0, separated_list1}, sequence::tuple, character::{streaming::{alphanumeric1, space0, newline}}, branch::alt};
 
-use super::util::Binder;
+use crate::{indexed_set::ISet, id::ID, llvm::{LLValue, LLID}};
+
+use super::util::{Binder, get_all_values, binder_to_llvalue_map};
 
 type _AliasSet = HashSet<Binder>;
 
@@ -44,4 +46,29 @@ fn llvm_name(input: &str) -> IResult<&str, String> {
             acc += next;
             acc
         })(input)
+}
+
+pub fn alias_edges(ir_iset: &ISet<ID, LLValue>, alias_sets: &Vec<HashSet<Binder>>) -> HashSet<(LLValue, LLValue)> {
+    let ir_value_set = get_all_values(ir_iset);
+    let binder_to_llval = binder_to_llvalue_map(ir_value_set.iter());
+    let llid_alias_sets = 
+        alias_sets
+            .iter()
+            .map(|set| 
+                set.iter()
+                    .filter_map(|x| binder_to_llval.get(x))
+                    .map(|x| x.to_owned())
+                    .collect::<HashSet<_>>()
+            );
+    let mut edges = HashSet::new();
+    for set in llid_alias_sets {
+        for x in &set {
+            for y in &set {
+                if x != y {
+                    edges.insert((x.clone(), y.clone()));
+                }
+            }
+        }
+    }
+    edges
 }

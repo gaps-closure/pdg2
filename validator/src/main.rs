@@ -15,6 +15,8 @@ pub mod validator;
 use alias::svf::parse_svf_sets;
 use clap::Parser;
 
+use crate::alias::svf::alias_edges;
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -55,9 +57,6 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    let contents = std::fs::read_to_string(&args.alias_sets).unwrap();
-    let (_, sets) = parse_svf_sets(&contents).unwrap();
-    println!("Parsed {} sets", sets.len());
     // let args = env::args().collect::<Vec<_>>();
     // let sets = alias_sets(&args[8]);
     // for (id, alias_set) in sets.id_to_sets {

@@ -172,7 +172,15 @@ impl LLItem {
             })
             .unwrap_or(false)
     }
+    pub fn try_get_result(&self) -> Option<&Name> {
+        match self {
+            LLItem::Instruction(i) => i.try_get_result(), 
+            _ => None,
+        }
+
+    }
 }
+
 
 #[derive(Debug, Clone)]
 pub struct LLValue {

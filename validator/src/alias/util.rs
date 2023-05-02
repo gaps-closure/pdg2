@@ -1,5 +1,7 @@
 use std::{fmt::Display, cmp::max, collections::{HashMap, HashSet}, iter::FromIterator};
 
+use crate::{llvm::{LLID, LLValue}, id, id::ID, indexed_set::ISet};
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Binder {
     Global(String),
@@ -106,3 +108,30 @@ impl FromIterator<AliasSets> for AliasSets {
         this
     }
 }
+
+pub fn binder_to_llvalue_map<'a>(llvals: impl Iterator<Item = &'a LLValue>) -> HashMap<Binder, LLValue> {
+    llvals
+        .into_iter()
+        .filter_map(|val| match &val.id {
+            LLID::GlobalName { global_name } => Some((Binder::Global(global_name.to_owned()), val.clone())),
+            LLID::LocalName { global_name, local_name } => Some((Binder::Local(global_name.to_owned(), local_name.to_string()[1..].to_string()), val.clone())),
+            LLID::InstructionID { global_name, index: _ } => {
+                val.item.try_get_result().map(|name| 
+                    (Binder::Local(global_name.to_owned(), name.to_string()[1..].to_string()), val.clone())
+                )
+            },
+        })
+        .collect()
+}
+
+pub fn get_all_values(ir_iset: &ISet<ID, LLValue>) -> HashSet<LLValue> {
+    let fns = ir_iset.get(&id!(IRFunction));
+    let globals = ir_iset.get(&id!(IRGlobal));
+    let insts = ir_iset.get(&id!(IRInstruction));
+    let params = ir_iset.get(&id!(IRParameter));
+    let mut set = fns.clone();
+    set.extend(globals.clone());
+    set.extend(insts.clone());
+    set.extend(params.clone());
+    set
+} 

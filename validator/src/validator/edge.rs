@@ -10,7 +10,7 @@ use crate::{
     llvm::{LLValue, Names, Users, LLID},
     pdg::{Edge, Pdg},
     report::Report,
-    union,
+    union, alias::{svf::alias_edges, util::Binder},
 };
 
 #[derive(Debug,Clone,PartialEq,Eq,Hash,PartialOrd,Ord)]
@@ -367,12 +367,24 @@ fn account_for_raw(
     }
 }
 
+pub fn account_for_alias(pdg: &Pdg, edge_iset: &ISet<ID, Edge>, alias_edges: HashSet<(LLValue, LLValue)>) -> Account<LLEdge> {
+    let ir_alias_edges = alias_edges
+        .into_iter()
+        .map(|(v1, v2)| LLEdge(v1.id, v2.id));
+    let pdg_alias_edges = edge_iset.get(&id!(PDGEdge.DataDepEdge.Alias));
+    Account {
+        a: edge_ids(pdg_alias_edges, pdg),
+        b: ir_alias_edges.collect()
+    }
+}
+
 pub fn report_all_accounts(
     report: &mut Report,
     ir_report: &mut Report,
     pdg: &Pdg,
     edge_iset: &ISet<ID, Edge>,
     ir_iset: &ISet<ID, LLValue>,
+    alias_sets: Vec<HashSet<Binder>>
 ) {
     let def_use_edges = ir_defuse_edges(ir_iset);
     let acct_anno_var = account_anno_var(pdg, &edge_iset, &def_use_edges);
@@ -398,6 +410,11 @@ pub fn report_all_accounts(
         "IRRets",
         acct_ret
     );
+    let alias_edges = alias_edges(&ir_iset, &alias_sets);
+    let alias_account = account_for_alias(pdg, edge_iset, alias_edges);
+    ir_report.report_count("IRAlias", alias_account.b.len());
+    report.report_account("PDGEdge.DataDepEdge.Alias", "IRAlias", alias_account);
+
     // let acct = account_for_raw(pdg, edge_iset, ir_iset);
     // // for (src, dst) in acct.b_minus_a().take(10) {
     // //     println!("{} --> {}", src, dst);

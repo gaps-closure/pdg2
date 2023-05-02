@@ -245,6 +245,7 @@ lazy_static! {
         IRInstruction.ZExt,
         "IRInstruction.AShr + IRInstruction.Add + IRInstruction.Alloca + IRInstruction.And + IRInstruction.BitCast + IRInstruction.Br + IRInstruction.Call + IRInstruction.CondBr + IRInstruction.ExtractValue + IRInstruction.FAdd + IRInstruction.FCmp + IRInstruction.FDiv + IRInstruction.FMul + IRInstruction.FNeg + IRInstruction.FPExt + IRInstruction.FPToSI + IRInstruction.FPToUI + IRInstruction.FPTrunc + IRInstruction.FSub + IRInstruction.GetElementPtr + IRInstruction.ICmp + IRInstruction.IntToPtr + IRInstruction.LShr + IRInstruction.Load + IRInstruction.Mul + IRInstruction.Or + IRInstruction.Phi + IRInstruction.PtrToInt + IRInstruction.Ret + IRInstruction.SDiv + IRInstruction.SExt + IRInstruction.SIToFP + IRInstruction.SRem + IRInstruction.Select + IRInstruction.Shl + IRInstruction.Store + IRInstruction.Sub + IRInstruction.Switch + IRInstruction.Trunc + IRInstruction.UDiv + IRInstruction.UIToFP + IRInstruction.URem + IRInstruction.Unreachable + IRInstruction.Xor + IRInstruction.ZExt",
         IRInstruction,
+        IRAlias,
         IRParameter
     };
     pub static ref IR_IDS: Vec<ID> = ids! {
@@ -325,12 +326,7 @@ lazy_static! {
         IRDEFUSE.Global,
         "IRDEFUSE.Local + IRDEFUSE.Global",
         IRDEFUSE,
-        "IRAALIS_Basic_Subtypes...",
-        "IRALIAS_Basic Subtotal",
-        IRALIAS_Basic,
-        "IRALIAS_Steensgaard_Subtypes...",
-        "IRALIAS_Steensgaard Subtotal",
-        IRALIAS_Steensgaard,
+        IRAlias.Subtypes,
         IRRAW
     };
 }
