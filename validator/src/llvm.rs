@@ -67,7 +67,7 @@ pub fn args_has_debug_info(f: &Function, c: &Call) -> bool {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LLID {
     GlobalName {
-        global_name: String,
+        global_name: String
     },
     LocalName {
         global_name: String,
@@ -172,7 +172,15 @@ impl LLItem {
             })
             .unwrap_or(false)
     }
+    pub fn try_get_result(&self) -> Option<&Name> {
+        match self {
+            LLItem::Instruction(i) => i.try_get_result(), 
+            _ => None,
+        }
+
+    }
 }
+
 
 #[derive(Debug, Clone)]
 pub struct LLValue {

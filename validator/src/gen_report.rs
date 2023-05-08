@@ -6,7 +6,7 @@ use crate::{
     llvm::{instr_name, term_name, FunctionUsedAsPointer, LLItem, LLValue, Users, LLID},
     pdg::{Edge, Node, Pdg},
     report::Report,
-    union, validator::{self, util::RECONCILIATIONS},
+    union, validator::{self, util::RECONCILIATIONS}, alias::{svf::parse_svf_sets},
 };
 use csv::Writer;
 use llvm_ir::{
@@ -1484,6 +1484,7 @@ pub fn report2(
     ir_differences_csv: &str,
     validation_csv: &str,
     validation_differences_csv: &str,
+    alias_sets: &str
 ) {
     let module = Module::from_bc_path(bc_file).unwrap();
     let pdg = {
@@ -1502,6 +1503,9 @@ pub fn report2(
     let node_iset: ISet<ID, Node> = pdg.indexed_sets();
     let edge_iset: ISet<ID, Edge> = pdg.indexed_sets();
     let ir_iset = module.indexed_sets();
+
+    let contents = std::fs::read_to_string(&alias_sets).unwrap();
+    let (_, alias_sets) = parse_svf_sets(&contents).unwrap();
 
     node_iset.report_counts(&mut pdg_report);
     edge_iset.report_counts(&mut pdg_report);
@@ -1538,10 +1542,11 @@ pub fn report2(
             .map(|(i, (a, b))| ((a.to_string(), b.to_string()), i))
             .collect()
     );
-    validator::edge::report_all_accounts(&mut reconciliations_report, &mut ir_report, &pdg, &edge_iset, &ir_iset);
+    validator::edge::report_all_accounts(&mut reconciliations_report, &mut ir_report, &pdg, &edge_iset, &ir_iset, alias_sets);
     validator::node::report_all_accounts(&mut reconciliations_report, &pdg, &node_iset, &ir_iset);
 
     ir_report.write().unwrap();
 
     reconciliations_report.write().unwrap();
+
 }

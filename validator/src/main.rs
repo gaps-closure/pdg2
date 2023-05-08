@@ -12,7 +12,10 @@ pub mod pdg;
 pub mod report;
 pub mod validator;
 
+use alias::svf::parse_svf_sets;
 use clap::Parser;
+
+use crate::alias::svf::alias_edges;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -46,10 +49,14 @@ struct Args {
 
     #[arg(short, long)]
     validation_differences_md: String,
+
+    #[arg(short, long)]
+    alias_sets: String,
 }
 
 fn main() {
     let args = Args::parse();
+
     // let args = env::args().collect::<Vec<_>>();
     // let sets = alias_sets(&args[8]);
     // for (id, alias_set) in sets.id_to_sets {
@@ -78,5 +85,6 @@ fn main() {
         &args.ir_differences_csv,
         &args.validation_csv,
         &args.validation_differences_md,
+        &args.alias_sets
     );
 }

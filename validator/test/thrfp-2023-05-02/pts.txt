@@ -1,0 +1,286 @@
+
+*********CallGraph Stats***************
+################ (program : thrfp-2023-05-02/out)###############
+-------------------------------------------------------
+CalRetPairInCycle   0
+MaxNodeInCycle      0
+NodeInCycle         0
+TotalEdge           10
+TotalCycle          0
+TotalNode           9
+#######################################################
+
+*********General Stats***************
+################ (program : thrfp-2023-05-02/out)###############
+AddrsNum            24
+TotalFieldObjects   0
+StoresNum           10
+FSObjNum            20
+BitCastNumber       0
+FIObjNum            0
+GepsNum             5
+MaxStructSize       0
+IndCallSites        2
+TotalPAGEdges       107
+TotalPointers       74
+BBWith3Succ         0
+ReturnsNum          0
+VarArrayObj         1
+CopysNum            5
+ConstArrayObj       0
+CallsNum            0
+TotalPTAPAGEdges    41
+TotalObjects        21
+FunctionObjs        9
+GlobalObjs          2
+HeapObjs            1
+StackObjs           8
+ConstStructObj      0
+VarStructObj        0
+NonPtrObj           14
+TotalCallSite       9
+LocalVarInRecur     0
+LoadsNum            5
+BBWith2Succ         0
+-------------------------------------------------------
+#######################################################
+
+*********Constraint Graph Stats***************
+################ (program : thrfp-2023-05-02/out)###############
+-------------------------------------------------------
+AvgIn/OutEdge       0.881356
+AvgIn/OutAddrEdge   0.372881
+AvgIn/OutLoadEdge   0.0508475
+AvgIn/OutCopyEdge   0.355932
+MaxInAddrEdge       1
+MaxOutStoreEdge     1
+NumOfCGNode         107
+TotalValidNode      59
+AvgIn/OutStoreEdge  0
+TotalValidObjNode   20
+NumOfGeps           5
+NumOfCGEdge         30
+NumOfAddrs          22
+MaxOutAddrEdge      3
+NumOfLoads          3
+NumOfStores         6
+MaxOutLoadEdge      1
+NumOfCopys          16
+MaxOutCopyEdge      4
+MaxInStoreEdge      2
+MaxInLoadEdge       1
+MaxInCopyEdge       2
+#######################################################
+
+*********Andersen Pointer Analysis Stats***************
+################ (program : thrfp-2023-05-02/out)###############
+-------------------------------------------------------
+AvgTopLvlPtsSize    0.942857
+AvgPtsSetSize       0.345794
+LoadStoreTime       0
+CollapseTime        0
+UpdateCGTime        0
+CopyGepTime         0
+SCCMergeTime        0
+SCCDetectTime       0
+TotalTime           0.001
+PointsToBlkPtr      0
+PointsToConstPtr    0
+MaxNodesInSCC       0
+TotalPWCCycleNum    0
+TotalCycleNum       0
+IndEdgeSolved       2
+Iterations          4
+NodesInCycles       0
+MaxPtsSetSize       1
+NumOfSCCDetect      4
+IndCallSites        2
+DYFieldObjs         0
+MemObjects          21
+Pointers            74
+NumOfFieldExpand    0
+DYFieldPtrs         0
+NumOfSFRs           0
+GepProcessed        5
+LoadProcessed       3
+CopyProcessed       10
+StoreProcessed      6
+AddrProcessed       22
+TotalObjects        21
+NullPointer         0
+TotalPointers       74
+#######################################################
+
+NodeID 1 		PointsTo: {empty}
+
+
+NodeID 2 		PointsTo: {empty}
+
+
+NodeID 3 		PointsTo: {empty}
+
+
+NodeID 4 (val: @.str)		PointsTo: { 1 }
+
+
+NodeID 6 (val: @.str.1)		PointsTo: { 1 }
+
+
+NodeID 8 (val: @thread_helper.x)		PointsTo: { 10 }
+
+
+NodeID 10 (val: @thread_helper.x)		PointsTo: {empty}
+
+
+NodeID 11 (val: @globpm)		PointsTo: { 13 }
+
+
+NodeID 13 (val: @globpm)		PointsTo: { 35 }
+
+
+NodeID 14 (val: @.str.2)		PointsTo: { 1 }
+
+
+NodeID 16 (val: @worldfun)		PointsTo: { 17 }
+
+
+NodeID 17 (val: @worldfun)		PointsTo: {empty}
+
+
+NodeID 19 (val: worldfun::%0)		PointsTo: { 10 }
+
+
+NodeID 20 (val: worldfun::%2)		PointsTo: { 21 }
+
+
+NodeID 21 (val: worldfun::%2)		PointsTo: { 10 }
+
+
+NodeID 23 (val: worldfun::%3)		PointsTo: { 1 }
+
+
+NodeID 25 (val: @printf)		PointsTo: { 26 }
+
+
+NodeID 26 (val: @printf)		PointsTo: {empty}
+
+
+NodeID 27 (val: worldfun::%5)		PointsTo: { 10 }
+
+
+NodeID 34 (val: @hellofun)		PointsTo: { 35 }
+
+
+NodeID 35 (val: @hellofun)		PointsTo: {empty}
+
+
+NodeID 36 (val: @hellofun)		PointsTo: { 17 }
+
+
+NodeID 37 (val: hellofun::%1)		PointsTo: { 1 }
+
+
+NodeID 40 (val: @thread_helper)		PointsTo: { 41 }
+
+
+NodeID 41 (val: @thread_helper)		PointsTo: {empty}
+
+
+NodeID 43 (val: thread_helper::%1)		PointsTo: { 44 }
+
+
+NodeID 44 (val: thread_helper::%1)		PointsTo: { 35 }
+
+
+NodeID 45 (val: thread_helper::%2)		PointsTo: { 44 }
+
+
+NodeID 46 (val: thread_helper::%3)		PointsTo: { 35 }
+
+
+NodeID 48 (val: thread_helper::%4)		PointsTo: { 44 }
+
+
+NodeID 49 (val: thread_helper::%5)		PointsTo: { 35 }
+
+
+NodeID 52 (val: thread_helper::%8)		PointsTo: { 1 }
+
+
+NodeID 55 (val: @thread1_fun)		PointsTo: { 56 }
+
+
+NodeID 56 (val: @thread1_fun)		PointsTo: {empty}
+
+
+NodeID 57 (val: @thread1_fun)		PointsTo: {empty}
+
+
+NodeID 58 (val: thread1_fun::%0)		PointsTo: {empty}
+
+
+NodeID 59 (val: thread1_fun::%2)		PointsTo: { 60 }
+
+
+NodeID 60 (val: thread1_fun::%2)		PointsTo: {empty}
+
+
+NodeID 64 (val: @main)		PointsTo: { 65 }
+
+
+NodeID 65 (val: @main)		PointsTo: {empty}
+
+
+NodeID 68 (val: main::%1)		PointsTo: {empty}
+
+
+NodeID 69 (val: main::%3)		PointsTo: { 70 }
+
+
+NodeID 70 (val: main::%3)		PointsTo: {empty}
+
+
+NodeID 71 (val: main::%4)		PointsTo: { 72 }
+
+
+NodeID 72 (val: main::%4)		PointsTo: {empty}
+
+
+NodeID 73 (val: main::%5)		PointsTo: { 74 }
+
+
+NodeID 74 (val: main::%5)		PointsTo: {empty}
+
+
+NodeID 75 (val: main::%6)		PointsTo: { 76 }
+
+
+NodeID 76 (val: main::%6)		PointsTo: {empty}
+
+
+NodeID 77 (val: main::%7)		PointsTo: { 78 }
+
+
+NodeID 78 (val: main::%7)		PointsTo: {empty}
+
+
+NodeID 84 (val: bitcast (i32 (i32*)* ()* @hellofun to i32 (i32*)* (...)*))		PointsTo: { 35 }
+
+
+NodeID 86 (val: @pthread_create)		PointsTo: { 87 }
+
+
+NodeID 87 (val: @pthread_create)		PointsTo: {empty}
+
+
+NodeID 91 (val: @pthread_join)		PointsTo: { 92 }
+
+
+NodeID 92 (val: @pthread_join)		PointsTo: {empty}
+
+
+NodeID 94 (val: @exit)		PointsTo: { 95 }
+
+
+NodeID 95 (val: @exit)		PointsTo: {empty}
+
