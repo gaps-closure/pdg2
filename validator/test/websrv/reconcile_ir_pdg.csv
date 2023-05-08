@@ -29,7 +29,7 @@ PDGNode.VarNode.StaticModule,IRGlobal.Internal.Module,19,19,0,0
 PDGNode.VarNode.StaticOther,Empty,0,0,0,0
 PDGNode.VarNode,N/A,N/A,N/A,N/A,N/A
 PDGNode,N/A,N/A,N/A,N/A,N/A
-PDGEdge.Anno.Global,IRAnnoGlobal,N/A,N/A,N/A,N/A
+PDGEdge.Anno.Global,IRAnnoGlobal,21,21,0,0
 PDGEdge.Anno.Other,Empty,0,0,0,0
 PDGEdge.Anno.Var,IRAnnoVar,30,30,0,0
 PDGEdge.Anno,N/A,N/A,N/A,N/A,N/A
@@ -40,7 +40,7 @@ PDGEdge.ControlDep.Entry,N/A,N/A,N/A,N/A,N/A
 PDGEdge.ControlDep.Other,N/A,N/A,N/A,N/A,N/A
 PDGEdge.ControlDep,N/A,N/A,N/A,N/A,N/A
 PDGEdge.DataDepEdge.Alias,IRAlias,5942,712500,5942,712500
-PDGEdge.DataDepEdge.DefUse,N/A,N/A,N/A,N/A,N/A
+PDGEdge.DataDepEdge.DefUse,IRDefUse,75535,76320,1,786
 PDGEdge.DataDepEdge.RAW,IRRAW,N/A,N/A,N/A,N/A
 PDGEdge.DataDepEdge.Ret,N/A,N/A,N/A,N/A,N/A
 PDGEdge.DataDepEdge,N/A,N/A,N/A,N/A,N/A

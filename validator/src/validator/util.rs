@@ -53,7 +53,7 @@ lazy_static! {
         PDGEdge.ControlDep.Other & "N/A",
         PDGEdge.ControlDep & "N/A",
         PDGEdge.DataDepEdge.Alias & IRAlias,
-        PDGEdge.DataDepEdge.DefUse & "N/A",
+        PDGEdge.DataDepEdge.DefUse & IRDefUse,
         PDGEdge.DataDepEdge.RAW & IRRAW,
         PDGEdge.DataDepEdge.Ret & "N/A",
         PDGEdge.DataDepEdge & "N/A",
@@ -74,6 +74,12 @@ lazy_static! {
         XPDGEdge.DataDepEdge.Parameter.Indirect.Actual.Out & "N/A",
         XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.In & "N/A",
         XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.Out & "N/A",
+        XPDGEdge.DataDepEdge.Alias.FunctionFunction & IRAlias.FunctionFunction,
+        XPDGEdge.DataDepEdge.Alias.FunctionGlobal & IRAlias.FunctionFunction,
+        XPDGEdge.DataDepEdge.Alias.FunctionInstruction & IRAlias.FunctionInstruction,
+        XPDGEdge.DataDepEdge.Alias.ParameterFunction & IRAlias.ParameterInstruction,
+        XPDGEdge.DataDepEdge.Alias.ParameterGlobal & IRAlias.ParameterInstruction,
+        XPDGEdge.DataDepEdge.Alias.ParameterInstruction & IRAlias.ParameterInstruction,
         "Annotation Applications in MZN" & "N/A"
     };
 }

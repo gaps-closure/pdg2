@@ -1,6 +1,6 @@
 
 *********CallGraph Stats***************
-################ (program : thrfp-2023-05-02/out)###############
+################ (program : thrfp/out)###############
 -------------------------------------------------------
 CalRetPairInCycle   0
 MaxNodeInCycle      0
@@ -11,7 +11,7 @@ TotalNode           9
 #######################################################
 
 *********General Stats***************
-################ (program : thrfp-2023-05-02/out)###############
+################ (program : thrfp/out)###############
 AddrsNum            24
 TotalFieldObjects   0
 StoresNum           10
@@ -46,7 +46,7 @@ BBWith2Succ         0
 #######################################################
 
 *********Constraint Graph Stats***************
-################ (program : thrfp-2023-05-02/out)###############
+################ (program : thrfp/out)###############
 -------------------------------------------------------
 AvgIn/OutEdge       0.881356
 AvgIn/OutAddrEdge   0.372881
@@ -73,17 +73,17 @@ MaxInCopyEdge       2
 #######################################################
 
 *********Andersen Pointer Analysis Stats***************
-################ (program : thrfp-2023-05-02/out)###############
+################ (program : thrfp/out)###############
 -------------------------------------------------------
 AvgTopLvlPtsSize    0.942857
 AvgPtsSetSize       0.345794
 LoadStoreTime       0
 CollapseTime        0
 UpdateCGTime        0
-CopyGepTime         0
+CopyGepTime         0.002
 SCCMergeTime        0
 SCCDetectTime       0
-TotalTime           0.001
+TotalTime           0.003
 PointsToBlkPtr      0
 PointsToConstPtr    0
 MaxNodesInSCC       0

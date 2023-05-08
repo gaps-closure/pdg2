@@ -3,7 +3,7 @@ use std::{collections::HashSet, iter::FromIterator};
 
 use nom::{IResult, bytes::complete::tag, multi::{separated_list0, fold_many0, separated_list1}, sequence::tuple, character::{streaming::{alphanumeric1, space0, newline}}, branch::alt};
 
-use crate::{indexed_set::ISet, id::ID, llvm::{LLValue, LLID}};
+use crate::{indexed_set::ISet, id::ID, llvm::{LLValue, LLID, LLEdge}};
 
 use super::util::{Binder, get_all_values, binder_to_llid_map, AliasSubType};
 
@@ -61,7 +61,7 @@ pub enum Aliasee {
     Instruction
 }
 
-pub type AliasEdges = ISet<(Aliaser, Aliasee), (LLID, LLID)>;
+pub type AliasEdges = ISet<(Aliaser, Aliasee), LLEdge>;
 
 pub fn alias_edges(ir_iset: &ISet<ID, LLValue>, alias_sets: &Vec<HashSet<Binder>>) -> AliasEdges {
     let ir_value_set = get_all_values(ir_iset);
@@ -94,7 +94,7 @@ pub fn alias_edges(ir_iset: &ISet<ID, LLValue>, alias_sets: &Vec<HashSet<Binder>
                 };
                 let to = y; 
                 if &from != to {
-                    edges.insert((aliaser, aliasee), (from.clone(), to.clone()));
+                    edges.insert((aliaser, aliasee), LLEdge::from((from.clone(), to.clone())));
                 }
             }
         }
