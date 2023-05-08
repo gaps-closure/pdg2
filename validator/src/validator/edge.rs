@@ -10,7 +10,7 @@ use crate::{
     llvm::{LLValue, Names, Users, LLID},
     pdg::{Edge, Pdg},
     report::Report,
-    union, alias::{svf::alias_edges, util::Binder},
+    union, alias::{svf::{alias_edges, Aliaser, Aliasee}, util::Binder},
 };
 
 #[derive(Debug,Clone,PartialEq,Eq,Hash,PartialOrd,Ord)]
@@ -367,10 +367,10 @@ fn account_for_raw(
     }
 }
 
-pub fn account_for_alias(pdg: &Pdg, edge_iset: &ISet<ID, Edge>, alias_edges: HashSet<(LLValue, LLValue)>) -> Account<LLEdge> {
+pub fn account_for_alias(pdg: &Pdg, edge_iset: &ISet<ID, Edge>, alias_edges: ISet<(Aliaser, Aliasee), (LLID, LLID)>) -> Account<LLEdge> {
     let ir_alias_edges = alias_edges
         .into_iter()
-        .map(|(v1, v2)| LLEdge(v1.id, v2.id));
+        .map(|(_, (v1, v2))| LLEdge(v1, v2));
     let pdg_alias_edges = edge_iset.get(&id!(PDGEdge.DataDepEdge.Alias));
     Account {
         a: edge_ids(pdg_alias_edges, pdg),
@@ -390,9 +390,9 @@ pub fn report_all_accounts(
     let acct_anno_var = account_anno_var(pdg, &edge_iset, &def_use_edges);
     ir_report.report_count("IRAnnoVar", acct_anno_var.b.len());
     report.report_account("PDGEdge.Anno.Var", "IRAnnoVar", acct_anno_var);
-    let acct_anno_global = account_anno_global(pdg, &edge_iset, &ir_iset);
-    ir_report.report_count("IRAnnoGlobal", acct_anno_global.b.len());
-    report.report_account("PDGEdge.Anno.Global", "IRAnnoGlobal", acct_anno_global);
+    // let acct_anno_global = account_anno_global(pdg, &edge_iset, &ir_iset);
+    // ir_report.report_count("IRAnnoGlobal", acct_anno_global.b.len());
+    // report.report_account("PDGEdge.Anno.Global", "IRAnnoGlobal", acct_anno_global);
     report.report_account(
         "PDGEdge.Anno.Other",
         "Empty",
@@ -411,10 +411,15 @@ pub fn report_all_accounts(
         acct_ret
     );
     let alias_edges = alias_edges(&ir_iset, &alias_sets);
+    ir_report.report_count("IRAlias.FunctionFunction", alias_edges.get(&(Aliaser::Function, Aliasee::Function)).len());
+    ir_report.report_count("IRAlias.FunctionGlobal", alias_edges.get(&(Aliaser::Function, Aliasee::Global)).len());
+    ir_report.report_count("IRAlias.FunctionInstruction", alias_edges.get(&(Aliaser::Function, Aliasee::Instruction)).len());
+    ir_report.report_count("IRAlias.ParameterFunction", alias_edges.get(&(Aliaser::Parameter, Aliasee::Function)).len());
+    ir_report.report_count("IRAlias.ParameterGlobal", alias_edges.get(&(Aliaser::Parameter, Aliasee::Global)).len());
+    ir_report.report_count("IRAlias.ParameterInstruction", alias_edges.get(&(Aliaser::Parameter, Aliasee::Instruction)).len());
     let alias_account = account_for_alias(pdg, edge_iset, alias_edges);
     ir_report.report_count("IRAlias", alias_account.b.len());
     report.report_account("PDGEdge.DataDepEdge.Alias", "IRAlias", alias_account);
-
     // let acct = account_for_raw(pdg, edge_iset, ir_iset);
     // // for (src, dst) in acct.b_minus_a().take(10) {
     // //     println!("{} --> {}", src, dst);

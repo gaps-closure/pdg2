@@ -1,0 +1,22 @@
+main::55f934fe2e90 MustAlias, Mod, (len 1): 
+	main::%6
+main::55f934fa3150 MustAlias, Mod, (len 1): 
+	main::%3
+thread1_fun::55f934fdad70 MayAlias, ModRef, (len 0): 
+worldfun::55f934fa3150 MustAlias, ModRef, (len 1): 
+	worldfun::%2
+main::55f934fe2d50 MustAlias, Mod, (len 1): 
+	main::%5
+worldfun::55f934fb9dd0 MayAlias, ModRef, (len 1): 
+	worldfun::%4
+main::55f934fe2df0 MayAlias, ModRef, (len 2): 
+	main::%7
+	@globpm
+hellofun::55f934fb9dd0 MayAlias, ModRef, (len 0): 
+main::55f934fb9dd0 MustAlias, Mod, (len 1): 
+	main::%4
+thread_helper::55f934fb9cb0 MustAlias, ModRef, (len 2): 
+	thread_helper::%4
+	thread_helper::%2
+thread1_fun::55f934fa3150 MustAlias, Mod, (len 1): 
+	thread1_fun::%2

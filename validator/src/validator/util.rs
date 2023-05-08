@@ -52,7 +52,7 @@ lazy_static! {
         PDGEdge.ControlDep.Entry & "N/A",
         PDGEdge.ControlDep.Other & "N/A",
         PDGEdge.ControlDep & "N/A",
-        PDGEdge.DataDepEdge.Alias & "N/A",
+        PDGEdge.DataDepEdge.Alias & IRAlias,
         PDGEdge.DataDepEdge.DefUse & "N/A",
         PDGEdge.DataDepEdge.RAW & IRRAW,
         PDGEdge.DataDepEdge.Ret & "N/A",

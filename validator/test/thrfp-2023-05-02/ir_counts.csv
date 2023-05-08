@@ -1,0 +1,88 @@
+Category,Count
+IRAlias.FunctionFunction + IRAlias.FunctionGlobal + IRAlias.FunctionInstruction + IRAlias.ParameterFunction + IRAlias.ParameterGlobal + IRAlias.ParameterInstruction,0
+IRAnnoGlobal,0
+IRAnnoVar,0
+IRRets,1
+IRFunction,5
+IRGlobal.External,0
+IRGlobal.Internal.Annotation,0
+IRGlobal.Internal.Function,1
+IRGlobal.Internal.Module,0
+IRGlobal.Internal.Omni,1
+IRGlobal.Internal.Annotation + IRGlobal.Internal.Function + IRGlobal.Internal.Module + IRGlobal.Internal.Omni,2
+IRGlobal.Internal,2
+IRGlobal.External + IRGlobal.Internal,2
+IRGlobal,2
+IRInstruction.AShr,0
+IRInstruction.Add,1
+IRInstruction.Alloca,8
+IRInstruction.And,0
+IRInstruction.BitCast,0
+IRInstruction.Br,0
+IRInstruction.Call.Annotation,0
+IRInstruction.Call.External.VarArg,0
+IRInstruction.Call.External.NonVarArg,6
+IRInstruction.Call.External.NonVarArg + IRInstruction.Call.External.VarArg,6
+IRInstruction.Call.External,6
+IRInstruction.Call.Internal.NonVarArg,1
+IRInstruction.Call.Internal.VarArg,0
+IRInstruction.Call.Internal.NonVarArg + IRInstruction.Call.Internal.VarArg,1
+IRInstruction.Call.Internal,1
+IRInstruction.Call.Intrinsic,0
+IRInstruction.Call.Pointer,2
+IRInstruction.Call.Annotation + IRInstruction.Call.External + IRInstruction.Call.Internal + IRInstruction.Call.Intrinsic + IRInstruction.Call.Pointer,9
+IRInstruction.Call,9
+IRInstruction.CondBr,0
+IRInstruction.ExtractValue,0
+IRInstruction.FAdd,0
+IRInstruction.FCmp,0
+IRInstruction.FDiv,0
+IRInstruction.FMul,0
+IRInstruction.FNeg,0
+IRInstruction.FPExt,0
+IRInstruction.FPToSI,0
+IRInstruction.FPToUI,0
+IRInstruction.FPTrunc,0
+IRInstruction.FSub,0
+IRInstruction.GetElementPtr,2
+IRInstruction.ICmp,0
+IRInstruction.IntToPtr,0
+IRInstruction.LShr,0
+IRInstruction.Load,5
+IRInstruction.Mul,0
+IRInstruction.Or,0
+IRInstruction.Phi,0
+IRInstruction.PtrToInt,0
+IRInstruction.Ret,4
+IRInstruction.SDiv,0
+IRInstruction.SExt,0
+IRInstruction.SIToFP,0
+IRInstruction.SRem,0
+IRInstruction.Select,0
+IRInstruction.Shl,0
+IRInstruction.Store,8
+IRInstruction.Sub,0
+IRInstruction.Switch,0
+IRInstruction.Trunc,0
+IRInstruction.UDiv,0
+IRInstruction.UIToFP,0
+IRInstruction.URem,0
+IRInstruction.Unreachable,1
+IRInstruction.Xor,0
+IRInstruction.ZExt,0
+IRInstruction.AShr + IRInstruction.Add + IRInstruction.Alloca + IRInstruction.And + IRInstruction.BitCast + IRInstruction.Br + IRInstruction.Call + IRInstruction.CondBr + IRInstruction.ExtractValue + IRInstruction.FAdd + IRInstruction.FCmp + IRInstruction.FDiv + IRInstruction.FMul + IRInstruction.FNeg + IRInstruction.FPExt + IRInstruction.FPToSI + IRInstruction.FPToUI + IRInstruction.FPTrunc + IRInstruction.FSub + IRInstruction.GetElementPtr + IRInstruction.ICmp + IRInstruction.IntToPtr + IRInstruction.LShr + IRInstruction.Load + IRInstruction.Mul + IRInstruction.Or + IRInstruction.Phi + IRInstruction.PtrToInt + IRInstruction.Ret + IRInstruction.SDiv + IRInstruction.SExt + IRInstruction.SIToFP + IRInstruction.SRem + IRInstruction.Select + IRInstruction.Shl + IRInstruction.Store + IRInstruction.Sub + IRInstruction.Switch + IRInstruction.Trunc + IRInstruction.UDiv + IRInstruction.UIToFP + IRInstruction.URem + IRInstruction.Unreachable + IRInstruction.Xor + IRInstruction.ZExt,38
+IRInstruction,38
+IRParameter,4
+IRDEFUSE.Local,N/A
+IRDEFUSE.Global,N/A
+IRDEFUSE.Local + IRDEFUSE.Global,N/A
+IRDEFUSE,N/A
+IRAlias,28
+IRAlias.FunctionFunction,4
+IRAlias.FunctionGlobal,4
+IRAlias.FunctionInstruction,20
+IRAlias.ParameterFunction,0
+IRAlias.ParameterGlobal,0
+IRAlias.ParameterInstruction,0
+IRAlias.Subtypes,N/A
+IRRAW,N/A

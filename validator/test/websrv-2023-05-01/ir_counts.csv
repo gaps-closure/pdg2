@@ -1,5 +1,6 @@
 Category,Count
-IRAnnoGlobal,21
+IRAlias.FunctionFunction + IRAlias.FunctionGlobal + IRAlias.FunctionInstruction + IRAlias.ParameterFunction + IRAlias.ParameterGlobal + IRAlias.ParameterInstruction,0
+IRAnnoGlobal,0
 IRAnnoVar,30
 IRRets,2486
 IRFunction,975
@@ -76,10 +77,12 @@ IRDEFUSE.Local,N/A
 IRDEFUSE.Global,N/A
 IRDEFUSE.Local + IRDEFUSE.Global,N/A
 IRDEFUSE,N/A
-IRAALIS_Basic_Subtypes...,N/A
-IRALIAS_Basic Subtotal,N/A
-IRALIAS_Basic,N/A
-IRALIAS_Steensgaard_Subtypes...,N/A
-IRALIAS_Steensgaard Subtotal,N/A
-IRALIAS_Steensgaard,N/A
+IRAlias,712500
+IRAlias.FunctionFunction,5636
+IRAlias.FunctionGlobal,3188
+IRAlias.FunctionInstruction,703676
+IRAlias.ParameterFunction,0
+IRAlias.ParameterGlobal,0
+IRAlias.ParameterInstruction,0
+IRAlias.Subtypes,N/A
 IRRAW,N/A

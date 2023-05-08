@@ -5,7 +5,7 @@ use nom::{IResult, bytes::complete::tag, multi::{separated_list0, fold_many0, se
 
 use crate::{indexed_set::ISet, id::ID, llvm::{LLValue, LLID}};
 
-use super::util::{Binder, get_all_values, binder_to_llvalue_map};
+use super::util::{Binder, get_all_values, binder_to_llid_map, AliasSubType};
 
 type _AliasSet = HashSet<Binder>;
 
@@ -48,24 +48,53 @@ fn llvm_name(input: &str) -> IResult<&str, String> {
         })(input)
 }
 
-pub fn alias_edges(ir_iset: &ISet<ID, LLValue>, alias_sets: &Vec<HashSet<Binder>>) -> HashSet<(LLValue, LLValue)> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Aliaser {
+    Function,
+    Parameter
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Aliasee {
+    Function,
+    Global,
+    Instruction
+}
+
+pub type AliasEdges = ISet<(Aliaser, Aliasee), (LLID, LLID)>;
+
+pub fn alias_edges(ir_iset: &ISet<ID, LLValue>, alias_sets: &Vec<HashSet<Binder>>) -> AliasEdges {
     let ir_value_set = get_all_values(ir_iset);
-    let binder_to_llval = binder_to_llvalue_map(ir_value_set.iter());
+    let binder_to_llid = binder_to_llid_map(ir_value_set.iter());
     let llid_alias_sets = 
         alias_sets
             .iter()
             .map(|set| 
                 set.iter()
-                    .filter_map(|x| binder_to_llval.get(x))
+                    .filter_map(|x| binder_to_llid.get(x))
                     .map(|x| x.to_owned())
                     .collect::<HashSet<_>>()
             );
-    let mut edges = HashSet::new();
+    let mut edges = ISet::new();
     for set in llid_alias_sets {
-        for x in &set {
-            for y in &set {
-                if x != y {
-                    edges.insert((x.clone(), y.clone()));
+        for (x, x_type) in &set {
+            let aliaser = match x_type {
+                AliasSubType::Function => Aliaser::Function,
+                AliasSubType::Global => continue, 
+                AliasSubType::Instruction => Aliaser::Function,
+                AliasSubType::Parameter => continue, 
+            };
+            let from = LLID::global_name_from_string(x.global_name().to_string());
+            for (y, y_type) in &set {
+                let aliasee = match y_type {
+                    AliasSubType::Function => Aliasee::Function,
+                    AliasSubType::Global => Aliasee::Global,
+                    AliasSubType::Instruction => Aliasee::Instruction,
+                    AliasSubType::Parameter => continue,
+                };
+                let to = y; 
+                if &from != to {
+                    edges.insert((aliaser, aliasee), (from.clone(), to.clone()));
                 }
             }
         }

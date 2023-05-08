@@ -1502,7 +1502,7 @@ pub fn report2(
     let mut reconciliations_report = Report::new(None, validation_csv, validation_differences_csv).unwrap();
     let node_iset: ISet<ID, Node> = pdg.indexed_sets();
     let edge_iset: ISet<ID, Edge> = pdg.indexed_sets();
-    let mut ir_iset = module.indexed_sets();
+    let ir_iset = module.indexed_sets();
 
     let contents = std::fs::read_to_string(&alias_sets).unwrap();
     let (_, alias_sets) = parse_svf_sets(&contents).unwrap();

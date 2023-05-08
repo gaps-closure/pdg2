@@ -1,0 +1,77 @@
+Category,Count
+PDGNode.Annotation.Global,0
+PDGNode.Annotation.Other,0
+PDGNode.Annotation.Var,0
+PDGNode.Annotation.Global + PDGNode.Annotation.Other + PDGNode.Annotation.Var,0
+PDGNode.Annotation,0
+PDGNode.FunctionEntry,5
+PDGNode.Inst.Br,0
+PDGNode.Inst.FunCall,9
+PDGNode.Inst.Other,25
+PDGNode.Inst.Ret,4
+PDGNode.Inst.Br + PDGNode.Inst.FunCall + PDGNode.Inst.Other + PDGNode.Inst.Ret,38
+PDGNode.Inst,38
+PDGNode.Param.ActualIn.Root,0
+PDGNode.Param.ActualIn.NonRoot,0
+PDGNode.Param.ActualIn.NonRoot + PDGNode.Param.ActualIn.Root,0
+PDGNode.Param.ActualIn,0
+PDGNode.Param.ActualOut.Root,0
+PDGNode.Param.ActualOut.NonRoot,0
+PDGNode.Param.ActualOut.NonRoot + PDGNode.Param.ActualOut.Root,0
+PDGNode.Param.ActualOut,0
+PDGNode.Param.FormalIn.Root,0
+PDGNode.Param.FormalIn.NonRoot,0
+PDGNode.Param.FormalIn.NonRoot + PDGNode.Param.FormalIn.Root,0
+PDGNode.Param.FormalIn,0
+PDGNode.Param.FormalOut.Root,0
+PDGNode.Param.FormalOut.NonRoot,0
+PDGNode.Param.FormalOut.NonRoot + PDGNode.Param.FormalOut.Root,0
+PDGNode.Param.FormalOut,0
+PDGNode.Param.ActualIn + PDGNode.Param.ActualOut + PDGNode.Param.FormalIn + PDGNode.Param.FormalOut,0
+PDGNode.Param,0
+PDGNode.VarNode.StaticFunction,0
+PDGNode.VarNode.StaticGlobal,0
+PDGNode.VarNode.StaticModule,0
+PDGNode.VarNode.StaticOther,0
+PDGNode.VarNode.StaticFunction + PDGNode.VarNode.StaticGlobal + PDGNode.VarNode.StaticModule + PDGNode.VarNode.StaticOther,0
+PDGNode.VarNode,0
+PDGNode.Annotation + PDGNode.FunctionEntry + PDGNode.Inst + PDGNode.Param + PDGNode.VarNode,43
+PDGNode,43
+PDGEdge.Anno.Global,0
+PDGEdge.Anno.Other,0
+PDGEdge.Anno.Var,0
+PDGEdge.Anno.Global + PDGEdge.Anno.Other + PDGEdge.Anno.Var,0
+PDGEdge.Anno,0
+PDGEdge.ControlDep.Br,0
+PDGEdge.ControlDep.CallInv,1
+PDGEdge.ControlDep.CallRet,1
+PDGEdge.ControlDep.Entry,38
+PDGEdge.ControlDep.Other,0
+PDGEdge.ControlDep.Br + PDGEdge.ControlDep.CallInv + PDGEdge.ControlDep.CallRet + PDGEdge.ControlDep.Entry + PDGEdge.ControlDep.Other,40
+PDGEdge.ControlDep,40
+PDGEdge.DataDepEdge.Alias,0
+PDGEdge.DataDepEdge.DefUse,22
+PDGEdge.DataDepEdge.RAW,2
+PDGEdge.DataDepEdge.Ret,1
+PDGEdge.DataDepEdge.Alias + PDGEdge.DataDepEdge.DefUse + PDGEdge.DataDepEdge.RAW + PDGEdge.DataDepEdge.Ret,25
+PDGEdge.DataDepEdge,25
+PDGEdge.Parameter.Field,0
+PDGEdge.Parameter.In,0
+PDGEdge.Parameter.Out,0
+PDGEdge.Parameter.Field + PDGEdge.Parameter.In + PDGEdge.Parameter.Out,0
+PDGEdge.Parameter,0
+PDGEdge.Anno + PDGEdge.ControlDep + PDGEdge.DataDepEdge + PDGEdge.Parameter,65
+PDGEdge,65
+XPDGEdge.ControlDep.CallInv.ViaExternal,N/A
+XPDGEdge.ControlDep.CallInv.Indirect,N/A
+XPDGEdge.ControlDep.CallRet.Indirect,N/A
+XPDGEdge.DataDepEdge.ViaExternal,N/A
+XPDGEdge.DataDepEdge.Indirect.Ret,N/A
+XPDGEdge.DataDepEdge.Indirect.Raw,N/A
+XPDGEdge.DataDepEdge.Indirect.DefUse,N/A
+XPDGEdge.DataDepEdge.Indirect,N/A
+XPDGEdge.DataDepEdge.Parameter.Indirect.Actual.In,N/A
+XPDGEdge.DataDepEdge.Parameter.Indirect.Actual.Out,N/A
+XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.In,N/A
+XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.Out,N/A
+Annotation Applications in MZN,N/A

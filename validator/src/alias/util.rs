@@ -109,15 +109,30 @@ impl FromIterator<AliasSets> for AliasSets {
     }
 }
 
-pub fn binder_to_llvalue_map<'a>(llvals: impl Iterator<Item = &'a LLValue>) -> HashMap<Binder, LLValue> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AliasSubType {
+    Function,
+    Global,
+    Instruction,
+    Parameter,
+}
+
+pub fn binder_to_llid_map<'a>(llvals: impl Iterator<Item = &'a LLValue>) -> HashMap<Binder, (LLID, AliasSubType)> {
     llvals
         .into_iter()
         .filter_map(|val| match &val.id {
-            LLID::GlobalName { global_name } => Some((Binder::Global(global_name.to_owned()), val.clone())),
-            LLID::LocalName { global_name, local_name } => Some((Binder::Local(global_name.to_owned(), local_name.to_string()[1..].to_string()), val.clone())),
+            LLID::GlobalName { global_name } => {
+                let subtype = if val.item.function().is_some() {
+                    AliasSubType::Function
+                } else {
+                    AliasSubType::Global
+                };
+                Some((Binder::Global(global_name.to_owned()), (val.id.clone(), subtype)))
+            },
+            LLID::LocalName { global_name, local_name } => Some((Binder::Local(global_name.to_owned(), local_name.to_string()[1..].to_string()), (val.id.clone(), AliasSubType::Parameter))),
             LLID::InstructionID { global_name, index: _ } => {
                 val.item.try_get_result().map(|name| 
-                    (Binder::Local(global_name.to_owned(), name.to_string()[1..].to_string()), val.clone())
+                    (Binder::Local(global_name.to_owned(), name.to_string()[1..].to_string()), (val.id.clone(), AliasSubType::Instruction))
                 )
             },
         })
@@ -135,3 +150,4 @@ pub fn get_all_values(ir_iset: &ISet<ID, LLValue>) -> HashSet<LLValue> {
     set.extend(params.clone());
     set
 } 
+
