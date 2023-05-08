@@ -13,7 +13,7 @@ cargo run --release -- \
     --pdg-differences-md $1/pdg_diff.md \
     --ir-counts-csv $1/ir_counts.csv \
     --ir-rollups-csv $1/ir_subtotals.csv \
-    --ir-differences-csv $1/ir_diff.csv \
+    --ir-differences-csv $1/ir_diff.md \
     --validation-csv $1/reconcile_ir_pdg.csv \
     --alias-sets $1/alias_sets.txt \
     --validation-differences-md $1/validation_diff.md 
