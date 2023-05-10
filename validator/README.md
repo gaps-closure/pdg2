@@ -11,11 +11,18 @@ the constraint solver.
 
 ## Known Issues/Incompleteness of Phase 2 PDG builder and MZN exporter
 
-1. Phase 2 PDG had a bug which failed to process callsites with variadic functions or struct literal functions, and also ignored all subsequent callsites in that function
+1. Phase 2 PDG had a bug which failed to process callsites with variadic
+functions or struct literal functions, and also ignored all subsequent callsites
+in that function. In the case of these functions, appropiate handling of
+parameter/return data dependencies must be considered.
 
-2. Calls through a function pointer are ignored by the Phase 2 PDG resulting in an incomplete PDG (significant issue for programs that use threads, callbacks, etc.)
+2. Calls through a function pointer are ignored by the Phase 2 PDG resulting in
+   an incomplete PDG (significant issue for programs that use threads,
+   callbacks, etc.). This includes call invocation, return control edges and
+   data dependencies associated with parameters/return.  
 
 3. Phase 2 PDG builds parameter trees to a depth of 5 leading to incomplete PDG in some cases
+
 
 ```
 Issue description:
@@ -58,3 +65,7 @@ function pointers).
 
 ```
 
+4. PDG does not generate VarNodes in certain cases (cause yet to be determined). For example,
+in thrfp, there should be two VarNodes for @thread_helper.x and @globpm.
+
+5. Functions that are passed as pointers to external library functions are not handled 
