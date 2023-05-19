@@ -15,8 +15,8 @@ use crate::{
     id::ID,
     ids,
     indexed_set::ISet,
-    llvm::{call_to_function_pointer, instr_name, term_name, LLItem, LLValue, LLID},
-    pdg::{Edge, Node, Pdg},
+    llvm::{call_to_function_pointer, instr_name, term_name, LLItem, LLValue, LLID, LLEdge, Users},
+    pdg::{Edge, Node, Pdg}, union, alias::{svf::{alias_edges, Aliaser, Aliasee}, util::Binder},
 };
 
 lazy_static! {
@@ -173,9 +173,6 @@ lazy_static! {
     };
 
     pub static ref KNOWN_IR_IDS: Vec<ID> = ids! {
-        IRAnnoGlobal,
-        IRAnnoVar,
-        IRRets,
         IRFunction,
         IRGlobal.External,
         IRGlobal.Internal.Annotation,
@@ -245,19 +242,9 @@ lazy_static! {
         IRInstruction.ZExt,
         "IRInstruction.AShr + IRInstruction.Add + IRInstruction.Alloca + IRInstruction.And + IRInstruction.BitCast + IRInstruction.Br + IRInstruction.Call + IRInstruction.CondBr + IRInstruction.ExtractValue + IRInstruction.FAdd + IRInstruction.FCmp + IRInstruction.FDiv + IRInstruction.FMul + IRInstruction.FNeg + IRInstruction.FPExt + IRInstruction.FPToSI + IRInstruction.FPToUI + IRInstruction.FPTrunc + IRInstruction.FSub + IRInstruction.GetElementPtr + IRInstruction.ICmp + IRInstruction.IntToPtr + IRInstruction.LShr + IRInstruction.Load + IRInstruction.Mul + IRInstruction.Or + IRInstruction.Phi + IRInstruction.PtrToInt + IRInstruction.Ret + IRInstruction.SDiv + IRInstruction.SExt + IRInstruction.SIToFP + IRInstruction.SRem + IRInstruction.Select + IRInstruction.Shl + IRInstruction.Store + IRInstruction.Sub + IRInstruction.Switch + IRInstruction.Trunc + IRInstruction.UDiv + IRInstruction.UIToFP + IRInstruction.URem + IRInstruction.Unreachable + IRInstruction.Xor + IRInstruction.ZExt",
         IRInstruction,
-        IRAlias,
-        IRAlias.FunctionFunction,
-        IRAlias.FunctionGlobal,
-        IRAlias.FunctionInstruction,
-        IRAlias.ParameterFunction,
-        IRAlias.ParameterGlobal,
-        IRAlias.ParameterInstruction,
         IRParameter
     };
     pub static ref IR_IDS: Vec<ID> = ids! {
-        IRAnnoGlobal,
-        IRAnnoVar,
-        IRRets,
         IRFunction,
         IRGlobal.External,
         IRGlobal.Internal.Annotation,
@@ -327,11 +314,22 @@ lazy_static! {
         IRInstruction.ZExt,
         "IRInstruction.AShr + IRInstruction.Add + IRInstruction.Alloca + IRInstruction.And + IRInstruction.BitCast + IRInstruction.Br + IRInstruction.Call + IRInstruction.CondBr + IRInstruction.ExtractValue + IRInstruction.FAdd + IRInstruction.FCmp + IRInstruction.FDiv + IRInstruction.FMul + IRInstruction.FNeg + IRInstruction.FPExt + IRInstruction.FPToSI + IRInstruction.FPToUI + IRInstruction.FPTrunc + IRInstruction.FSub + IRInstruction.GetElementPtr + IRInstruction.ICmp + IRInstruction.IntToPtr + IRInstruction.LShr + IRInstruction.Load + IRInstruction.Mul + IRInstruction.Or + IRInstruction.Phi + IRInstruction.PtrToInt + IRInstruction.Ret + IRInstruction.SDiv + IRInstruction.SExt + IRInstruction.SIToFP + IRInstruction.SRem + IRInstruction.Select + IRInstruction.Shl + IRInstruction.Store + IRInstruction.Sub + IRInstruction.Switch + IRInstruction.Trunc + IRInstruction.UDiv + IRInstruction.UIToFP + IRInstruction.URem + IRInstruction.Unreachable + IRInstruction.Xor + IRInstruction.ZExt",
         IRInstruction,
-        IRParameter,
-        IRDEFUSE.Local,
-        IRDEFUSE.Global,
-        "IRDEFUSE.Local + IRDEFUSE.Global",
-        IRDEFUSE,
+        IRParameter
+    };
+    pub static ref IR_EDGE_IDS: Vec<ID> = ids! {
+        IRRets,
+        IRAnnoVar,
+        IRAnnoGlobal,
+        IRDefUse,
+        IRDefUse.Inter,
+        IRDefUse.Inter.Intrinsic,
+        IRDefUse.Inter.NonIntrinsic,
+        "IRDefUse.Inter.Intrinsic + IRDefUse.Inter.NonIntrinsic",
+        IRDefUse.Intra,
+        IRDefUse.Intra.Intrinsic,
+        IRDefUse.Intra.NonIntrinsic,
+        "IRDefUse.Intra.Intrinsic + IRDefUse.Intra.NonIntrinsic",
+        "IRDefUse.Inter + IRDefUse.Intra",
         IRAlias,
         IRAlias.FunctionFunction,
         IRAlias.FunctionGlobal,
@@ -339,9 +337,34 @@ lazy_static! {
         IRAlias.ParameterFunction,
         IRAlias.ParameterGlobal,
         IRAlias.ParameterInstruction,
-        IRAlias.Subtypes,
+        "IRAlias.FunctionFunction + IRAlias.FunctionGlobal + IRAlias.FunctionInstruction + IRAlias.ParameterFunction + IRAlias.ParameterGlobal + IRAlias.ParameterInstruction",
         IRRAW
     };
+
+    pub static ref KNOWN_IR_EDGE_IDS: Vec<ID> = ids! {
+        IRRets,
+        IRAnnoVar,
+        IRAnnoGlobal,
+        IRDefUse,
+        IRDefUse.Inter,
+        IRDefUse.Inter.Intrinsic,
+        IRDefUse.Inter.NonIntrinsic,
+        "IRDefUse.Inter.Intrinsic + IRDefUse.Inter.NonIntrinsic",
+        IRDefUse.Intra,
+        IRDefUse.Intra.Intrinsic,
+        IRDefUse.Intra.NonIntrinsic,
+        "IRDefUse.Intra.Intrinsic + IRDefUse.Intra.NonIntrinsic",
+        "IRDefUse.Inter + IRDefUse.Intra",
+        IRAlias,
+        IRAlias.FunctionFunction,
+        IRAlias.FunctionGlobal,
+        IRAlias.FunctionInstruction,
+        IRAlias.ParameterFunction,
+        IRAlias.ParameterGlobal,
+        IRAlias.ParameterInstruction,
+        "IRAlias.FunctionFunction + IRAlias.FunctionGlobal + IRAlias.FunctionInstruction + IRAlias.ParameterFunction + IRAlias.ParameterGlobal + IRAlias.ParameterInstruction"
+    };
+
 }
 
 fn global_tags(global: &GlobalVariable, fn_names: &HashSet<String>) -> Option<ID> {
@@ -566,6 +589,7 @@ impl IndexedSets<LLValue> for Module {
     }
 }
 
+
 impl IndexedSets<Node> for Pdg {
     fn indexed_sets(&self) -> ISet<ID, Node> {
         let mut iset = ISet::new();
@@ -607,3 +631,185 @@ impl IndexedSets<Edge> for Pdg {
         iset
     }
 }
+
+#[allow(dead_code)]
+struct DefUseEdges {
+    anno_var: HashSet<LLEdge>,
+    anno_global: HashSet<LLEdge>,
+    intra_intrinsic: HashSet<LLEdge>,
+    intra_nonintrinsic: HashSet<LLEdge>,
+    inter_intrinsic: HashSet<LLEdge>,
+    inter_nonintrinsic: HashSet<LLEdge>,
+}
+
+fn ir_defuse_edges(ir_iset: &ISet<ID, LLValue>) -> DefUseEdges {
+    let functions = ir_iset
+        .get(&id!(IRFunction))
+        .iter()
+        .map(|v| (v.id.global_name().to_string(), v.item.function().unwrap()))
+        .collect::<HashMap<_, _>>();
+
+    let insts = ir_iset
+        .get(&id!(IRInstruction))
+        .iter()
+        .filter_map(|v| v.item.instruction().map(|i| (v, v.id.clone(), i)))
+        .collect::<Vec<_>>();
+
+    let intra_uses = insts
+        .iter()
+        .flat_map(|(v, id, inst)| {
+            inst.users(functions.get(id.global_name()).unwrap(), false)
+                .iter()
+                .map(|v2| (v.clone(), v2.clone()))
+                .collect::<Vec<_>>()
+        })
+        .collect::<HashSet<_>>();
+
+    let is_anno_var = |x: &str| x.contains("llvm.var.annotation");
+    let is_anno_global = |x: &str| x.contains("llvm.global.annotation");
+    let is_annotation = |x: &str| is_anno_global(x) || is_anno_var(x);
+    let is_intrinsic = |x: &str| x.contains("llvm.");
+
+    let intra_non_anno = intra_uses
+        .iter()
+        .filter(|(v1, v2)| {
+            !(v1.item.call_name_predicate(is_annotation)
+                || v2.item.call_name_predicate(is_annotation))
+        })
+        .collect::<HashSet<_>>();
+    let intra_intrinsic = intra_non_anno
+        .iter()
+        .filter(|(v1, v2)| {
+            v1.item.call_name_predicate(is_intrinsic) || v2.item.call_name_predicate(is_intrinsic)
+        })
+        .map(|(v1, v2)| LLEdge::from(((*v1).to_owned(), v2.to_owned())))
+        .collect::<HashSet<_>>();
+    let intra_nonintrinsic = intra_non_anno
+        .iter()
+        .filter(|(v1, v2)| {
+            !(v1.item.call_name_predicate(is_intrinsic)
+                || v2.item.call_name_predicate(is_intrinsic))
+        })
+        .map(|(v1, v2)| LLEdge::from(((*v1).to_owned(), v2.to_owned())))
+        .collect::<HashSet<_>>();
+
+    let globals = ir_iset.get(&id!(IRGlobal.Internal));
+
+    let globals = globals
+        .iter()
+        .map(|v| (v.clone(), v.item.global().unwrap()));
+
+    let global_uses = globals
+        .flat_map(|(gv, g)| {
+            functions
+                .iter()
+                .flat_map(|(_, f)| {
+                    g.name
+                        .users(f, true)
+                        .iter()
+                        .map(|f| (gv.clone(), f.clone()))
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<HashSet<_>>();
+    let all_uses = union!(intra_uses, global_uses.iter().map(|(x, y)| (x, y.clone())));
+
+    let anno_var = all_uses
+        .iter()
+        .filter(|(v1, v2)| {
+            v1.item.call_name_predicate(is_anno_var) || v2.item.call_name_predicate(is_anno_var)
+        })
+        .map(|(v1, v2)| LLEdge::from(((*v1).to_owned(), v2.to_owned())))
+        .collect::<HashSet<_>>();
+    let anno_global = all_uses
+        .iter()
+        .filter(|(v1, v2)| {
+            v1.item.call_name_predicate(is_anno_global)
+                || v2.item.call_name_predicate(is_anno_global)
+        })
+        .map(|(v1, v2)| LLEdge::from(((*v1).to_owned(), v2.to_owned())))
+        .collect::<HashSet<_>>();
+
+    let inter_intrinsic = global_uses
+        .iter()
+        .filter(|(v1, v2)| {
+            v1.item.call_name_predicate(is_intrinsic) || v2.item.call_name_predicate(is_intrinsic)
+        })
+        .map(|x| LLEdge::from(x.to_owned()))
+        .collect::<HashSet<_>>();
+    let inter_nonintrinsic = global_uses
+        .iter()
+        .filter(|(v1, v2)| {
+            !(v1.item.call_name_predicate(is_intrinsic)
+                || v2.item.call_name_predicate(is_intrinsic))
+        })
+        .map(|x| LLEdge::from(x.to_owned()))
+        .collect::<HashSet<_>>();
+
+    DefUseEdges {
+        anno_var,
+        anno_global,
+        intra_intrinsic,
+        intra_nonintrinsic,
+        inter_intrinsic,
+        inter_nonintrinsic,
+    }
+}
+
+fn ir_ret_edges(ir_iset: &ISet<ID, LLValue>) -> HashSet<LLEdge> {
+    let ir_rets = ir_iset
+        .get(&id!(IRInstruction.Ret))
+        .iter()
+        .map(|x| {
+            (
+                LLID::global_name_from_string(x.id.global_name().to_string()),
+                x.id.clone(),
+            )
+        })
+        .collect::<ISet<LLID, LLID>>();
+    let ir_calls = ir_iset.get(&id!(IRInstruction.Call.Internal));
+    let ir_ret_edges = ir_calls
+        .iter()
+        .filter_map(|v| v.item.constant_call_name().map(|x| (v, x)))
+        .flat_map(|(call, name)| 
+            ir_rets.get(&LLID::global_name_from_name(&name)).iter().map(move |x| LLEdge(x.clone(), call.id.clone())))
+        .collect::<HashSet<_>>();
+    ir_ret_edges
+}
+
+pub fn ir_edge_iset(ir_iset: &ISet<ID, LLValue>, alias_sets: &Vec<HashSet<Binder>>) -> ISet<ID, LLEdge> {
+    let mut iset = ISet::new();
+
+    for id in KNOWN_IR_EDGE_IDS.clone().into_iter() {
+        iset.insert_empty(id);
+    }
+
+    let defuse_edges = ir_defuse_edges(ir_iset);
+    iset.insert_all(id!(IRAnnoGlobal), defuse_edges.anno_global);
+    iset.insert_all(id!(IRAnnoVar), defuse_edges.anno_var);
+    iset.insert_all(id!(IRDefUse.Inter.Intrinsic), defuse_edges.inter_intrinsic);
+    iset.insert_all(id!(IRDefUse.Inter.NonIntrinsic), defuse_edges.inter_nonintrinsic);
+    iset.insert_all(id!(IRDefUse.Intra.Intrinsic), defuse_edges.intra_intrinsic);
+    iset.insert_all(id!(IRDefUse.Intra.NonIntrinsic), defuse_edges.intra_nonintrinsic);
+
+    let alias_edges = alias_edges(ir_iset, &alias_sets); 
+    let alias_edges = alias_edges.into_iter()
+        .map(|(k, v)| (match k {
+            (Aliaser::Function, Aliasee::Function) => id!(IRAlias.FunctionFunction),
+            (Aliaser::Function, Aliasee::Global) => id!(IRAlias.FunctionGlobal),
+            (Aliaser::Function, Aliasee::Instruction) => id!(IRAlias.FunctionInstruction),
+            (Aliaser::Parameter, Aliasee::Function) => id!(IRAlias.ParameterFunction),
+            (Aliaser::Parameter, Aliasee::Global) => id!(IRAlias.ParameterGlobal),
+            (Aliaser::Parameter, Aliasee::Instruction) => id!(IRAlias.ParameterInstruction),
+        }, v));
+    iset.extend(alias_edges);
+
+    let ir_rets = ir_ret_edges(ir_iset);
+    iset.insert_all(id!(IRRets), ir_rets);
+
+
+    iset.rollup_prefixes();
+    iset
+}
+

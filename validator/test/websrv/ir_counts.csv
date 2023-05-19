@@ -1,8 +1,4 @@
 Category,Count
-IRAlias.FunctionFunction + IRAlias.FunctionGlobal + IRAlias.FunctionInstruction + IRAlias.ParameterFunction + IRAlias.ParameterGlobal + IRAlias.ParameterInstruction,0
-IRAnnoGlobal,0
-IRAnnoVar,30
-IRRets,2486
 IRFunction,975
 IRGlobal.External,1
 IRGlobal.Internal.Annotation,1
@@ -73,10 +69,19 @@ IRInstruction.ZExt,1257
 IRInstruction.AShr + IRInstruction.Add + IRInstruction.Alloca + IRInstruction.And + IRInstruction.BitCast + IRInstruction.Br + IRInstruction.Call + IRInstruction.CondBr + IRInstruction.ExtractValue + IRInstruction.FAdd + IRInstruction.FCmp + IRInstruction.FDiv + IRInstruction.FMul + IRInstruction.FNeg + IRInstruction.FPExt + IRInstruction.FPToSI + IRInstruction.FPToUI + IRInstruction.FPTrunc + IRInstruction.FSub + IRInstruction.GetElementPtr + IRInstruction.ICmp + IRInstruction.IntToPtr + IRInstruction.LShr + IRInstruction.Load + IRInstruction.Mul + IRInstruction.Or + IRInstruction.Phi + IRInstruction.PtrToInt + IRInstruction.Ret + IRInstruction.SDiv + IRInstruction.SExt + IRInstruction.SIToFP + IRInstruction.SRem + IRInstruction.Select + IRInstruction.Shl + IRInstruction.Store + IRInstruction.Sub + IRInstruction.Switch + IRInstruction.Trunc + IRInstruction.UDiv + IRInstruction.UIToFP + IRInstruction.URem + IRInstruction.Unreachable + IRInstruction.Xor + IRInstruction.ZExt,75484
 IRInstruction,75484
 IRParameter,2473
-IRDEFUSE.Local,N/A
-IRDEFUSE.Global,N/A
-IRDEFUSE.Local + IRDEFUSE.Global,N/A
-IRDEFUSE,N/A
+IRRets,2486
+IRAnnoVar,15
+IRAnnoGlobal,0
+IRDefUse,76320
+IRDefUse.Inter,192
+IRDefUse.Inter.Intrinsic,2
+IRDefUse.Inter.NonIntrinsic,190
+IRDefUse.Inter.Intrinsic + IRDefUse.Inter.NonIntrinsic,192
+IRDefUse.Intra,76128
+IRDefUse.Intra.Intrinsic,740
+IRDefUse.Intra.NonIntrinsic,75388
+IRDefUse.Intra.Intrinsic + IRDefUse.Intra.NonIntrinsic,76128
+IRDefUse.Inter + IRDefUse.Intra,76320
 IRAlias,712500
 IRAlias.FunctionFunction,5636
 IRAlias.FunctionGlobal,3188
@@ -84,5 +89,5 @@ IRAlias.FunctionInstruction,703676
 IRAlias.ParameterFunction,0
 IRAlias.ParameterGlobal,0
 IRAlias.ParameterInstruction,0
-IRAlias.Subtypes,N/A
+IRAlias.FunctionFunction + IRAlias.FunctionGlobal + IRAlias.FunctionInstruction + IRAlias.ParameterFunction + IRAlias.ParameterGlobal + IRAlias.ParameterInstruction,712500
 IRRAW,N/A

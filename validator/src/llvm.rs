@@ -282,6 +282,29 @@ impl LLID {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct LLEdge(pub LLID, pub LLID);
+
+impl Display for LLEdge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{} --> {}", self.0, self.1))
+    }
+}
+
+impl From<(LLValue, LLValue)> for LLEdge {
+    fn from(value: (LLValue, LLValue)) -> Self {
+        LLEdge(value.0.id, value.1.id)
+    }
+}
+
+impl From<(LLID, LLID)> for LLEdge {
+    fn from(value: (LLID, LLID)) -> Self {
+        LLEdge(value.0, value.1)
+    }
+}
+
+
+
 pub fn instr_name(instr: &Instruction) -> &'static str {
     match instr {
         Instruction::Add(_) => "Add",

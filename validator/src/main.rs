@@ -12,10 +12,8 @@ pub mod pdg;
 pub mod report;
 pub mod validator;
 
-use alias::svf::parse_svf_sets;
 use clap::Parser;
 
-use crate::alias::svf::alias_edges;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]

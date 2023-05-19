@@ -29,7 +29,7 @@ PDGNode.VarNode.StaticModule,IRGlobal.Internal.Module,0,1,0,1
 PDGNode.VarNode.StaticOther,Empty,0,0,0,0
 PDGNode.VarNode,N/A,N/A,N/A,N/A,N/A
 PDGNode,N/A,N/A,N/A,N/A,N/A
-PDGEdge.Anno.Global,IRAnnoGlobal,N/A,N/A,N/A,N/A
+PDGEdge.Anno.Global,IRAnnoGlobal,0,0,0,0
 PDGEdge.Anno.Other,Empty,0,0,0,0
 PDGEdge.Anno.Var,IRAnnoVar,0,0,0,0
 PDGEdge.Anno,N/A,N/A,N/A,N/A,N/A
@@ -40,7 +40,7 @@ PDGEdge.ControlDep.Entry,N/A,N/A,N/A,N/A,N/A
 PDGEdge.ControlDep.Other,N/A,N/A,N/A,N/A,N/A
 PDGEdge.ControlDep,N/A,N/A,N/A,N/A,N/A
 PDGEdge.DataDepEdge.Alias,IRAlias,0,28,0,28
-PDGEdge.DataDepEdge.DefUse,N/A,N/A,N/A,N/A,N/A
+PDGEdge.DataDepEdge.DefUse,IRDefUse,22,25,0,3
 PDGEdge.DataDepEdge.RAW,IRRAW,N/A,N/A,N/A,N/A
 PDGEdge.DataDepEdge.Ret,N/A,N/A,N/A,N/A,N/A
 PDGEdge.DataDepEdge,N/A,N/A,N/A,N/A,N/A
@@ -61,4 +61,10 @@ XPDGEdge.DataDepEdge.Parameter.Indirect.Actual.In,N/A,N/A,N/A,N/A,N/A
 XPDGEdge.DataDepEdge.Parameter.Indirect.Actual.Out,N/A,N/A,N/A,N/A,N/A
 XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.In,N/A,N/A,N/A,N/A,N/A
 XPDGEdge.DataDepEdge.Parameter.Indirect.Formal.Out,N/A,N/A,N/A,N/A,N/A
+XPDGEdge.DataDepEdge.Alias.FunctionFunction,IRAlias.FunctionFunction,N/A,N/A,N/A,N/A
+XPDGEdge.DataDepEdge.Alias.FunctionGlobal,IRAlias.FunctionFunction,N/A,N/A,N/A,N/A
+XPDGEdge.DataDepEdge.Alias.FunctionInstruction,IRAlias.FunctionInstruction,N/A,N/A,N/A,N/A
+XPDGEdge.DataDepEdge.Alias.ParameterFunction,IRAlias.ParameterInstruction,N/A,N/A,N/A,N/A
+XPDGEdge.DataDepEdge.Alias.ParameterGlobal,IRAlias.ParameterInstruction,N/A,N/A,N/A,N/A
+XPDGEdge.DataDepEdge.Alias.ParameterInstruction,IRAlias.ParameterInstruction,N/A,N/A,N/A,N/A
 Annotation Applications in MZN,N/A,N/A,N/A,N/A,N/A

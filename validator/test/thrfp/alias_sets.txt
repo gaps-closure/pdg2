@@ -1,3 +1,3 @@
-{'@.str', '@.str.2', 'worldfun::%3', 'hellofun::%1', 'thread_helper::%8', '@.str.1'}
-{'@thread_helper.x', 'worldfun::%2', 'worldfun::%0', 'worldfun::%5'}
-{'thread_helper::%3', '@worldfun', 'thread_helper::%5', '@hellofun', '@globpm', 'thread_helper::%1'}
+{'worldfun::%3', '@.str.1', '@.str', 'hellofun::%1', 'thread_helper::%8', '@.str.2'}
+{'worldfun::%5', '@thread_helper.x', 'worldfun::%2', 'worldfun::%0'}
+{'@globpm', 'thread_helper::%5', 'thread_helper::%3', '@worldfun', '@hellofun', 'thread_helper::%1'}
