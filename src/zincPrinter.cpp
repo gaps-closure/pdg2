@@ -399,7 +399,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
         numArgs++;
       }
       if (node->getAnno() != "None")
-        funFile << node->getAnno() << " " << numArgs << "\n";
+        funFile << node->getFunc()->getName().str() << " " << node->getAnno() << " " << numArgs << "\n";
     }
     
 
@@ -892,7 +892,7 @@ end = std::chrono::high_resolution_clock::now();
   for(auto &i : oneWayCheck)
   {
     if(nodeID2Node[i.first]->getNodeType() == pdg::GraphNodeType::FUNC_ENTRY && nodeID2Node[i.first]->getAnno() != "None")
-      onewayFile << nodeID2Node[i.first]->getAnno() << " " << oneWayCheck[i.first] << "\n";
+      onewayFile << nodeID2Node[i.first]->getFunc()->getName().str() << " " << nodeID2Node[i.first]->getAnno() << " " << oneWayCheck[i.first] << "\n";
   }
   
   end = std::chrono::high_resolution_clock::now();
