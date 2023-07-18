@@ -123,7 +123,7 @@ AllocaInst *pdg::FunctionWrapper::getArgAllocaInst(Argument &arg)
       continue;
     if (di_local_var->getArg() == arg.getArgNo() + 1 && !di_local_var->getName().empty() && di_local_var->getScope()->getSubprogram() == _func->getSubprogram())
     {
-      if (AllocaInst* ai = dyn_cast<AllocaInst>(dbg_declare_inst->getVariableLocation()))
+      if (AllocaInst* ai = dyn_cast<AllocaInst>(dbg_declare_inst->getVariableLocationOp(0)))
         return ai;
     }
   }

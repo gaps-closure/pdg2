@@ -53,7 +53,7 @@ bool pdg::PDGCallGraph::isFuncSignatureMatch(CallInst &ci, llvm::Function &f)
 {
   if (f.isVarArg())
     return false;
-  auto actual_arg_list_size = ci.getNumArgOperands();
+  auto actual_arg_list_size = ci.arg_size();
   auto formal_arg_list_size = f.arg_size();
   if (actual_arg_list_size != formal_arg_list_size)
     return false;

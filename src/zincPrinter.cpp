@@ -539,7 +539,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
 
       if (nodeID2Node[i]->getValue() != nullptr)
       {
-        nameStr  = nodeID2Node[i]->getValue()->getName();
+        nameStr  = nodeID2Node[i]->getValue()->getName().str();
       }
 
       if(nodeID2Node[i]->getNodeType() == pdg::GraphNodeType::FUNC_ENTRY)

@@ -209,7 +209,7 @@ void pdg::ProgramGraph::bindDITypeToNodes(Module &M)
     // bind ditype to the top-level pointer (alloca)
     for (auto dbg_declare_inst : dbg_declare_insts)
     {
-      auto addr = dbg_declare_inst->getVariableLocation();
+      auto addr = dbg_declare_inst->getVariableLocationOp(0);
       Node *addr_node = getNode(*addr);
       if (!addr_node)
         continue;

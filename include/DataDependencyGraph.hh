@@ -3,6 +3,7 @@
 #include "Graph.hh"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/MemoryLocation.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 
 namespace pdg
 {
