@@ -25,7 +25,18 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   PDGCallGraph &call_g = PDGCallGraph::getInstance();
   if (!call_g.isBuild())
     call_g.build(M);
-  
+
+  for(auto node : call_g)
+  {
+    _PDG->addNode(*node);
+  }
+
+  for(auto edge : call_g.getEdgeSet())
+  {
+    _PDG->addEdge(*edge);
+  }
+
+
   if (!_PDG->isBuild())
   {
     _PDG->build(M);
@@ -131,7 +142,7 @@ void pdg::ProgramDependencyGraph::connectCallerAndCallee(CallWrapper &cw, Functi
   auto func_entry_node = fw.getEntryNode();
   if (call_site_node == nullptr || func_entry_node == nullptr )
     return;
-  call_site_node->addNeighbor(*func_entry_node, EdgeType::CONTROLDEP_CALLINV);
+  // call_site_node->addNeighbor(*func_entry_node, EdgeType::CONTROLDEP_CALLINV);
 
   // step4: connect both control/data return edges of callee to the call site
   auto ret_insts = fw.getReturnInsts();

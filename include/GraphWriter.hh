@@ -268,6 +268,8 @@ namespace llvm
         return "style=dashed, color=\"green\", label =\"{ANNO_GLOB}\"";
       case pdg::EdgeType::ANNO_VAR:
         return "style=dashed, color=\"green\", label =\"{ANNO_VAR}\"";
+      case pdg::EdgeType::IND_CALL:
+        return "style=dashed, color=\"green\", label =\"{IND_CALL}\"";
       default:
         break;
       }
@@ -281,7 +283,7 @@ namespace pdg
   struct ProgramDependencyPrinter : public llvm::DOTGraphTraitsPrinter<ProgramDependencyGraph, false>
   {
     static char ID;
-    ProgramDependencyPrinter() : llvm::DOTGraphTraitsPrinter<ProgramDependencyGraph, false>("pdgragh", ID) {}
+    ProgramDependencyPrinter() : llvm::DOTGraphTraitsPrinter<ProgramDependencyGraph, false>("pdg-graph", ID) {}
   };
 
 } // namespace pdg

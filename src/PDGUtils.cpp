@@ -377,6 +377,8 @@ std::string pdg::pdgutils::getEdgeTypeStr(EdgeType edge_type)
     return "Anno_Global";
   case EdgeType::ANNO_OTHER:
     return "Anno_Other";
+  case EdgeType::IND_CALL:
+    return "Ind_Call";
   case EdgeType::TYPE_OTHEREDGE:
     return "ControlDep_Other";
   default:
