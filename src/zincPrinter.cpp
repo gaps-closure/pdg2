@@ -58,7 +58,7 @@ std::optional<pdg::MznEdgeType> pdg::MiniZincPrinter::edgeMznType(pdg::EdgeType 
 {
   std::map<pdg::EdgeType, pdg::MznEdgeType> map {
     { pdg::EdgeType::CONTROLDEP_CALLINV, pdg::MznEdgeType::ControlDep_CallInv },
-    { pdg::EdgeType::IND_CALL, pdg::MznEdgeType::ControlDep_Indirect },
+    { pdg::EdgeType::IND_CALL, pdg::MznEdgeType::ControlDep_Indirect_CallInv },
     { pdg::EdgeType::CONTROLDEP_CALLRET, pdg::MznEdgeType::ControlDep_CallRet },
     { pdg::EdgeType::CONTROLDEP_ENTRY, pdg::MznEdgeType::ControlDep_Entry },
     { pdg::EdgeType::CONTROLDEP_BR, pdg::MznEdgeType::ControlDep_Br },
@@ -208,7 +208,7 @@ std::string pdg::MiniZincPrinter::mznEdgeName(MznEdgeType edgeType)
 {
   std::map<pdg::MznEdgeType, std::string> map {
     { pdg::MznEdgeType::ControlDep_CallInv, "ControlDep_CallInv" },
-    { pdg::MznEdgeType::ControlDep_Indirect, "ControlDep_Indirect" },
+    { pdg::MznEdgeType::ControlDep_Indirect_CallInv, "ControlDep_Indirect_CallInv" },
     { pdg::MznEdgeType::ControlDep_CallRet, "ControlDep_CallRet" },
     { pdg::MznEdgeType::ControlDep_Entry, "ControlDep_Entry" },
     { pdg::MznEdgeType::ControlDep_Br, "ControlDep_Br" },
@@ -464,6 +464,64 @@ void pdg::MiniZincPrinter::exportMzn(std::string filename, pdg::NodeRangesAndIds
   mzn.close();
 }
 
+
+void pdg::MiniZincPrinter::exportDebug(std::string filename, pdg::NodeRangesAndIds nodes, pdg::EdgeRangesAndIds edges, std::map<unsigned int, unsigned int> hasFn)
+{
+
+  std::ofstream debug;
+  debug.open(filename);
+
+  std::string delim = ",";
+  std::string quote = "'";
+  std::string term = "\n";
+
+  for(size_t i = 0; i < nodes.ordered.size(); i++)
+  {
+    auto node = nodes.ordered[i];
+    std::string valueStr;
+    if(node->getValue())
+      llvm::raw_string_ostream(valueStr) << *node->getValue();
+    else
+      valueStr = "No Value";
+
+    debug 
+      << "Node" << delim 
+      << i + 1 << delim 
+      << mznNodeName(*nodeMznType(node->getNodeType())) << delim 
+      << 0 << delim  // deprecated; no longer has debugging use   
+      << quote << valueStr << quote << delim
+      << hasFn[node->getNodeID()] << delim 
+      << delim 
+      << delim
+      << node->getFileName() << delim 
+      << node->getLineNumber() << delim 
+      << node->getColumnNumber() << delim
+      << node->getInstructionIndex() << delim
+      << node->getParamIdx() 
+      << term;
+  }
+  for(size_t i = 0; i < edges.ordered.size(); i++)
+  {
+    auto edge = edges.ordered[i];
+    debug 
+      << "Edge" << delim 
+      << i + 1 << delim
+      << mznEdgeName(*edgeMznType(edge->getEdgeType())) << delim 
+      << 0 << delim 
+      << delim 
+      << delim
+      << nodes.ids[edge->getSrcNode()->getNodeID()] + 1 << delim 
+      << nodes.ids[edge->getDstNode()->getNodeID()] + 1 << delim 
+      << delim 
+      << delim 
+      << delim 
+      << delim
+      << term;
+  }
+
+  debug.close();
+}
+
 bool pdg::MiniZincPrinter::runOnModule(Module &M)
 {
   auto PDG = &ProgramGraph::getInstance();
@@ -481,6 +539,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   auto maxParams = maxFnParams(*PDG);
 
   exportMzn("pdg_instance.mzn", nodesById, edgesById, functions, maxParams);
+  exportDebug("pdg_data.csv", nodesById, edgesById, functions);
 
   return false;
 }

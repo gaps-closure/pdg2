@@ -39,7 +39,7 @@ namespace pdg
 
   enum MznEdgeType {
     ControlDep_CallInv,
-    ControlDep_Indirect,
+    ControlDep_Indirect_CallInv,
     ControlDep_CallRet,
     ControlDep_Entry,
     ControlDep_Br,
@@ -99,7 +99,7 @@ namespace pdg
     static void exportMznUserAnnotated(std::ofstream &mzn, NodeRangesAndIds nodes);
     static void exportMznConstraints(std::ofstream &mzn, NodeRangesAndIds nodes);
     static void exportMzn(std::string filename, NodeRangesAndIds nodes, EdgeRangesAndIds edges, std::map<unsigned int, unsigned int> hasFn, size_t maxFnParams);
-    // static void exportDebug(std::string &filename);
+    static void exportDebug(std::string filename, NodeRangesAndIds nodes, EdgeRangesAndIds edges, std::map<unsigned int, unsigned int> hasFn);
     // static void exportOneway(std::string &filename);
     // static void exportFunctionArgs(std::string &filename);
     // static void exportLineNumbers(std::string &filename);
