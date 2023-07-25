@@ -19,9 +19,14 @@ namespace pdg
       llvm::StringRef getPassName() const override { return "Program Dependency Graph"; }
       FunctionWrapper *getFuncWrapper(llvm::Function &F) { return _PDG->getFuncWrapperMap()[&F]; }
       CallWrapper *getCallWrapper(llvm::CallInst &call_inst) { return _PDG->getCallWrapperMap()[&call_inst]; }
+
+      bool isTypeEqual(llvm::Type& t1, llvm::Type &t2);
+      bool isFuncSignatureMatch(llvm::CallInst &ci, llvm::Function &f);
+
       void connectGlobalWithUses();
       void connectInTrees(Tree *src_tree, Tree *dst_tree, EdgeType edge_type);
       void connectOutTrees(Tree *src_tree, Tree *dst_tree, EdgeType edge_type);
+      void connectCallerIndirect(llvm::CallInst &ci);
       void connectCallerAndCallee(CallWrapper &cw, FunctionWrapper &fw);
       void connectIntraprocDependencies(llvm::Function &F);
       void connectInterprocDependencies(llvm::Function &F);

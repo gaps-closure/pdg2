@@ -22,20 +22,25 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   _module = &M;
   _PDG = &ProgramGraph::getInstance();
 
-  PDGCallGraph &call_g = PDGCallGraph::getInstance();
-  if (!call_g.isBuild())
-    call_g.build(M);
+  // PDGCallGraph &call_g = PDGCallGraph::getInstance();
+  // if (!call_g.isBuild())
+  //   call_g.build(M);
 
-  for(auto node : call_g)
-  {
-    _PDG->addNode(*node);
-  }
+  // for(auto edge : call_g.getEdgeSet())
+  // {
+  //   // edge->getSrcNode()
+  // }
 
-  for(auto edge : call_g.getEdgeSet())
-  {
-    _PDG->addEdge(*edge);
-  }
+  // for(auto node : call_g)
+  // {
+  //   _PDG->addNode(*node);
+  // }
 
+  // for(auto edge : call_g.getEdgeSet())
+  // {
+  //   edge->getSrcNode()->addInEdge(*edge);
+  //   edge->getDstNode()->addOutEdge(*edge);
+  // }
 
   if (!_PDG->isBuild())
   {
@@ -83,6 +88,7 @@ void pdg::ProgramDependencyGraph::connectGlobalWithUses()
     }
   }
 }
+
 
 void pdg::ProgramDependencyGraph::connectInTrees(Tree* src_tree, Tree* dst_tree, EdgeType edge_type)
 {
@@ -135,6 +141,68 @@ void pdg::ProgramDependencyGraph::connectOutTrees(Tree* src_tree, Tree* dst_tree
   }
 }
 
+bool pdg::ProgramDependencyGraph::isFuncSignatureMatch(llvm::CallInst &ci, llvm::Function &f)
+{
+  if (f.isVarArg())
+    return false;
+  auto actual_arg_list_size = ci.arg_size();
+  auto formal_arg_list_size = f.arg_size();
+  if (actual_arg_list_size != formal_arg_list_size)
+    return false;
+  // compare return type
+  auto actual_ret_type = ci.getType();
+  auto formal_ret_type = f.getReturnType();
+  if (!isTypeEqual(*actual_ret_type, *formal_ret_type))
+    return false;
+  
+  for (unsigned i = 0; i < actual_arg_list_size; i++)
+  {
+    auto actual_arg = ci.getOperand(i);
+    auto formal_arg = f.getArg(i);
+    if (!isTypeEqual(*actual_arg->getType(), *formal_arg->getType()))
+      return false;
+  }
+  return true;
+}
+
+bool pdg::ProgramDependencyGraph::isTypeEqual(llvm::Type& t1, llvm::Type &t2)
+{
+  if (&t1 == &t2)
+    return true;
+  // need to compare name for sturct, due to llvm-link duplicate struct types
+  if (!t1.isPointerTy() || !t2.isPointerTy())
+    return false;
+
+  auto t1_pointed_ty = t1.getPointerElementType();
+  auto t2_pointed_ty = t2.getPointerElementType();
+
+  if (!t1_pointed_ty->isStructTy() || !t2_pointed_ty->isStructTy())
+    return false;
+  
+  auto t1_name = pdgutils::stripVersionTag(t1_pointed_ty->getStructName().str());
+  auto t2_name = pdgutils::stripVersionTag(t2_pointed_ty->getStructName().str());
+
+  return (t1_name == t2_name);
+}
+
+
+
+void pdg::ProgramDependencyGraph::connectCallerIndirect(llvm::CallInst &ci)
+{
+  auto callSiteNode = _PDG->getNode(ci);
+  for (auto &func : *_module)
+  {
+    auto potentialCallee = _PDG->getNode(func);
+    if(potentialCallee)
+    {
+      if(isFuncSignatureMatch(ci, func) && !func.users().empty())
+      {
+        callSiteNode->addNeighbor(*potentialCallee, EdgeType::IND_CALL);
+      }
+    }
+  }
+}
+
 void pdg::ProgramDependencyGraph::connectCallerAndCallee(CallWrapper &cw, FunctionWrapper &fw)
 {
   // step 1: connect call site node with the entry node of function
@@ -142,7 +210,7 @@ void pdg::ProgramDependencyGraph::connectCallerAndCallee(CallWrapper &cw, Functi
   auto func_entry_node = fw.getEntryNode();
   if (call_site_node == nullptr || func_entry_node == nullptr )
     return;
-  // call_site_node->addNeighbor(*func_entry_node, EdgeType::CONTROLDEP_CALLINV);
+  call_site_node->addNeighbor(*func_entry_node, EdgeType::CONTROLDEP_CALLINV);
 
   // step4: connect both control/data return edges of callee to the call site
   auto ret_insts = fw.getReturnInsts();
@@ -276,7 +344,11 @@ void pdg::ProgramDependencyGraph::connectInterprocDependencies(Function &F)
       {
         auto called_func_w = getFuncWrapper(*call_w->getCalledFunc());
         connectCallerAndCallee(*call_w, *called_func_w);
-      }
+      } 
+    }
+    else
+    {
+      connectCallerIndirect(*call_inst);
     }
   }
 }

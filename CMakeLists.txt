@@ -16,7 +16,7 @@ link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 # Use the same C++ standard as LLVM does
-set(CMAKE_CXX_STANDARD 14 CACHE STRING "")
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 
 # Build type
 if (NOT CMAKE_BUILD_TYPE)
@@ -31,7 +31,7 @@ endif()
 
 # Compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall\
-    -fdiagnostics-color=always -Wno-everything")
+    -fdiagnostics-color=always -Wno-unused-variable")
 
 
 include_directories("include")
