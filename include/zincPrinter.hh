@@ -84,6 +84,7 @@ namespace pdg
     static std::map<pdg::GraphNodeType, std::vector<Node *>> nodesByNodeType(pdg::ProgramGraph &PDG);
     static std::map<pdg::EdgeType, std::vector<Edge *>> edgesByEdgeType(pdg::ProgramGraph &PDG);
     static size_t maxFnParams(pdg::ProgramGraph &PDG);
+    static std::map<unsigned int, bool> fnResultUsed(EdgeRangesAndIds ids);
 
     template<typename A>
     static std::optional<std::pair<int, int>> calculateCollatedRange(std::map<A, std::pair<size_t, size_t>> ranges, A start, A end);
@@ -100,7 +101,7 @@ namespace pdg
     static void exportMznConstraints(std::ofstream &mzn, NodeRangesAndIds nodes);
     static void exportMzn(std::string filename, NodeRangesAndIds nodes, EdgeRangesAndIds edges, std::map<unsigned int, unsigned int> hasFn, size_t maxFnParams);
     static void exportDebug(std::string filename, NodeRangesAndIds nodes, EdgeRangesAndIds edges, std::map<unsigned int, unsigned int> hasFn);
-    // static void exportOneway(std::string &filename);
+    static void exportOneway(std::string filename, NodeRangesAndIds nodes, std::map<unsigned int, bool> fnResultUsed);
     static void exportFnArgs(std::string filename, NodeRangesAndIds nodes);
     // static void exportLineNumbers(std::string &filename);
 

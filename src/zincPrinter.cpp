@@ -270,6 +270,20 @@ std::optional<std::pair<int, int>> pdg::MiniZincPrinter::calculateCollatedRange(
 }
 
 
+std::map<unsigned int, bool> pdg::MiniZincPrinter::fnResultUsed(pdg::EdgeRangesAndIds edges)
+{
+  std::map<unsigned int, bool> result;
+  for(auto edge : edges.ordered)
+  {
+    if(edge->getEdgeType() == EdgeType::CONTROLDEP_CALLINV)
+    {
+      result[edge->getEdgeID()] = 
+        result[edge->getEdgeID()] || edge->getSrcNode()->getValue()->user_empty(); 
+    }
+  }
+  return result;
+}
+
 void pdg::MiniZincPrinter::exportMznNodes(std::ofstream &mzn, pdg::NodeRangesAndIds nodes)
 {
   std::map<MznNodeType, std::pair<MznNodeType, MznNodeType>> collations {
@@ -540,6 +554,23 @@ void pdg::MiniZincPrinter::exportFnArgs(std::string filename, pdg::NodeRangesAnd
   fnArgs.close();
 }
 
+
+void pdg::MiniZincPrinter::exportOneway(std::string filename, pdg::NodeRangesAndIds nodes, std::map<unsigned int, bool> fnResultUsed)
+{
+  std::ofstream oneway;
+  oneway.open(filename);
+  for(auto node : nodes.ordered)
+  {
+    if(node->getNodeType() == GraphNodeType::FUNC_ENTRY && node->getAnno() != "None")
+    {
+      oneway << node->getFunc()->getName().str() << " ";
+      oneway << node->getAnno() << " ";
+      oneway << fnResultUsed[node->getNodeID()] << "\n";
+    } 
+  }
+  oneway.close();
+}
+
 bool pdg::MiniZincPrinter::runOnModule(Module &M)
 {
   auto PDG = &ProgramGraph::getInstance();
@@ -555,10 +586,12 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
 
   auto functions = hasFn(*PDG); 
   auto maxParams = maxFnParams(*PDG);
+  auto fnResultUses = fnResultUsed(edgesById);
 
   exportMzn("pdg_instance.mzn", nodesById, edgesById, functions, maxParams);
   exportDebug("pdg_data.csv", nodesById, edgesById, functions);
   exportFnArgs("functionArgs.txt", nodesById);
+  exportOneway("oneway.txt", nodesById, fnResultUses);
 
   return false;
 }
