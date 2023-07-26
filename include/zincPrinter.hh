@@ -103,7 +103,7 @@ namespace pdg
     static void exportDebug(std::string filename, NodeRangesAndIds nodes, EdgeRangesAndIds edges, std::map<unsigned int, unsigned int> hasFn);
     static void exportOneway(std::string filename, NodeRangesAndIds nodes, std::map<unsigned int, bool> fnResultUsed);
     static void exportFnArgs(std::string filename, NodeRangesAndIds nodes);
-    // static void exportLineNumbers(std::string &filename);
+    static void exportLineNumbers(std::string filename, NodeRangesAndIds nodes);
 
   public:
     typedef std::unordered_map<llvm::Function *, FunctionWrapper *> FuncWrapperMap;

@@ -571,6 +571,24 @@ void pdg::MiniZincPrinter::exportOneway(std::string filename, pdg::NodeRangesAnd
   oneway.close();
 }
 
+void pdg::MiniZincPrinter::exportLineNumbers(std::string filename, pdg::NodeRangesAndIds nodes)
+{
+  std::ofstream lineNumbers;
+  lineNumbers.open(filename);
+  for(size_t i = 0; i < nodes.ordered.size(); i++)
+  {
+    auto node = nodes.ordered[i];
+    std::string name;
+    if(node->getValue())
+      name = node->getValue()->getName().str();
+    lineNumbers << i + 1 << ",";
+    lineNumbers << name << ",";
+    lineNumbers << node->getFileName() << ",";
+  }
+
+  lineNumbers.close();
+}
+
 bool pdg::MiniZincPrinter::runOnModule(Module &M)
 {
   auto PDG = &ProgramGraph::getInstance();
@@ -589,9 +607,19 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
   auto fnResultUses = fnResultUsed(edgesById);
 
   exportMzn("pdg_instance.mzn", nodesById, edgesById, functions, maxParams);
+  errs() << "exported pdg_instance.mzn\n";
+
   exportDebug("pdg_data.csv", nodesById, edgesById, functions);
+  errs() << "exported pdg_data.csv\n";
+
   exportFnArgs("functionArgs.txt", nodesById);
+  errs() << "exported functionArgs.txt\n";
+
   exportOneway("oneway.txt", nodesById, fnResultUses);
+  errs() << "exported oneway.txt\n";
+
+  exportLineNumbers("node2lineNumber.txt", nodesById);
+  errs() << "exported node2lineNumber.txt\n";
 
   return false;
 }
