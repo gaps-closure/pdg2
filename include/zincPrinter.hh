@@ -101,7 +101,7 @@ namespace pdg
     static void exportMzn(std::string filename, NodeRangesAndIds nodes, EdgeRangesAndIds edges, std::map<unsigned int, unsigned int> hasFn, size_t maxFnParams);
     static void exportDebug(std::string filename, NodeRangesAndIds nodes, EdgeRangesAndIds edges, std::map<unsigned int, unsigned int> hasFn);
     // static void exportOneway(std::string &filename);
-    // static void exportFunctionArgs(std::string &filename);
+    static void exportFnArgs(std::string filename, NodeRangesAndIds nodes);
     // static void exportLineNumbers(std::string &filename);
 
   public:

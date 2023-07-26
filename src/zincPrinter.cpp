@@ -522,6 +522,24 @@ void pdg::MiniZincPrinter::exportDebug(std::string filename, pdg::NodeRangesAndI
   debug.close();
 }
 
+
+void pdg::MiniZincPrinter::exportFnArgs(std::string filename, pdg::NodeRangesAndIds nodes)
+{
+  std::ofstream fnArgs;
+  fnArgs.open(filename);
+  for(auto node : nodes.ordered)
+  {
+    if(node->getNodeType() == GraphNodeType::FUNC_ENTRY && node->getAnno() != "None")
+    {
+      fnArgs << node->getFunc()->getName().str() << " ";
+      fnArgs << node->getAnno() << " ";
+      fnArgs << node->getFunc()->arg_size() << "\n";
+    }
+  }
+
+  fnArgs.close();
+}
+
 bool pdg::MiniZincPrinter::runOnModule(Module &M)
 {
   auto PDG = &ProgramGraph::getInstance();
@@ -540,6 +558,7 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
 
   exportMzn("pdg_instance.mzn", nodesById, edgesById, functions, maxParams);
   exportDebug("pdg_data.csv", nodesById, edgesById, functions);
+  exportFnArgs("functionArgs.txt", nodesById);
 
   return false;
 }
