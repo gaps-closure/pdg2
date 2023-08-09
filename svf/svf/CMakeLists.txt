@@ -24,3 +24,6 @@ file(
 add_library(SvfCoreObj OBJECT ${SVF_CORE_SOURCES})
 add_library(SvfCore STATIC)
 target_link_libraries(SvfCore PUBLIC ${Z3_LIBRARIES} SvfCoreObj)
+
+add_library(SvfCoreShared SHARED ${SVF_CORE_SOURCES})
+target_link_libraries(SvfCoreShared PUBLIC ${Z3_LIBRARIES})

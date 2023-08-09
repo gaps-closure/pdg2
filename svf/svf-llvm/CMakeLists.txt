@@ -53,6 +53,13 @@ target_include_directories(SvfLLVM SYSTEM PUBLIC ${LLVM_INCLUDE_DIRS})
 target_include_directories(SvfLLVM PUBLIC include)
 target_link_libraries(SvfLLVM PUBLIC ${Z3_LIBRARIES} SvfCoreObj)
 
+add_llvm_library(SvfLLVMShared SHARED ${SVFLLVM_SOURCES})
+target_include_directories(SvfLLVMShared SYSTEM PUBLIC ${LLVM_INCLUDE_DIRS})
+target_include_directories(SvfLLVMShared PUBLIC include)
+target_link_libraries(SvfLLVMShared PUBLIC ${Z3_LIBRARIES} SvfCoreShared)
+
+
+
 if(DEFINED IN_SOURCE_BUILD)
   add_dependencies(SvfLLVM intrinsics_gen)
 endif()
