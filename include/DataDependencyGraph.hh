@@ -4,9 +4,6 @@
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "SVF-LLVM/LLVMModule.h"
-#include "SVF-LLVM/SVFIRBuilder.h"
-#include "WPA/Andersen.h"
 
 namespace pdg
 {
@@ -25,9 +22,6 @@ namespace pdg
 
   private:
     llvm::MemoryDependenceResults *_mem_dep_res;
-    SVF::SVFModule *_svf_module;
-    SVF::SVFIR *_pag;
-    SVF::Andersen *_anders;
   };
 } // namespace pdg
 #endif

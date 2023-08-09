@@ -14,7 +14,6 @@ set(CMAKE_CXX_EXTENSIONS ON)
 
 add_compile_options("-fno-rtti")
 add_compile_options("-fno-exceptions")
-# set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS} "-Wl,--no-undefined")
 
 # Treat compiler warnings as errors
 add_compile_options("-Werror" "-Wall")
@@ -26,7 +25,7 @@ if(SVF_ENABLE_ASSERTIONS)
 endif()
 
 # Turn this on if you need symbols (e.g., use them for backtrace debugging)
-add_link_options("-rdynamic")
+# add_link_options("-rdynamic")
 
 option(SVF_COVERAGE "Create coverage build")
 if(SVF_COVERAGE OR DEFINED ENV{SVF_COVERAGE})

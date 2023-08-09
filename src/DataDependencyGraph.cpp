@@ -12,12 +12,7 @@ bool pdg::DataDependencyGraph::runOnModule(Module &M)
     // TODO: add comment
     g.bindDITypeToNodes(M);
   }
-
-  _svf_module = SVF::LLVMModuleSet::buildSVFModule(M);
-  SVF::SVFIRBuilder builder(_svf_module);
-  _pag = builder.build();
-  _anders = SVF::AndersenWaveDiff::createAndersenWaveDiff(_pag);
-
+  
   for (auto &F : M)
   {
     if (F.isDeclaration() || F.empty())
@@ -100,24 +95,29 @@ void pdg::DataDependencyGraph::addRAWEdges(Instruction &inst)
 
 AliasResult pdg::DataDependencyGraph::queryAliasUnderApproximate(Value &v1, Value &v2)
 {
-  auto mset = SVF::LLVMModuleSet::getLLVMModuleSet();
-  auto sv1 = mset->getSVFValue(&v1);
-  auto sv2 = mset->getSVFValue(&v2);
-  if(!sv1 || !sv2)
+  if (!v1.getType()->isPointerTy() || !v2.getType()->isPointerTy())
+    return AliasResult::NoAlias;
+  // check bit cast
+  if (BitCastInst *bci = dyn_cast<BitCastInst>(&v1))
   {
-    errs() << "WARNING: no svf value found for llvm values " << v1 << " and " << v2 << "\n";
-    return AliasResult::MayAlias; 
-  }
-  
-  SVF::AliasResult res = _anders->alias(sv1, sv2);
-  switch (res) 
-  {
-    case SVF::NoAlias:
-      return AliasResult::NoAlias; 
-    case SVF::MustAlias:
+    if (bci->getOperand(0) == &v2)
       return AliasResult::MustAlias;
-    default:
-      return AliasResult::MayAlias;
+  }
+  // handle load instruction
+  if (LoadInst *li = dyn_cast<LoadInst>(&v1))
+  {
+    auto load_addr = li->getPointerOperand();
+    for (auto user : load_addr->users())
+    {
+      if (StoreInst *si = dyn_cast<StoreInst>(user))
+      {
+        if (si->getPointerOperand() == load_addr)
+        {
+          if (si->getValueOperand() == &v2)
+            return AliasResult::MustAlias;
+        }
+      }
+    }
   }
 }
 

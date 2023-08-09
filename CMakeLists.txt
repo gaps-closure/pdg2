@@ -15,17 +15,6 @@ include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-set(SVF_DIR svf)
-set(SVF_BIN svf/Release-build)
-
-include_directories(${SVF_DIR}/svf/include 
-                    ${SVF_DIR}/svf-llvm/include
-                    ${SVF_BIN}/include)
-link_directories(${SVF_BIN}/svf/)
-link_directories(${SVF_BIN}/svf-llvm/)
-link_libraries(SvfCoreShared)
-link_libraries(SvfLLVMShared)
-
 # Use the same C++ standard as LLVM does
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 
