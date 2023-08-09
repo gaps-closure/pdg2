@@ -1,58 +1,89 @@
-cmake_minimum_required(VERSION 3.4.3)
+cmake_minimum_required(VERSION 3.13.4)
 
 project("SVF")
 
-# To support both in- and out-of-source builds,
-# we check for the presence of the add_llvm_loadable_module command.
-# - if this command is not present, we are building out-of-source
-# We need to match the build environment for LLVM:
-# In particular, we need C++14 and the -fno-rtti flag
+configure_file(${PROJECT_SOURCE_DIR}/.config.in
+               ${PROJECT_BINARY_DIR}/include/Util/config.h)
+
+# We need to match the build environment for LLVM: In particular, we need C++14
+# and the -fno-rtti flag
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # add -std=gnu++14
 set(CMAKE_CXX_EXTENSIONS ON)
 
-set(COMMON_FLAGS "-fPIC -Werror")
+add_compile_options("-fno-rtti")
+add_compile_options("-fno-exceptions")
 
-if(CMAKE_BUILD_TYPE MATCHES "Debug")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS} -O0 -fno-rtti")
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_FLAGS} -O0")
-else()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS} -O3 -fno-rtti")
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_FLAGS} -O3")
+# Treat compiler warnings as errors
+add_compile_options("-Werror" "-Wall")
+
+# Keep assertions enabled if requested
+option(SVF_ENABLE_ASSERTIONS "Always enable assertions")
+if(SVF_ENABLE_ASSERTIONS)
+  add_compile_options("-UNDEBUG")
 endif()
 
-find_package(LLVM 10 REQUIRED CONFIG)
+# Turn this on if you need symbols (e.g., use them for backtrace debugging)
+# add_link_options("-rdynamic")
 
-list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
-include(AddLLVM)
-
-add_definitions(${LLVM_DEFINITIONS})
-include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
-link_directories(${LLVM_LIBRARY_DIRS})
-
-if (LLVM_LINK_LLVM_DYLIB)
-	set(llvm_libs LLVM)
-else()
-	llvm_map_components_to_libnames(llvm_libs bitwriter core ipo irreader instcombine instrumentation target linker analysis scalaropts support transformutils)
+option(SVF_COVERAGE "Create coverage build")
+if(SVF_COVERAGE OR DEFINED ENV{SVF_COVERAGE})
+  add_compile_options("-fprofile-arcs" "-ftest-coverage")
+  add_link_options("-fprofile-arcs" "-ftest-coverage")
+  message(STATUS "Enable coverage")
 endif()
 
-set(Z3_DIR $ENV{Z3_DIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include
-	${CMAKE_CURRENT_BINARY_DIR}/include
-	${Z3_DIR}/include/)
+set(SVF_SANITIZE
+    ""
+    CACHE STRING "Create sanitizer build (address)")
+if(SVF_SANITIZE STREQUAL "address")
+  add_compile_options("-fno-omit-frame-pointer" "-fsanitize=address")
+  add_link_options("-fsanitize=address")
+  message(STATUS "Sanitizer build: ${SVF_SANITIZE}")
+elseif(SVF_SANITIZE STREQUAL "thread")
+  add_compile_options("-fsanitize=thread")
+  add_link_options("-fsanitize=thread")
+  message(STATUS "Sanitizer build: ${SVF_SANITIZE}")
+elseif(NOT SVF_SANITIZE STREQUAL "")
+  message(ERROR "Unknown sanitizer type: ${SVF_SANITIZE}")
+endif()
 
-LINK_DIRECTORIES(${Z3_DIR}/bin)
-add_subdirectory(lib)
-add_subdirectory(tools)
+find_library(
+  Z3_LIBRARIES
+  NAMES z3
+  HINTS ${Z3_DIR} ENV Z3_DIR
+  PATH_SUFFIXES bin lib)
+find_path(
+  Z3_INCLUDES
+  NAMES z3++.h
+  HINTS ${Z3_DIR} ENV Z3_DIR
+  PATH_SUFFIXES include z3)
+if(NOT Z3_LIBRARIES OR NOT Z3_INCLUDES)
+  message(FATAL_ERROR "Z3 not found!")
+endif()
+message(STATUS "Found Z3: ${Z3_LIBRARIES}")
+message(STATUS "Z3 include dir: ${Z3_INCLUDES}")
 
-INSTALL(
-	DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ ${CMAKE_CURRENT_BINARY_DIR}/include/ ${Z3_DIR}/include/
-	COMPONENT devel
-	DESTINATION include/svf
-	FILES_MATCHING
-	PATTERN "**/*.h"
-	)
-enable_testing()
-#add_subdirectory(Test-Suite)
-include(CTest)
+include_directories(${PROJECT_SOURCE_DIR}/svf/include
+                    ${PROJECT_BINARY_DIR}/include ${Z3_INCLUDES})
+
+# checks if the test-suite is present, if it is then build bc files and add
+# testing to cmake build
+if(EXISTS "${PROJECT_SOURCE_DIR}/Test-Suite")
+  include_directories(${PROJECT_SOURCE_DIR}/Test-Suite)
+  enable_testing()
+  add_subdirectory(Test-Suite)
+  include(CTest)
+endif()
+
+add_subdirectory(svf)
+add_subdirectory(svf-llvm)
+
+install(
+  DIRECTORY ${PROJECT_SOURCE_DIR}/svf/include/
+            ${PROJECT_SOURCE_DIR}/svf-llvm/include/
+  COMPONENT devel
+  DESTINATION include/svf
+  FILES_MATCHING
+  PATTERN "**/*.h")
