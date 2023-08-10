@@ -498,11 +498,15 @@ void pdg::MiniZincPrinter::exportDebug(std::string filename, pdg::NodeRangesAndI
     else
       valueStr = "No Value";
 
+    std::string anno;
+    if((anno = node->getAnno()) == "None")
+      anno = "";
+
     debug 
       << "Node" << delim 
       << i + 1 << delim 
       << mznNodeName(*nodeMznType(node->getNodeType())) << delim 
-      << 0 << delim  // deprecated; no longer has debugging use   
+      << anno << delim  
       << quote << valueStr << quote << delim
       << hasFn[node->getNodeID()] << delim 
       << delim 
