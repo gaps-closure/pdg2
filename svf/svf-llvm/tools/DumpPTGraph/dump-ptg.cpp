@@ -60,16 +60,18 @@ int main(int argc, char ** argv)
             {
                 nodeDumpFile << inst->getFunction()->getName().str() << delim;
                 nodeDumpFile << instIdxMap[inst] << delim;
-                nodeDumpFile << delim;
-            } else if(auto arg = llvm::dyn_cast<Argument>(llval))
+            } 
+            else if(auto arg = llvm::dyn_cast<Argument>(llval))
             {
                 nodeDumpFile << arg->getParent()->getName().str() << delim;
                 nodeDumpFile << delim;
-                nodeDumpFile << arg->getArgNo() << delim;
-            } else if(auto glob = llvm::dyn_cast<GlobalVariable>(llval))
+                nodeDumpFile << arg->getArgNo();
+            } 
+            else if(auto glob = llvm::dyn_cast<GlobalVariable>(llval))
             {
                 nodeDumpFile << glob->getName().str() << delim << delim; 
-            } else if(auto fn = llvm::dyn_cast<Function>(llval))
+            } 
+            else if(auto fn = llvm::dyn_cast<Function>(llval))
             {
                 nodeDumpFile << fn->getName().str() << delim << delim; 
             } else 
