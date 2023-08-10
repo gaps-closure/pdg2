@@ -589,6 +589,44 @@ void pdg::MiniZincPrinter::exportLineNumbers(std::string filename, pdg::NodeRang
   lineNumbers.close();
 }
 
+void pdg::MiniZincPrinter::exportNodeToLLID(std::string filename, pdg::NodeRangesAndIds nodes, std::map<unsigned int, unsigned int> hasFn)
+{
+  std::ofstream nodeToLLID;
+  nodeToLLID.open(filename);
+  std::string delim = ",";
+  std::string term = "\n";
+  for(size_t i = 0; i < nodes.ordered.size(); i++)
+  {
+    auto node = nodes.ordered[i];
+    nodeToLLID << i << delim; 
+
+    if(hasFn.find(node->getNodeID()) != hasFn.end())
+    {
+      auto fnNode = nodes.ordered[nodes.ids[hasFn[node->getNodeID()]]];
+      if(auto fn = fnNode->getFunc())
+      {
+        if(fn->hasName())
+        {
+          nodeToLLID << fn->getName().str();
+        }
+      }
+
+    }
+    nodeToLLID << delim;
+    if(node->getInstructionIndex() != -1)
+    {
+      nodeToLLID << node->getInstructionIndex();
+    }
+    nodeToLLID << delim;
+    if(node->getParamIdx() != -1)
+    {
+      nodeToLLID << node->getParamIdx();
+    }
+    nodeToLLID << term;
+  }
+  nodeToLLID.close();
+}
+
 bool pdg::MiniZincPrinter::runOnModule(Module &M)
 {
   auto PDG = &ProgramGraph::getInstance();
@@ -620,6 +658,9 @@ bool pdg::MiniZincPrinter::runOnModule(Module &M)
 
   exportLineNumbers("node2lineNumber.txt", nodesById);
   errs() << "exported node2lineNumber.txt\n";
+
+  exportNodeToLLID("pdg_node_to_llid.csv", nodesById, functions);
+  errs() << "exported pdg_node_to_llid.csv\n";
 
   return false;
 }

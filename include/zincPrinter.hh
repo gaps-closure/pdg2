@@ -101,6 +101,7 @@ namespace pdg
     static void exportMznConstraints(std::ofstream &mzn, NodeRangesAndIds nodes);
     static void exportMzn(std::string filename, NodeRangesAndIds nodes, EdgeRangesAndIds edges, std::map<unsigned int, unsigned int> hasFn, size_t maxFnParams);
     static void exportDebug(std::string filename, NodeRangesAndIds nodes, EdgeRangesAndIds edges, std::map<unsigned int, unsigned int> hasFn);
+    static void exportNodeToLLID(std::string filename, NodeRangesAndIds nodes, std::map<unsigned int, unsigned int> hasFn);
     static void exportOneway(std::string filename, NodeRangesAndIds nodes, std::map<unsigned int, bool> fnResultUsed);
     static void exportFnArgs(std::string filename, NodeRangesAndIds nodes);
     static void exportLineNumbers(std::string filename, NodeRangesAndIds nodes);
