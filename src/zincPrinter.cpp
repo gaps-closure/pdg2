@@ -502,13 +502,17 @@ void pdg::MiniZincPrinter::exportDebug(std::string filename, pdg::NodeRangesAndI
     if((anno = node->getAnno()) == "None")
       anno = "";
 
+    size_t fn = 0; 
+    if(hasFn.find(node->getNodeID()) != hasFn.end())
+      fn = nodes.ids[hasFn[node->getNodeID()]] + 1;
+
     debug 
       << "Node" << delim 
       << i + 1 << delim 
       << mznNodeName(*nodeMznType(node->getNodeType())) << delim 
       << anno << delim  
       << quote << valueStr << quote << delim
-      << hasFn[node->getNodeID()] << delim 
+      << fn << delim 
       << delim 
       << delim
       << node->getFileName() << delim 
