@@ -602,7 +602,7 @@ void pdg::MiniZincPrinter::exportNodeToLLID(std::string filename, pdg::NodeRange
   for(size_t i = 0; i < nodes.ordered.size(); i++)
   {
     auto node = nodes.ordered[i];
-    nodeToLLID << i << delim; 
+    nodeToLLID << i + 1 << delim; 
 
     if(hasFn.find(node->getNodeID()) != hasFn.end())
     {
@@ -615,7 +615,15 @@ void pdg::MiniZincPrinter::exportNodeToLLID(std::string filename, pdg::NodeRange
         }
       }
 
+    } else if(auto val = node->getValue())
+    {
+      if(auto glob = llvm::dyn_cast<llvm::GlobalVariable>(val))
+      {
+        if(glob->hasName())
+          nodeToLLID << glob->getName().str();  
+      }
     }
+
     nodeToLLID << delim;
     if(node->getInstructionIndex() != -1)
     {
