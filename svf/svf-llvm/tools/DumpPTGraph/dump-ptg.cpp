@@ -155,6 +155,9 @@ int main(int argc, char ** argv)
                 nodeDumpFile << delim << delim;
             }
 
+        } else
+        {
+            nodeDumpFile << delim << delim;
         }
         nodeDumpFile << term;
     }
