@@ -119,6 +119,7 @@ AliasResult pdg::DataDependencyGraph::queryAliasUnderApproximate(Value &v1, Valu
       }
     }
   }
+  return AliasResult::NoAlias;
 }
 
   void pdg::DataDependencyGraph::getAnalysisUsage(AnalysisUsage & AU) const

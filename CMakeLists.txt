@@ -48,7 +48,13 @@ add_library(pdg MODULE
 
 add_library(pdg_shared STATIC ${SOURCES})
 
+file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/pdg-export CONTENT
+"#!/usr/bin/env bash 
+opt -enable-new-pm=0 -load ${CMAKE_INSTALL_PREFIX}/lib/libpdg.so -minizinc < $@ > /dev/null 
+")
+
 install(TARGETS pdg pdg_shared LIBRARY DESTINATION lib)
+install(FILES ${CMAKE_BINARY_DIR}/pdg-export DESTINATION bin PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
 
 #
 # Turn on C++11, turn off C++ RTTI.

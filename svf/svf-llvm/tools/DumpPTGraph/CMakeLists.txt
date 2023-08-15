@@ -8,3 +8,5 @@ else()
   set_target_properties(dump-ptg PROPERTIES RUNTIME_OUTPUT_DIRECTORY
                                           ${CMAKE_BINARY_DIR}/bin)
 endif()
+
+install(TARGETS dump-ptg DESTINATION bin)
