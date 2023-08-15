@@ -33,6 +33,8 @@
                         name = "pdg2";
                         paths = [ pdg svf ];
                     };
+                    pdg = pdg;
+                    svf = svf;
                 };
                 devShells = {
                     default = with pkgs; pkgs.mkShell {
