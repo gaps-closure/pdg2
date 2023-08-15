@@ -29,11 +29,9 @@
             in
             {
                 packages = {
-                    default = with pkgs; stdenv.mkDerivation {
-                        pname = "pdg2";
-                        inherit version;
-                        src = ./.;
-                        buildInputs = [ pdg svf ];
+                    default = with pkgs; pkgs.buildEnv {
+                        name = "pdg2";
+                        paths = [ pdg svf ];
                     };
                 };
                 devShells = {
