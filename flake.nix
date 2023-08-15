@@ -32,6 +32,7 @@
                     default = with pkgs; stdenv.mkDerivation {
                         pname = "pdg2";
                         inherit version;
+                        src = ./.;
                         buildInputs = [ pdg svf ];
                     };
                 };
