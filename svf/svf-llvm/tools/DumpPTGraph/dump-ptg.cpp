@@ -84,6 +84,52 @@ struct Opts
     }
 };
 
+std::string nodeKindToString(SVF::SVFVar::PNODEK kind)
+{
+    switch (kind) {
+    case SVF::SVFVar::ValNode:
+        return "ValNode";
+    case SVF::SVFVar::ObjNode:
+        return "ObjNode";
+    case SVF::SVFVar::RetNode:
+        return "RetNode";
+    case SVF::SVFVar::VarargNode:
+        return "VarargNode";
+    case SVF::SVFVar::GepValNode:
+        return "GepValNode";
+    case SVF::SVFVar::GepObjNode:
+        return "GepObjNode";
+    case SVF::SVFVar::FIObjNode:
+        return "FIObjNode";
+    case SVF::SVFVar::DummyValNode:
+        return "DummyValNode";
+    case SVF::SVFVar::DummyObjNode:
+        return "DummyObjNode";
+    default:
+        return "Unknown Kind";
+    }
+}
+
+const llvm::Instruction* getReturn(const llvm::Function* f)
+{
+    for(const llvm::BasicBlock& bb : *f)
+    {
+        auto term = bb.getTerminator();
+        if(llvm::isa<llvm::ReturnInst>(term))
+            return term; 
+    }
+    return NULL;
+}
+
+std::string valueToString(const SVF::Value *v)
+{
+    std::string s;
+    llvm::raw_string_ostream os(s);
+    os << *v;
+    return s;
+}
+
+
 
 int main(int argc, char ** argv)
 {
@@ -96,28 +142,29 @@ int main(int argc, char ** argv)
 
     auto mset = LLVMModuleSet::getLLVMModuleSet();
 
+    // Create instruction index map
+    std::map<const llvm::Instruction *, size_t> instIdxMap;
+    for(auto fn : *svfModule)
+    {
+        size_t idx = 0;
+        auto llvm_fn = llvm::dyn_cast<llvm::Function>(mset->getLLVMValue(fn));
+        for(const llvm::BasicBlock& bb : *llvm_fn)
+        {
+            for(const llvm::Instruction& inst : bb)
+            {
+                instIdxMap[&inst] = idx;
+                idx++;
+            }
+        }
+    }
+
+
     /// Build Program Assignment Graph (SVFIR)
     SVFIRBuilder builder(svfModule);
     SVFIR* pag = builder.build();
 
     /// Create pointer analysis
     BVDataPTAImpl *wpa = opts.pointerAnalysis(pag);
-
-    // Create instruction index map
-    std::map<const llvm::Instruction *, size_t> instIdxMap;
-    for(auto fn : *svfModule)
-    {
-        size_t idx = 0;
-        for(auto bb : *fn)
-        {
-            for(auto inst : *bb)
-            {
-                auto llinst = llvm::dyn_cast<llvm::Instruction>(mset->getLLVMValue(inst));
-                instIdxMap[llinst] = idx;
-                idx++;
-            }
-        }
-    }
 
     std::ofstream nodeDumpFile;
     nodeDumpFile.open(opts.nodePath);
@@ -128,10 +175,12 @@ int main(int argc, char ** argv)
         auto id = node.first;
         auto var = node.second;
         nodeDumpFile << id << delim;
+        nodeDumpFile << nodeKindToString((SVF::SVFVar::PNODEK) var->getNodeKind()) << delim;
         nodeDumpFile << (var->isPointer() ? "pointer" : "non-pointer") << delim;
         if(var->hasValue())
         {
             auto llval = mset->getLLVMValue(var->getValue());
+            nodeDumpFile << "'" << valueToString(llval) << "'" << delim;
             if(auto inst = llvm::dyn_cast<Instruction>(llval))
             {
                 nodeDumpFile << inst->getFunction()->getName().str() << delim;
@@ -149,7 +198,16 @@ int main(int argc, char ** argv)
             } 
             else if(auto fn = llvm::dyn_cast<Function>(llval))
             {
-                nodeDumpFile << fn->getName().str() << delim << delim; 
+                if(var->getNodeKind() == SVFVar::RetNode)
+                {
+                    auto ret = getReturn(fn);
+                    if(ret)
+                        nodeDumpFile << fn->getName().str() << delim << instIdxMap[ret] << delim;
+                    else
+                        nodeDumpFile << fn->getName().str() << delim << delim; 
+                }
+                else 
+                    nodeDumpFile << fn->getName().str() << delim << delim; 
             } else 
             {
                 nodeDumpFile << delim << delim;
@@ -157,7 +215,7 @@ int main(int argc, char ** argv)
 
         } else
         {
-            nodeDumpFile << delim << delim;
+            nodeDumpFile << delim << delim << delim;
         }
         nodeDumpFile << term;
     }
