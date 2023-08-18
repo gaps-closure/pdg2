@@ -124,12 +124,11 @@ void pdg::ProgramGraph::build(Module &M)
       GraphNodeType node_type = GraphNodeType::INST_OTHER;
       if (isAnnotationCallInst(*inst_iter))
       {
-        // // errs() << "Inst: " <<  (*inst_iter).getOperand(1)) << "\n";
         
         // auto globalSenStr = cast<GlobalVariable>(cast<Instruction>((*inst_iter).getOperand(1))->getOperand(1));
         // auto anno = cast<ConstantDataArray>(globalSenStr->getOperand(0))->getAsCString();
 
-        ConstantExpr *ce = cast<ConstantExpr>((*inst_iter).getOperand(1));
+        auto ce = dyn_cast<llvm::Instruction>((*inst_iter).getOperand(1));
         if (ce) 
         {
           if (ce->getOpcode() == Instruction::GetElementPtr) 
