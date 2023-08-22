@@ -99,6 +99,18 @@ namespace pdg
           globalVar->getDebugInfo(GVs);
           llvm::DIGlobalVariableExpression* dbgExpr =  GVs[0];
           llvm::DIGlobalVariable* dbgGV =  dbgExpr->getVariable();
+          auto scope = dbgGV->getScope();
+          auto fnName = scope->getName();
+          auto M = globalVar->getParent();
+          for(auto& F : *M)
+          {
+            if(F.getName() == fnName) 
+            {
+              _func = &F; 
+              break;
+            }
+          }
+
           std::string directory = dbgGV->getDirectory().str();
           std::string filePath = dbgGV->getFilename().str();
           _line_number = dbgGV->getLine();
