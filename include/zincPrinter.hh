@@ -49,6 +49,7 @@ namespace pdg
     DataDepEdge_RAW,
     DataDepEdge_Ret,
     DataDepEdge_Alias,
+    DataDepEdge_Callee,
     DataDepEdge,
     Parameter_In,
     Parameter_Out,

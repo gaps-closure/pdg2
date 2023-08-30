@@ -24,6 +24,8 @@ bool pdg::DataDependencyGraph::runOnModule(Module &M)
       addDefUseEdges(*inst_iter);
       addRAWEdges(*inst_iter);
       addAliasEdges(*inst_iter);
+      if(auto call_inst = dyn_cast<llvm::CallInst>(&*inst_iter))
+        addCalleeEdge(*call_inst);
     }
   }
   return false;
@@ -122,11 +124,22 @@ AliasResult pdg::DataDependencyGraph::queryAliasUnderApproximate(Value &v1, Valu
   return AliasResult::NoAlias;
 }
 
-  void pdg::DataDependencyGraph::getAnalysisUsage(AnalysisUsage & AU) const
-  {
-    AU.addRequired<MemoryDependenceWrapperPass>();
-    AU.setPreservesAll();
-  }
 
-  static RegisterPass<pdg::DataDependencyGraph>
-      DDG("ddg", "Data Dependency Graph Construction", false, true);
+void pdg::DataDependencyGraph::addCalleeEdge(llvm::CallInst &inst)
+{
+  ProgramGraph& g = ProgramGraph::getInstance(); 
+  Node* src = g.getNode(inst);
+  Node* dst = g.getNode(*inst.getCalledOperand());
+  if(!src || !dst)
+    return;
+  src->addNeighbor(*dst, EdgeType::DATA_CALLEE);
+}
+
+void pdg::DataDependencyGraph::getAnalysisUsage(AnalysisUsage & AU) const
+{
+  AU.addRequired<MemoryDependenceWrapperPass>();
+  AU.setPreservesAll();
+}
+
+static RegisterPass<pdg::DataDependencyGraph>
+    DDG("ddg", "Data Dependency Graph Construction", false, true);
