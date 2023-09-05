@@ -73,11 +73,18 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
 
 void pdg::ProgramDependencyGraph::connectGlobalWithUses()
 {
+
   for (auto &global_var : _module->getGlobalList())
   {
     Node* n = _PDG->getNode(global_var);
     if (n == nullptr)
       continue;
+
+    // auto ce = global_var.getInitializer();
+    // if(ce)
+    // {
+      // errs() << ce
+    // }
 
     for (auto user : global_var.users())
     {
@@ -195,7 +202,13 @@ void pdg::ProgramDependencyGraph::connectCallerIndirect(llvm::CallInst &ci)
     auto potentialCallee = _PDG->getNode(func);
     if(potentialCallee)
     {
-      if(isFuncSignatureMatch(ci, func) && !func.users().empty())
+      auto hasUse = false; 
+      for(auto user : func.users())
+      {
+        if(_PDG->hasNode(*user))
+          hasUse = true;
+      }
+      if(isFuncSignatureMatch(ci, func) && hasUse)
       {
         callSiteNode->addNeighbor(*potentialCallee, EdgeType::IND_CALL);
       }
