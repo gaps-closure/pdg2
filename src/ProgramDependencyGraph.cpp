@@ -246,7 +246,7 @@ void pdg::ProgramDependencyGraph::connectCallerIndirect(llvm::CallInst &ci)
             Node *src = _PDG->getNode(*ret);
             if (src == nullptr)
               continue;
-            src->addNeighbor(*potentialCallee, EdgeType::CONTROLDEP_INDIRECT_RET);
+            src->addNeighbor(*potentialCallee, EdgeType::DATA_INDIRECT_RET);
           }
         }
       }
