@@ -369,6 +369,8 @@ std::string pdg::pdgutils::getEdgeTypeStr(EdgeType edge_type)
     return "Parameter_Out";
   case EdgeType::PARAMETER_FIELD:
     return "Parameter_Field";
+  case EdgeType::PARAMETER_INDIRECT_IN:
+    return "Parameter_Indirect_In";
   case EdgeType::GLOBAL_DEP:
     return "GLOBAL_DEP";
   // case EdgeType::VAL_DEP:

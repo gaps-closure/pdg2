@@ -54,6 +54,7 @@ namespace pdg
     Parameter_In,
     Parameter_Out,
     Parameter_Field,
+    Parameter_Indirect_In,
     Parameter,
     Anno_Global,
     Anno_Var,

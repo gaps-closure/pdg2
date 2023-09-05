@@ -211,6 +211,17 @@ void pdg::ProgramDependencyGraph::connectCallerIndirect(llvm::CallInst &ci)
       if(isFuncSignatureMatch(ci, func) && hasUse)
       {
         callSiteNode->addNeighbor(*potentialCallee, EdgeType::IND_CALL);
+        auto fw = getFuncWrapper(func);
+        size_t i = 0;
+        for(auto& arg : ci.args())
+        {
+          if(auto argNode = _PDG->getNode(*arg.get()))
+          if(auto calleeParam = fw->getArgList()[i])
+          if(auto calleeTree = fw->getArgFormalInTree(*calleeParam))
+          if(auto calleeRootNode = calleeTree->getRootNode())
+            argNode->addNeighbor(*calleeRootNode, EdgeType::PARAMETER_INDIRECT_IN);
+          i++;
+        }
       }
     }
   }
