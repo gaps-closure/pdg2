@@ -202,9 +202,15 @@ void pdg::ProgramDependencyGraph::argPassEdges(CallWrapper& cw, EdgeType in_edge
     auto root_in = in_tree->getRootNode();
     auto root_out = out_tree->getRootNode();
     auto arg_node = _PDG->getNode(*arg);
-    arg_node->addNeighbor(*root_in, in_edge);
-    arg_node->addNeighbor(*root_out, out_edge);
-     
+    if(arg_node)
+    {
+      arg_node->addNeighbor(*root_in, in_edge);
+      arg_node->addNeighbor(*root_out, out_edge);
+    } else
+    {
+      errs() << "WARNING: No node found for argument: " << *arg << "\n";
+    }
+    
   }
 }
 
@@ -255,6 +261,8 @@ void pdg::ProgramDependencyGraph::connectCallerIndirect(llvm::CallInst &ci)
 
 void pdg::ProgramDependencyGraph::connectCallerAndCallee(CallWrapper &cw, FunctionWrapper &fw)
 {
+
+  argPassEdges(cw, EdgeType::DATA_ARGPASS_IN, EdgeType::DATA_ARGPASS_OUT);
 
   // step 1: connect call site node with the entry node of function
   auto call_site_node = _PDG->getNode(*cw.getCallInst());
@@ -324,7 +332,6 @@ void pdg::ProgramDependencyGraph::connectCallerAndCallee(CallWrapper &cw, Functi
     connectInTrees(ret_actual_out_tree, ret_formal_out_tree, EdgeType::PARAMETER_OUT);
   }
 
-  // argPassEdges(cw, EdgeType::DATA_ARGPASS_IN, EdgeType::DATA_ARGPASS_OUT);
 }
 
 // ===== connect dependencies =====
