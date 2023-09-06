@@ -285,7 +285,6 @@ void pdg::ProgramDependencyGraph::connectCallerAndCallee(CallWrapper &cw, Functi
     src->addNeighbor(*dst, EdgeType::DATA_RET);
   }
 
-  argPassEdges(cw, EdgeType::DATA_ARGPASS_IN, EdgeType::DATA_ARGPASS_OUT);
 
   // step 2: connect actual in -> formal in, formal out -> actual out
   auto actual_arg_list = cw.getArgList();
@@ -325,7 +324,7 @@ void pdg::ProgramDependencyGraph::connectCallerAndCallee(CallWrapper &cw, Functi
     connectInTrees(ret_actual_out_tree, ret_formal_out_tree, EdgeType::PARAMETER_OUT);
   }
 
-  
+  // argPassEdges(cw, EdgeType::DATA_ARGPASS_IN, EdgeType::DATA_ARGPASS_OUT);
 }
 
 // ===== connect dependencies =====
