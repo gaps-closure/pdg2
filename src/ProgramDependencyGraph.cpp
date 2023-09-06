@@ -192,7 +192,21 @@ bool pdg::ProgramDependencyGraph::isTypeEqual(llvm::Type& t1, llvm::Type &t2)
   return (t1_name == t2_name);
 }
 
-
+void pdg::ProgramDependencyGraph::argPassEdges(CallWrapper& cw, EdgeType in_edge, EdgeType out_edge)
+{
+  auto& ci = *cw.getCallInst();
+  for(auto arg : cw.getArgList())
+  {
+    auto in_tree = cw.getArgActualInTree(*arg);
+    auto out_tree = cw.getArgActualOutTree(*arg);
+    auto root_in = in_tree->getRootNode();
+    auto root_out = out_tree->getRootNode();
+    auto arg_node = _PDG->getNode(*arg);
+    arg_node->addNeighbor(*root_in, in_edge);
+    arg_node->addNeighbor(*root_out, out_edge);
+     
+  }
+}
 
 void pdg::ProgramDependencyGraph::connectCallerIndirect(llvm::CallInst &ci)
 {
@@ -216,31 +230,16 @@ void pdg::ProgramDependencyGraph::connectCallerIndirect(llvm::CallInst &ci)
           CallWrapper cw(ci);
           cw.buildActualTreeForArgs(*fw);
           cw.buildActualTreesForRetVal(*fw);
+          argPassEdges(cw, EdgeType::DATA_ARGPASS_INDIRECT_IN, EdgeType::DATA_ARGPASS_INDIRECT_OUT);
 
-
-
-
-          auto actual_arg_list = cw.getArgList();
-          auto formal_arg_list = fw->getArgList();
-          if(!(actual_arg_list.size() == formal_arg_list.size())) 
+          for(auto arg : cw.getArgList())
           {
-            errs() << "cannot connect tree edges due to inequal arg num! " << *callSiteNode->getValue() << "\n";
-            return;
+            auto root_in = cw.getArgActualInTree(*arg)->getRootNode();
+            auto root_out = cw.getArgActualOutTree(*arg)->getRootNode();
+            _PDG->addNode(*root_in);
+            _PDG->addNode(*root_out);
           }
-          int num_arg = cw.getArgList().size();
-          for (int i = 0; i < num_arg; i++)
-          {
-            Value *actual_arg = actual_arg_list[i];
-            Argument *formal_arg =  formal_arg_list[i];
-            // step 2: connect actual in -> formal in
-            auto actual_in_tree = cw.getArgActualInTree(*actual_arg);
-            auto formal_in_tree = fw->getArgFormalInTree(*formal_arg);
-            if (actual_in_tree == nullptr || formal_in_tree == nullptr)
-              continue;
-            _PDG->addTreeNodesToGraph(*actual_in_tree);
-            connectInTrees(actual_in_tree, formal_in_tree, EdgeType::PARAMETER_IN);
-            connectActualTreeWithAddrVars(*actual_in_tree, ci, EdgeType::PARAMETER_INDIRECT_IN);
-          }
+
           for(auto ret : fw->getReturnInsts())
           {
             Node *src = _PDG->getNode(*ret);
@@ -256,6 +255,7 @@ void pdg::ProgramDependencyGraph::connectCallerIndirect(llvm::CallInst &ci)
 
 void pdg::ProgramDependencyGraph::connectCallerAndCallee(CallWrapper &cw, FunctionWrapper &fw)
 {
+
   // step 1: connect call site node with the entry node of function
   auto call_site_node = _PDG->getNode(*cw.getCallInst());
   auto func_entry_node = fw.getEntryNode();
@@ -284,6 +284,8 @@ void pdg::ProgramDependencyGraph::connectCallerAndCallee(CallWrapper &cw, Functi
       continue;
     src->addNeighbor(*dst, EdgeType::DATA_RET);
   }
+
+  argPassEdges(cw, EdgeType::DATA_ARGPASS_IN, EdgeType::DATA_ARGPASS_OUT);
 
   // step 2: connect actual in -> formal in, formal out -> actual out
   auto actual_arg_list = cw.getArgList();
@@ -380,16 +382,16 @@ void pdg::ProgramDependencyGraph::connectInterprocDependencies(Function &F)
         Tree* actual_out_tree = call_w->getArgActualOutTree(*arg);
         call_site_node->addNeighbor(*actual_in_tree->getRootNode(), EdgeType::PARAMETER_IN);
         call_site_node->addNeighbor(*actual_out_tree->getRootNode(), EdgeType::PARAMETER_OUT);
-        connectActualTreeWithAddrVars(*actual_in_tree, *call_inst, EdgeType::PARAMETER_IN);
-        connectActualTreeWithAddrVars(*actual_out_tree, *call_inst, EdgeType::PARAMETER_OUT);
+        connectActualTreeWithAddrVars(*actual_in_tree, *call_inst, EdgeType::PARAMETER_IN, true);
+        connectActualTreeWithAddrVars(*actual_out_tree, *call_inst, EdgeType::PARAMETER_OUT, false);
       }
       // connect return trees
       // TODO: should change the name here. for return value, we should only connect
       // the tree node with vars after the call instruction
       if (!call_w->hasNullRetVal())
       {
-        connectActualTreeWithAddrVars(*call_w->getRetActualInTree(), *call_inst, EdgeType::PARAMETER_IN);
-        connectActualTreeWithAddrVars(*call_w->getRetActualOutTree(), *call_inst, EdgeType::PARAMETER_OUT);
+        connectActualTreeWithAddrVars(*call_w->getRetActualInTree(), *call_inst, EdgeType::PARAMETER_IN, true);
+        connectActualTreeWithAddrVars(*call_w->getRetActualOutTree(), *call_inst, EdgeType::PARAMETER_OUT, false);
       }
       if(call_w->getCalledFunc() != nullptr) 
       {
@@ -472,10 +474,10 @@ void pdg::ProgramDependencyGraph::connectFormalOutTreeWithAddrVars(Tree &formal_
   }
 }
 
-void pdg::ProgramDependencyGraph::connectActualTreeWithAddrVars(Tree &actual_in_tree, CallInst &ci, EdgeType type)
+void pdg::ProgramDependencyGraph::connectActualTreeWithAddrVars(Tree &actual_in_tree, CallInst &ci, EdgeType type, bool use_before_only)
 {
   TreeNode *root_node = actual_in_tree.getRootNode();
-  std::set<Instruction*> insts_before_ci = pdgutils::getInstructionBeforeInst(ci);
+  std::set<Instruction*> insts_before_after_ci = pdgutils::getInstructionBeforeInst(ci);
   std::queue<TreeNode *> node_queue;
   node_queue.push(root_node);
   while (!node_queue.empty())
@@ -485,10 +487,13 @@ void pdg::ProgramDependencyGraph::connectActualTreeWithAddrVars(Tree &actual_in_
     for (auto addr_var : current_node->getAddrVars())
     {
       // only connect addr_var that are pred to the call site
-      if (Instruction *i = dyn_cast<Instruction>(addr_var))
+      if(use_before_only)
       {
-        if (insts_before_ci.find(i) == insts_before_ci.end())
-          continue;
+        if (Instruction *i = dyn_cast<Instruction>(addr_var))
+        {
+          if (insts_before_after_ci.find(i) == insts_before_after_ci.end())
+            continue;
+        }
       }
       if (!_PDG->hasNode(*addr_var))
         continue;

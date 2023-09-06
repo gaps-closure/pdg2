@@ -27,12 +27,13 @@ namespace pdg
       void connectInTrees(Tree *src_tree, Tree *dst_tree, EdgeType edge_type);
       void connectOutTrees(Tree *src_tree, Tree *dst_tree, EdgeType edge_type);
       void connectCallerIndirect(llvm::CallInst &ci);
+      void argPassEdges(CallWrapper& cw, EdgeType in_edge, EdgeType out_edge);
       void connectCallerAndCallee(CallWrapper &cw, FunctionWrapper &fw);
       void connectIntraprocDependencies(llvm::Function &F);
       void connectInterprocDependencies(llvm::Function &F);
       void connectFormalInTreeWithAddrVars(Tree &formal_in_tree);
       void connectFormalOutTreeWithAddrVars(Tree &formal_out_tree);
-      void connectActualTreeWithAddrVars(Tree &actual_in_tree, llvm::CallInst &ci, EdgeType type);
+      void connectActualTreeWithAddrVars(Tree &actual_in_tree, llvm::CallInst &ci, EdgeType type, bool use_before_only);
       bool canReach(Node &src, Node &dst);
       bool canReach(Node &src, Node &dst, std::set<EdgeType> exclude_edge_types);
 
