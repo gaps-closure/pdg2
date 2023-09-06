@@ -205,7 +205,7 @@ void pdg::ProgramDependencyGraph::argPassEdges(CallWrapper& cw, EdgeType in_edge
     if(arg_node)
     {
       arg_node->addNeighbor(*root_in, in_edge);
-      arg_node->addNeighbor(*root_out, out_edge);
+      root_out->addNeighbor(*arg_node, out_edge);
     } else
     {
       errs() << "WARNING: No node found for argument: " << *arg << "\n";
