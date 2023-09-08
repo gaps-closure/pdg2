@@ -24,6 +24,7 @@ namespace pdg
       bool isFuncSignatureMatch(llvm::CallInst &ci, llvm::Function &f);
 
       void connectGlobalWithUses();
+      void populateInitializerMap();
       void connectInTrees(Tree *src_tree, Tree *dst_tree, EdgeType edge_type);
       void connectOutTrees(Tree *src_tree, Tree *dst_tree, EdgeType edge_type);
       void connectCallerIndirect(llvm::CallInst &ci);
@@ -40,6 +41,7 @@ namespace pdg
     private:
       llvm::Module *_module;
       ProgramGraph *_PDG;
+      std::map<llvm::Value *, llvm::GlobalVariable *> initializer_map;
   };
 }
 #endif

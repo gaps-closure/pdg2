@@ -47,7 +47,7 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
     _PDG->build(M);
     _PDG->bindDITypeToNodes(M);
   }
-
+  populateInitializerMap();
   unsigned func_size = 0;
   connectGlobalWithUses();
   for (auto &F : M)
@@ -71,6 +71,17 @@ bool pdg::ProgramDependencyGraph::runOnModule(Module &M)
   return false;
 }
 
+void pdg::ProgramDependencyGraph::populateInitializerMap()
+{
+  for(auto &global_var : _module->getGlobalList())
+  {
+    if(global_var.hasInitializer())
+    {
+      initializer_map.insert(std::pair<llvm::Constant*, llvm::GlobalVariable*>(global_var.getInitializer(), &global_var));
+    }
+  }
+}
+
 void pdg::ProgramDependencyGraph::connectGlobalWithUses()
 {
 
@@ -80,18 +91,25 @@ void pdg::ProgramDependencyGraph::connectGlobalWithUses()
     if (n == nullptr)
       continue;
 
-    // auto ce = global_var.getInitializer();
-    // if(ce)
-    // {
-      // errs() << ce
-    // }
 
     for (auto user : global_var.users())
     {
       Node* user_node = _PDG->getNode(*user);
       if (user_node == nullptr)
-        continue;
-      n->addNeighbor(*user_node, EdgeType::DATA_DEF_USE);
+      {
+        if(initializer_map.find(user) != initializer_map.end())
+        {
+          auto other_global = initializer_map[user];
+          if(auto other_node = _PDG->getNode(*other_global))
+          {
+            other_node->addNeighbor(*n, EdgeType::DATA_GLOBAL_DEF_USE);
+          }
+        }
+      } 
+      else 
+      {
+        n->addNeighbor(*user_node, EdgeType::DATA_DEF_USE);
+      }
     }
   }
 }

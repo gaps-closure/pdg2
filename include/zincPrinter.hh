@@ -46,6 +46,7 @@ namespace pdg
     ControlDep_Other,
     ControlDep,
     DataDepEdge_DefUse,
+    DataDepEdge_GlobalDefUse,
     DataDepEdge_RAW,
     DataDepEdge_Ret,
     DataDepEdge_Indirect_Ret,
