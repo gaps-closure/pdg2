@@ -84,6 +84,10 @@ install(
   DIRECTORY ${PROJECT_SOURCE_DIR}/svf/include/
             ${PROJECT_SOURCE_DIR}/svf-llvm/include/
   COMPONENT devel
-  DESTINATION include/svf
+  # Changed from include/svf to svf/include so that ExtApi.json can be found under $SVF_DIR 
+  DESTINATION svf/include
   FILES_MATCHING
-  PATTERN "**/*.h")
+  PATTERN "**/*.h"
+  PATTERN "**/*.json"
+  )
+

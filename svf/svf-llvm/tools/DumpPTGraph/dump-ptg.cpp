@@ -183,34 +183,45 @@ int main(int argc, char ** argv)
             nodeDumpFile << "'" << valueToString(llval) << "'" << delim;
             if(auto inst = llvm::dyn_cast<Instruction>(llval))
             {
+                nodeDumpFile << delim;
                 nodeDumpFile << inst->getFunction()->getName().str() << delim;
                 nodeDumpFile << instIdxMap[inst] << delim;
             } 
             else if(auto arg = llvm::dyn_cast<Argument>(llval))
             {
+                nodeDumpFile << delim;
                 nodeDumpFile << arg->getParent()->getName().str() << delim;
                 nodeDumpFile << delim;
                 nodeDumpFile << arg->getArgNo();
             } 
-            else if(auto glob = llvm::dyn_cast<GlobalVariable>(llval))
+            else if(auto glob_val = llvm::dyn_cast<GlobalValue>(llval))
             {
-                nodeDumpFile << glob->getName().str() << delim << delim; 
-            } 
-            else if(auto fn = llvm::dyn_cast<Function>(llval))
-            {
-                if(var->getNodeKind() == SVFVar::RetNode)
+                if(glob_val->isDeclaration())
+                    nodeDumpFile << "declaration" << delim;
+                else
+                    nodeDumpFile << "definition" << delim;
+
+                if(auto glob = llvm::dyn_cast<GlobalVariable>(llval))
                 {
-                    auto ret = getReturn(fn);
-                    if(ret)
-                        nodeDumpFile << fn->getName().str() << delim << instIdxMap[ret] << delim;
-                    else
+                    nodeDumpFile << glob->getName().str() << delim << delim; 
+                } 
+                else if(auto fn = llvm::dyn_cast<Function>(llval))
+                {
+                    if(var->getNodeKind() == SVFVar::RetNode)
+                    {
+                        auto ret = getReturn(fn);
+                        if(ret)
+                            nodeDumpFile << fn->getName().str() << delim << instIdxMap[ret] << delim;
+                        else
+                            nodeDumpFile << fn->getName().str() << delim << delim; 
+                    }
+                    else 
                         nodeDumpFile << fn->getName().str() << delim << delim; 
                 }
-                else 
-                    nodeDumpFile << fn->getName().str() << delim << delim; 
-            } else 
+            }
+            else 
             {
-                nodeDumpFile << delim << delim;
+                nodeDumpFile << delim << delim << delim;
             }
 
         } else

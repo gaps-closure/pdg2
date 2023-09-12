@@ -20,7 +20,7 @@
                     src = ./.;
                     buildInputs = [ cmake llvmPackages_14.llvm ]; 
                 };
-                svf  = with pkgs; stdenv.mkDerivation {
+                svf = with pkgs; stdenv.mkDerivation {
                     pname = "svf";
                     inherit version;
                     src = ./svf;
@@ -38,10 +38,11 @@
                 };
                 devShells = {
                     default = with pkgs; pkgs.mkShell {
-                        packages = [ llvmPackages_14.llvm pdg svf ];
+                        packages = [ llvmPackages_14.llvm pdg svf nodejs ];
                         shellHook = ''
                             export PDG=${pdg.out};
                             export SVF=${svf.out};
+                            export SVF_DIR=${svf.out};
                         '';
                     };
                 };
