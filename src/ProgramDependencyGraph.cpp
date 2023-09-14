@@ -423,7 +423,7 @@ void pdg::ProgramDependencyGraph::connectInterprocDependencies(Function &F)
         connectCallerAndCallee(*call_w, *called_func_w);
       } 
     }
-    else
+    else if(call_inst->isIndirectCall())
     {
       connectCallerIndirect(*call_inst);
     }
