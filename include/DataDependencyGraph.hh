@@ -3,6 +3,7 @@
 #include "Graph.hh"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/MemoryLocation.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 
 namespace pdg
 {
@@ -17,6 +18,7 @@ namespace pdg
     void addDefUseEdges(llvm::Instruction &inst);
     void addRAWEdges(llvm::Instruction &inst);
     void addAliasEdges(llvm::Instruction &inst);
+    void addCalleeEdge(llvm::CallInst &inst);
     llvm::AliasResult queryAliasUnderApproximate(llvm::Value &v1, llvm::Value &v2);
 
   private:

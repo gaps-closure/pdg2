@@ -44,6 +44,7 @@ namespace pdg
     bool canReach(pdg::Node &src, pdg::Node &dst);
     bool canReach(pdg::Node &src, pdg::Node &dst, std::set<EdgeType> exclude_edge_types);
     ValueNodeMap &getValueNodeMap() { return _val_node_map; }
+    EdgeSet getEdgeSet() { return _edge_set; };
     void dumpGraph();
 
   protected:

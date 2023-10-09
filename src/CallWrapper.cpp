@@ -22,10 +22,11 @@ void pdg::CallWrapper::buildActualTreeForArgs(FunctionWrapper &callee_fw)
       break;
     // build actual in tree, copying the formal_in tree structure at the moment
     Tree* arg_actual_in_tree = new Tree(*arg_formal_in_tree);
+
+    // arg_actual_in_tree->getRootNode()->setFunc(*_call_inst->getFunction());
     arg_actual_in_tree->setBaseVal(**actual_arg_iter);
     arg_actual_in_tree->setTreeNodeType(GraphNodeType::PARAM_ACTUALIN);
     TreeNode* actual_in_root_node = arg_actual_in_tree->getRootNode();
-    // errs() << **formal_arg_iter  << "\n";
     Argument* arg = cast<Argument>(*formal_arg_iter);
     actual_in_root_node->setParamIdx(arg->getArgNo());
     actual_in_root_node->addAddrVar(**actual_arg_iter);

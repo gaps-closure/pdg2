@@ -4,35 +4,48 @@
     # Nixpkgs / NixOS version to use.
     inputs.nixpkgs.url = "nixpkgs";
 
-    outputs = { self, nixpkgs }:
-        let
-            # Generate a user-friendly version number.
-            version = builtins.substring 0 8 self.lastModifiedDate;
+    # Flake utils
+    inputs.flake-utils.url = "github:numtide/flake-utils";
 
-            # System types to support.
-            supportedSystems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
+    outputs = { self, nixpkgs, flake-utils }:
+        flake-utils.lib.eachDefaultSystem
+        (system:
 
-            # Helper function to generate an attrset '{ x86_64-linux = f "x86_64-linux"; ... }'.
-            forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-
-            # Nixpkgs instantiated for supported system types.
-            nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
-        in
-        {
-            packages = forAllSystems (system: 
-                let 
-                    pkgs = nixpkgsFor.${system};
-                    deps = with pkgs; [ cmake llvmPackages_10.llvm ];
-                in
-                {
-                    # Build pdg derivation using cmake as default package
-                    default = with pkgs; stdenv.mkDerivation {
-                        pname = "pdg";
-                        inherit version;
-                        src = ./.;
-                        buildInputs = deps; 
+            let pkgs = nixpkgs.legacyPackages.${system}; 
+                version = "3.0.0";
+                deps = with pkgs; [ cmake llvmPackages_14.llvm ];
+                pdg  = with pkgs; stdenv.mkDerivation {
+                    pname = "pdg";
+                    inherit version;
+                    src = ./.;
+                    buildInputs = [ cmake llvmPackages_14.llvm ]; 
+                };
+                svf = with pkgs; stdenv.mkDerivation {
+                    pname = "svf";
+                    inherit version;
+                    src = ./svf;
+                    buildInputs = [ cmake llvmPackages_14.llvm z3 ];
+                };
+            in
+            {
+                packages = {
+                    default = with pkgs; pkgs.buildEnv {
+                        name = "pdg2";
+                        paths = [ pdg svf ];
                     };
-                }
-            );
-        };
+                    pdg = pdg;
+                    svf = svf;
+                };
+                devShells = {
+                    default = with pkgs; pkgs.mkShell {
+                        packages = [ llvmPackages_14.llvm pdg svf nodejs ];
+                        shellHook = ''
+                            export PDG=${pdg.out};
+                            export SVF=${svf.out};
+                            export SVF_DIR=${svf.out};
+                        '';
+                    };
+                };
+            }
+        );
 }

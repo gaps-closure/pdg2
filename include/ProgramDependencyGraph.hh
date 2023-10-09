@@ -19,22 +19,29 @@ namespace pdg
       llvm::StringRef getPassName() const override { return "Program Dependency Graph"; }
       FunctionWrapper *getFuncWrapper(llvm::Function &F) { return _PDG->getFuncWrapperMap()[&F]; }
       CallWrapper *getCallWrapper(llvm::CallInst &call_inst) { return _PDG->getCallWrapperMap()[&call_inst]; }
+
+      bool isTypeEqual(llvm::Type& t1, llvm::Type &t2);
+      bool isFuncSignatureMatch(llvm::CallInst &ci, llvm::Function &f);
+
       void connectGlobalWithUses();
+      void populateInitializerMap();
       void connectInTrees(Tree *src_tree, Tree *dst_tree, EdgeType edge_type);
       void connectOutTrees(Tree *src_tree, Tree *dst_tree, EdgeType edge_type);
+      void connectCallerIndirect(llvm::CallInst &ci);
+      void argPassEdges(CallWrapper& cw, EdgeType in_edge, EdgeType out_edge);
       void connectCallerAndCallee(CallWrapper &cw, FunctionWrapper &fw);
       void connectIntraprocDependencies(llvm::Function &F);
       void connectInterprocDependencies(llvm::Function &F);
       void connectFormalInTreeWithAddrVars(Tree &formal_in_tree);
       void connectFormalOutTreeWithAddrVars(Tree &formal_out_tree);
-      void connectActualInTreeWithAddrVars(Tree &actual_in_tree, llvm::CallInst &ci);
-      void connectActualOutTreeWithAddrVars(Tree &actual_out_tree, llvm::CallInst &ci);
+      void connectActualTreeWithAddrVars(Tree &actual_in_tree, llvm::CallInst &ci, EdgeType type, bool use_before_only);
       bool canReach(Node &src, Node &dst);
       bool canReach(Node &src, Node &dst, std::set<EdgeType> exclude_edge_types);
 
     private:
       llvm::Module *_module;
       ProgramGraph *_PDG;
+      std::map<llvm::Value *, llvm::GlobalVariable *> initializer_map;
   };
 }
 #endif

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.4.3)
 project(pdg)
-find_package(LLVM 10 REQUIRED CONFIG)
+find_package(LLVM 14 REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LT_LLVM_INSTALL_DIR}")
 
@@ -16,7 +16,7 @@ link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 # Use the same C++ standard as LLVM does
-set(CMAKE_CXX_STANDARD 14 CACHE STRING "")
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 
 # Build type
 if (NOT CMAKE_BUILD_TYPE)
@@ -31,7 +31,7 @@ endif()
 
 # Compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall\
-    -fdiagnostics-color=always -Wno-everything")
+    -fdiagnostics-color=always -Wno-unused-variable")
 
 
 include_directories("include")
@@ -48,7 +48,13 @@ add_library(pdg MODULE
 
 add_library(pdg_shared STATIC ${SOURCES})
 
+file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/pdg-export CONTENT
+"#!/usr/bin/env bash 
+opt -enable-new-pm=0 -load ${CMAKE_INSTALL_PREFIX}/lib/libpdg.so -minizinc < $@ > /dev/null 
+")
+
 install(TARGETS pdg pdg_shared LIBRARY DESTINATION lib)
+install(FILES ${CMAKE_BINARY_DIR}/pdg-export DESTINATION bin PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
 
 #
 # Turn on C++11, turn off C++ RTTI.

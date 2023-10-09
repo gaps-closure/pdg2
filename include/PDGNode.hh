@@ -66,8 +66,8 @@ namespace pdg
         const llvm::DebugLoc &debugInfo = instruction->getDebugLoc();
         // llvm:: errs() << "debug: " << debugInfo << "\n";
         if(debugInfo) {
-          std::string directory = debugInfo->getDirectory();
-          std::string filePath = debugInfo->getFilename();
+          std::string directory = debugInfo->getDirectory().str();
+          std::string filePath = debugInfo->getFilename().str();
           _file_name = directory + "/" + filePath;
           _line_number = debugInfo->getLine();
           _col_number = debugInfo->getColumn();
@@ -82,8 +82,8 @@ namespace pdg
           {
             // llvm::DebugLoc Loc(Dbg);
             // auto *scope = llvm::cast<llvm::DIScope>(Loc->getScope());
-            std::string directory = debugInfo->getDirectory();
-            std::string filePath = debugInfo->getFilename();
+            std::string directory = debugInfo->getDirectory().str();
+            std::string filePath = debugInfo->getFilename().str();
             // filename = Loc.getDirectory().str() + "/" + Loc.getFilename().str();
             _line_number = debugInfo->getLine();
             _file_name = directory + "/" + filePath;
@@ -99,8 +99,20 @@ namespace pdg
           globalVar->getDebugInfo(GVs);
           llvm::DIGlobalVariableExpression* dbgExpr =  GVs[0];
           llvm::DIGlobalVariable* dbgGV =  dbgExpr->getVariable();
-          std::string directory = dbgGV->getDirectory();
-          std::string filePath = dbgGV->getFilename();
+          auto scope = dbgGV->getScope();
+          auto fnName = scope->getName();
+          auto M = globalVar->getParent();
+          for(auto& F : *M)
+          {
+            if(F.getName() == fnName) 
+            {
+              _func = &F; 
+              break;
+            }
+          }
+
+          std::string directory = dbgGV->getDirectory().str();
+          std::string filePath = dbgGV->getFilename().str();
           _line_number = dbgGV->getLine();
           _file_name = directory + "/" + filePath;
 

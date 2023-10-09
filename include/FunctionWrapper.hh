@@ -1,5 +1,6 @@
 #ifndef FUNCTIONWRAPPER_H_
 #define FUNCTIONWRAPPER_H_
+#include <map>
 #include "LLVMEssentials.hh"
 #include "Tree.hh"
 #include "PDGUtils.hh"

@@ -361,6 +361,8 @@ std::string pdg::pdgutils::getEdgeTypeStr(EdgeType edge_type)
     return "DataDepEdge_Alias";
   case EdgeType::DATA_RET:
     return "DataDepEdge_Ret";
+  case EdgeType::DATA_CALLEE:
+    return "DataDepEdge_Callee";
   case EdgeType::PARAMETER_IN:
     return "Parameter_In";
   case EdgeType::PARAMETER_OUT:
@@ -377,6 +379,8 @@ std::string pdg::pdgutils::getEdgeTypeStr(EdgeType edge_type)
     return "Anno_Global";
   case EdgeType::ANNO_OTHER:
     return "Anno_Other";
+  case EdgeType::IND_CALL:
+    return "Ind_Call";
   case EdgeType::TYPE_OTHEREDGE:
     return "ControlDep_Other";
   default:
