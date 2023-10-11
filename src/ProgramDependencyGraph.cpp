@@ -217,9 +217,17 @@ void pdg::ProgramDependencyGraph::argPassEdges(CallWrapper& cw, EdgeType in_edge
   {
     auto in_tree = cw.getArgActualInTree(*arg);
     auto out_tree = cw.getArgActualOutTree(*arg);
-    auto root_in = in_tree->getRootNode();
-    auto root_out = out_tree->getRootNode();
+
+    TreeNode* root_in = nullptr;
+    TreeNode* root_out = nullptr;
+
+    if(in_tree)
+      root_in = in_tree->getRootNode();
+    if(out_tree)
+      root_out = out_tree->getRootNode();
+
     auto arg_node = _PDG->getNode(*arg);
+
     if(arg_node && root_in && root_out)
     {
       arg_node->addNeighbor(*root_in, in_edge);
