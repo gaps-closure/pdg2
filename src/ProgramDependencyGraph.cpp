@@ -266,10 +266,21 @@ void pdg::ProgramDependencyGraph::connectCallerIndirect(llvm::CallInst &ci)
 
           for(auto arg : cw.getArgList())
           {
-            auto root_in = cw.getArgActualInTree(*arg)->getRootNode();
-            auto root_out = cw.getArgActualOutTree(*arg)->getRootNode();
-            _PDG->addNode(*root_in);
-            _PDG->addNode(*root_out);
+            auto in_tree = cw.getArgActualInTree(*arg);
+            auto out_tree = cw.getArgActualOutTree(*arg);
+            TreeNode* root_in = nullptr;
+            TreeNode* root_out = nullptr;
+            if(in_tree)
+              auto root_in = in_tree->getRootNode();
+            if(out_tree)
+              auto root_out = out_tree->getRootNode();
+            if(root_in)
+              _PDG->addNode(*root_in);
+            if(root_out)
+              _PDG->addNode(*root_out);
+
+            if(!(root_in && root_out))
+              errs() << "WARNING: Could not connect indirect argpass edges" << "\n";
           }
 
           for(auto ret : fw->getReturnInsts())
