@@ -625,6 +625,8 @@ void pdg::MiniZincPrinter::exportNodeToLLID(std::string filename, pdg::NodeRange
     auto node = nodes.ordered[i];
     nodeToLLID << i + 1 << delim; 
 
+    bool delimAdded = false;
+
     auto val = node->getValue();
     llvm::GlobalVariable* glob;
     if(val)
@@ -639,24 +641,30 @@ void pdg::MiniZincPrinter::exportNodeToLLID(std::string filename, pdg::NodeRange
       auto fnNode = nodes.ordered[nodes.ids[hasFn[node->getNodeID()]]];
       if(auto fn = fnNode->getFunc())
       {
-        if(fn->hasName())
+        if(fn->hasName()) 
         {
-          nodeToLLID << fn->getName().str();
-        }
-      }
+          auto fnName = fn->getName().str();
+          if(node->getInstructionIndex() != -1)
+          {
+            nodeToLLID << fnName << delim << node->getInstructionIndex() << delim;
+            delimAdded = true;
+          } 
+          else if(node->getParamIdx() != -1)
+          {
+            nodeToLLID << fnName << delim << delim << node->getParamIdx();
+            delimAdded = true;
+          } 
+          else if(node->getNodeType() == GraphNodeType::FUNC_ENTRY)
+          {
+            nodeToLLID << fnName << delim << delim;
+            delimAdded = true;
+          }
+        } 
+      } 
+    }
+    if(!delimAdded)
+      nodeToLLID << delim << delim;
 
-    }
-
-    nodeToLLID << delim;
-    if(node->getInstructionIndex() != -1)
-    {
-      nodeToLLID << node->getInstructionIndex();
-    }
-    nodeToLLID << delim;
-    if(node->getParamIdx() != -1)
-    {
-      nodeToLLID << node->getParamIdx();
-    }
     nodeToLLID << term;
   }
   nodeToLLID.close();
