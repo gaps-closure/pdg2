@@ -271,9 +271,9 @@ void pdg::ProgramDependencyGraph::connectCallerIndirect(llvm::CallInst &ci)
             TreeNode* root_in = nullptr;
             TreeNode* root_out = nullptr;
             if(in_tree)
-              auto root_in = in_tree->getRootNode();
+              root_in = in_tree->getRootNode();
             if(out_tree)
-              auto root_out = out_tree->getRootNode();
+              root_out = out_tree->getRootNode();
             if(root_in)
               _PDG->addNode(*root_in);
             if(root_out)
